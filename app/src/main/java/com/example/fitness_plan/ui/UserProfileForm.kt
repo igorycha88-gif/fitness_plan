@@ -12,12 +12,13 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.text.input.KeyboardType
 import com.example.fitness_plan.data.UserProfile
 
-@OptIn(ExperimentalMaterial3Api::class) // Нужен для ExposedDropdownMenuBox
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun UserProfileForm(
-    onProfileSaved: (UserProfile) -> Unit
+    viewModel: UserProfileViewModel, // ДОБАВЛЕНО: Принимаем ViewModel как параметр
+    onProfileSaved: () -> Unit // ИЗМЕНЕНО: Теперь просто сигнализируем о завершении, без передачи данных
 ) {
-    var goal by remember { mutableStateOf<String?>(null) } // Используем nullable для отслеживания выбора
+    var goal by remember { mutableStateOf<String?>(null) }
     var level by remember { mutableStateOf<String?>(null) }
     var frequency by remember { mutableStateOf<String?>(null) }
     var weight by remember { mutableStateOf("") }
@@ -29,7 +30,6 @@ fun UserProfileForm(
     val frequencies = listOf("1 раз в неделю", "3 раза в неделю", "5 раз в неделю")
     val genders = listOf("Мужской", "Женский")
 
-    // Проверка валидности теперь учитывает nullable состояния
     val isValid = goal != null && level != null && frequency != null &&
             weight.isNotEmpty() && height.isNotEmpty() && gender != null
 
@@ -53,7 +53,6 @@ fun UserProfileForm(
                 modifier = Modifier.padding(bottom = 24.dp)
             )
 
-            // Цель тренировок (Выпадающий список)
             DropdownField(
                 label = "Цель тренировок",
                 options = goals,
@@ -62,7 +61,6 @@ fun UserProfileForm(
             )
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Уровень подготовки (Выпадающий список)
             DropdownField(
                 label = "Уровень подготовки",
                 options = levels,
@@ -71,7 +69,6 @@ fun UserProfileForm(
             )
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Частота тренировок (Выпадающий список)
             DropdownField(
                 label = "Частота тренировок",
                 options = frequencies,
@@ -80,39 +77,26 @@ fun UserProfileForm(
             )
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Вес (Текстовое поле остается)
             OutlinedTextField(
                 value = weight,
                 onValueChange = { weight = it },
                 label = { Text("Вес (кг)") },
                 isError = weight.isNotEmpty() && (weightDouble == null || weightDouble <= 0),
-                supportingText = {
-                    if (weight.isNotEmpty() && (weightDouble == null || weightDouble <= 0)) {
-                        Text("Введите положительное число", color = MaterialTheme.colorScheme.error)
-                    }
-                },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                 modifier = Modifier.fillMaxWidth()
             )
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Рост (Текстовое поле остается)
             OutlinedTextField(
                 value = height,
                 onValueChange = { height = it },
                 label = { Text("Рост (см)") },
                 isError = height.isNotEmpty() && (heightDouble == null || heightDouble <= 0),
-                supportingText = {
-                    if (height.isNotEmpty() && (heightDouble == null || heightDouble <= 0)) {
-                        Text("Введите положительное число", color = MaterialTheme.colorScheme.error)
-                    }
-                },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                 modifier = Modifier.fillMaxWidth()
             )
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Пол (Выпадающий список)
             DropdownField(
                 label = "Пол",
                 options = genders,
@@ -125,7 +109,6 @@ fun UserProfileForm(
 
             Button(
                 onClick = {
-                    // Используем оператор !! для nullable типов, т.к. isValid гарантирует, что они не null
                     if (isValid && isNumericValid) {
                         val profile = UserProfile(
                             goal = goal!!,
@@ -135,7 +118,9 @@ fun UserProfileForm(
                             height = heightDouble!!,
                             gender = gender!!
                         )
-                        onProfileSaved(profile)
+                        // ИСПОЛЬЗУЕМ VIEWMODEL для сохранения данных
+                        viewModel.saveUserProfile(profile)
+                        onProfileSaved()
                     }
                 },
                 enabled = isValid && isNumericValid,
@@ -147,7 +132,7 @@ fun UserProfileForm(
     }
 }
 
-// Отдельная переиспользуемая Composable-функция для выпадающего списка
+// Отдельная переиспользуемая Composable-функция для выпадающего списка остается без изменений
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DropdownField(

@@ -1,23 +1,24 @@
+
 package com.example.fitness_plan
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.hilt.navigation.compose.hiltViewModel
-import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-import com.example.fitness_plan.data.UserRepository
-import com.example.fitness_plan.ui.HomeScreen
-// import com.example.fitness_plan.ui.UserProfile // Эту строку удаляем
-import com.example.fitness_plan.ui.UserProfileForm // <-- ЭТУ СТРОКУ ДОБАВЛЯЕМ
+// Импорты UI пакета
+import com.example.fitness_plan.ui.MainScreen
+import com.example.fitness_plan.ui.UserProfileForm
 import com.example.fitness_plan.ui.UserProfileViewModel
 import com.example.fitness_plan.ui.WelcomeScreen
 import com.example.fitness_plan.ui.theme.Fitness_planTheme
@@ -36,37 +37,56 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun FitnessApp() {
     Fitness_planTheme {
+        val userProfileViewModel: UserProfileViewModel = hiltViewModel()
+
+        // Используем State для отслеживания готовности данных
+        val isProfileChecked by userProfileViewModel.isProfileChecked.collectAsState()
+        val currentPlan by userProfileViewModel.currentWorkoutPlan.collectAsState()
+
         Surface(
             modifier = Modifier.fillMaxSize(),
             color = MaterialTheme.colorScheme.background
         ) {
-            val navController = rememberNavController()
-            val context = LocalContext.current
-            val userRepository = remember { UserRepository(context) }
-            val userProfileViewModel = remember { UserProfileViewModel(userRepository) }
+            // Ждем, пока ViewModel проверит состояние
+            if (isProfileChecked == null || currentPlan == null) {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator()
+                }
+            } else {
+                val mainNavController = rememberNavController()
+                val startDest = if (isProfileChecked == true && currentPlan != null) "main_tabs" else "welcome"
 
-            NavHost(
-                navController = navController,
-                startDestination = "welcome"
-            ) {
-                composable("welcome") {
-                    WelcomeScreen(
-                        onGetStartedClick = { navController.navigate("profile_form") },
-                        onLoginClick = { /* TODO */ }
-                    )
-                }
-                composable("profile_form") {
-                    UserProfileForm(
-                        onProfileSaved = { profile ->
-                            userProfileViewModel.saveUserProfile(profile)
-                            navController.navigate("home") {
-                                popUpTo("welcome") { inclusive = true }
+                NavHost(
+                    navController = mainNavController,
+                    startDestination = startDest
+                ) {
+                    // ИСПРАВЛЕНИЕ ЗДЕСЬ (Строка 64 находилась в этом блоке в старом коде)
+                    composable(route = "welcome") {
+                        WelcomeScreen(
+                            onGetStartedClick = {
+                                // Переход к форме профиля при нажатии "Начать"
+                                mainNavController.navigate(route = "profile_form")
+                            },
+                            onLoginClick = {
+                                // Здесь должна быть логика перехода на экран входа (login_screen), если он есть
+                                // mainNavController.navigate(route = "login_screen")
                             }
-                        }
-                    )
-                }
-                composable("home") {
-                    HomeScreen()
+                        )
+                    }
+
+                    composable("profile_form") {
+                        UserProfileForm(
+                            viewModel = userProfileViewModel,
+                            onProfileSaved = {
+                                mainNavController.navigate("main_tabs") {
+                                    popUpTo("welcome") { inclusive = true }
+                                }
+                            }
+                        )
+                    }
+                    composable("main_tabs") {
+                        MainScreen(mainNavController)
+                    }
                 }
             }
         }
