@@ -4,6 +4,4 @@ import android.app.Application
 import dagger.hilt.android.HiltAndroidApp
 
 @HiltAndroidApp
-class FitnessPlanApplication : Application() {
-    // Здесь пока ничего не нужно
-}
+class FitnessPlanApplication : Application()

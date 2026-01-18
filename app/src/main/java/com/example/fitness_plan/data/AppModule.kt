@@ -18,4 +18,40 @@ object AppModule {
         // Hilt автоматически предоставляет контекст приложения
         return UserRepository(context)
     }
+
+    @Provides
+    @Singleton
+    fun provideWeightRepository(@ApplicationContext context: Context): WeightRepository {
+        return WeightRepository(context)
+    }
+
+    @Provides
+    @Singleton
+    fun provideExerciseStatsRepository(@ApplicationContext context: Context): ExerciseStatsRepository {
+        return ExerciseStatsRepository(context)
+    }
+
+    @Provides
+    @Singleton
+    fun provideCredentialsRepository(@ApplicationContext context: Context): CredentialsRepository {
+        return CredentialsRepository(context)
+    }
+
+    @Provides
+    @Singleton
+    fun provideExerciseCompletionRepository(@ApplicationContext context: Context): ExerciseCompletionRepository {
+        return ExerciseCompletionRepository(context)
+    }
+
+    @Provides
+    @Singleton
+    fun provideWorkoutScheduleRepository(@ApplicationContext context: Context): WorkoutScheduleRepository {
+        return WorkoutScheduleRepository(context)
+    }
+
+    @Provides
+    @Singleton
+    fun provideNotificationRepository(@ApplicationContext context: Context): NotificationRepository {
+        return NotificationRepository(context)
+    }
 }
