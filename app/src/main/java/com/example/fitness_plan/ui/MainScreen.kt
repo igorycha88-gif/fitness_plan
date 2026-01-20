@@ -52,15 +52,15 @@ fun MainScreen(
 
     // Специальные отступы для Samsung Fold
     val navBarBottomPadding = if (isSamsungFold) {
-        if (isFoldedMode) 120.dp else 100.dp
+        if (isFoldedMode) 80.dp else 60.dp  // Уменьшенный отступ
     } else {
-        100.dp
+        60.dp  // Уменьшенный отступ для обычных устройств
     }
 
     val contentBottomPadding = if (isSamsungFold) {
-        if (isFoldedMode) 130.dp else 110.dp
+        if (isFoldedMode) 100.dp else 80.dp  // Уменьшенный отступ
     } else {
-        100.dp
+        80.dp  // Уменьшенный отступ для обычных устройств
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
