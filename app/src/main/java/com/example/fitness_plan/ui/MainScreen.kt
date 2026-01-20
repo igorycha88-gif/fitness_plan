@@ -1,5 +1,6 @@
 package com.example.fitness_plan.ui
 
+import android.os.Build
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.material.icons.Icons
@@ -11,6 +12,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavHostController
@@ -41,6 +43,26 @@ fun MainScreen(
     val navBackStackEntry = bottomNavController.currentBackStackEntryAsState().value
     val currentDestination = navBackStackEntry?.destination
 
+    // Специальная логика для Samsung устройств (особенно Fold)
+    val isSamsungFold = Build.MANUFACTURER.contains("samsung", ignoreCase = true) &&
+                       Build.MODEL.contains("fold", ignoreCase = true)
+
+    val configuration = LocalConfiguration.current
+    val isFoldedMode = configuration.screenWidthDp < 600
+
+    // Специальные отступы для Samsung Fold
+    val navBarBottomPadding = if (isSamsungFold) {
+        if (isFoldedMode) 120.dp else 100.dp
+    } else {
+        100.dp
+    }
+
+    val contentBottomPadding = if (isSamsungFold) {
+        if (isFoldedMode) 130.dp else 110.dp
+    } else {
+        100.dp
+    }
+
     Box(modifier = Modifier.fillMaxSize()) {
         // Основной контент
         NavHost(
@@ -49,7 +71,7 @@ fun MainScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .windowInsetsPadding(WindowInsets.systemBars.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal))
-                .padding(bottom = 100.dp) // Увеличенный отступ для NavigationBar
+                .padding(bottom = contentBottomPadding) // Адаптивный отступ для NavigationBar
         ) {
             composable(Screen.Home.route) {
                 HomeScreen(onExerciseClick = onExerciseClick)
@@ -76,7 +98,7 @@ fun MainScreen(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom))
-                .padding(bottom = 8.dp) // Дополнительный отступ для безопасности
+                .padding(bottom = navBarBottomPadding) // Специальный отступ для Samsung Fold
         ) {
             items.forEach { screen ->
                 NavigationBarItem(
