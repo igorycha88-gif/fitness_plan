@@ -82,5 +82,6 @@ dependencies {
     debugImplementation("androidx.compose.ui:ui-test-manifest")
 
     implementation("androidx.multidex:multidex:2.0.1")
+    implementation("androidx.security:security-crypto:1.1.0-alpha06")
     implementation("com.patrykandpatrick.vico:compose-m3:2.0.0-beta.2")
 }

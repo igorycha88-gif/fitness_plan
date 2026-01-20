@@ -3,6 +3,8 @@ package com.example.fitness_plan.security
 import android.content.Context
 import android.content.SharedPreferences
 import android.util.Log
+import androidx.security.crypto.EncryptedSharedPreferences
+import androidx.security.crypto.MasterKey
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -22,29 +24,46 @@ object SecurityModule {
     @Provides
     @Singleton
     fun provideEncryptedPrefs(@ApplicationContext context: Context): SharedPreferences {
-        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        return try {
+            // Create or get existing MasterKey for encryption/decryption
+            val masterKey = MasterKey.Builder(context)
+                .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
+                .build()
 
-        // Check all keys in prefs
-        val allKeys = try {
-            prefs.all?.keys?.joinToString(", ") ?: "empty"
+            // Create EncryptedSharedPreferences
+            EncryptedSharedPreferences.create(
+                context,
+                PREFS_NAME,
+                masterKey,
+                EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+                EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
+            ).also { prefs ->
+                Log.d(TAG, "=== EncryptedSharedPreferences created successfully ===")
+                Log.d(TAG, "File: $PREFS_NAME")
+
+                // Check all keys in encrypted prefs
+                val allKeys = try {
+                    prefs.all?.keys?.joinToString(", ") ?: "empty"
+                } catch (e: Exception) {
+                    "error: ${e.message}"
+                }
+
+                val hasUsername = prefs.contains("credentials_username")
+                val hasPassword = prefs.contains("credentials_hashed_password")
+                val hasMasterPassword = prefs.contains("master_password")
+
+                val username = prefs.getString("credentials_username", "null")
+                val password = prefs.getString("credentials_hashed_password", "null")
+
+                Log.d(TAG, "All keys: $allKeys")
+                Log.d(TAG, "hasUsername=$hasUsername, hasPassword=$hasPassword, hasMasterPassword=$hasMasterPassword")
+                Log.d(TAG, "username=$username, password=${password?.take(8) ?: "null"}...")
+            }
         } catch (e: Exception) {
-            "error: ${e.message}"
+            Log.e(TAG, "Failed to create EncryptedSharedPreferences, falling back to regular SharedPreferences", e)
+            // Fallback to regular SharedPreferences if encryption fails
+            context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         }
-
-        val hasUsername = prefs.contains("credentials_username")
-        val hasPassword = prefs.contains("credentials_hashed_password")
-        val hasMasterPassword = prefs.contains("master_password")
-        
-        val username = prefs.getString("credentials_username", "null")
-        val password = prefs.getString("credentials_hashed_password", "null")
-
-        Log.d(TAG, "=== SharedPreferences Info ===")
-        Log.d(TAG, "File: $PREFS_NAME")
-        Log.d(TAG, "All keys: $allKeys")
-        Log.d(TAG, "hasUsername=$hasUsername, hasPassword=$hasPassword, hasMasterPassword=$hasMasterPassword")
-        Log.d(TAG, "username=$username, password=${password?.take(8) ?: "null"}...")
-
-        return prefs
     }
 
     @Provides
