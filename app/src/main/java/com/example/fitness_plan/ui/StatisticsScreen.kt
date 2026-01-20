@@ -28,6 +28,8 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.fitness_plan.domain.model.ExerciseStats
 import com.example.fitness_plan.domain.model.WeightEntry
+import com.example.fitness_plan.presentation.viewmodel.StatisticsViewModel
+import com.example.fitness_plan.presentation.viewmodel.TimeFilter
 import com.example.fitness_plan.ui.theme.*
 import java.text.SimpleDateFormat
 import java.util.*

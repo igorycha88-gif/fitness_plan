@@ -21,11 +21,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
-import androidx.compose.foundation.layout.WindowInsetsSides
 import com.example.fitness_plan.domain.model.Exercise
 import com.example.fitness_plan.domain.model.ExerciseStats
 import com.example.fitness_plan.domain.model.WorkoutDay
 import com.example.fitness_plan.domain.model.WorkoutPlan
+import com.example.fitness_plan.presentation.viewmodel.WorkoutViewModel
 import com.example.fitness_plan.ui.theme.SuccessGreen
 import java.text.SimpleDateFormat
 import java.util.*

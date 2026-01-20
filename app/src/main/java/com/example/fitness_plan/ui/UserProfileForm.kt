@@ -21,6 +21,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.gestures.detectTapGestures
 import com.example.fitness_plan.domain.model.UserProfile
+import com.example.fitness_plan.presentation.viewmodel.ProfileViewModel
 import java.text.SimpleDateFormat
 import java.util.*
 

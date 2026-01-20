@@ -27,6 +27,8 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.fitness_plan.domain.model.Exercise
+import com.example.fitness_plan.presentation.viewmodel.ProfileViewModel
+import com.example.fitness_plan.presentation.viewmodel.WorkoutViewModel
 
 sealed class Screen(val route: String, val label: String, val icon: ImageVector) {
     object Home : Screen("home", "Главная", Icons.Default.Home)

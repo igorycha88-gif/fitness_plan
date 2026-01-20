@@ -1,4 +1,4 @@
-package com.example.fitness_plan.ui
+package com.example.fitness_plan.presentation.viewmodel
 
 import android.util.Log
 import androidx.lifecycle.ViewModel

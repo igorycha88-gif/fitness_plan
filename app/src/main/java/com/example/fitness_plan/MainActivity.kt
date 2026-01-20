@@ -21,11 +21,11 @@ import androidx.navigation.compose.rememberNavController
 import com.example.fitness_plan.ui.ExerciseDetailScreen
 import com.example.fitness_plan.ui.LoginScreen
 import com.example.fitness_plan.ui.MainScreen
-import com.example.fitness_plan.ui.ProfileViewModel
+import com.example.fitness_plan.presentation.viewmodel.ProfileViewModel
+import com.example.fitness_plan.presentation.viewmodel.WorkoutViewModel
 import com.example.fitness_plan.ui.RegisterScreen
 import com.example.fitness_plan.ui.UserProfileForm
 import com.example.fitness_plan.ui.WelcomeScreen
-import com.example.fitness_plan.ui.WorkoutViewModel
 import com.example.fitness_plan.ui.theme.Fitness_planTheme
 import dagger.hilt.android.AndroidEntryPoint
 import java.net.URLEncoder

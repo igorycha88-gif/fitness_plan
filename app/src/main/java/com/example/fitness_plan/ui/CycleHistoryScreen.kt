@@ -16,6 +16,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
+import com.example.fitness_plan.presentation.viewmodel.WorkoutViewModel
 import com.example.fitness_plan.domain.model.Cycle
 import com.example.fitness_plan.domain.model.CycleHistoryEntry
 import java.text.SimpleDateFormat

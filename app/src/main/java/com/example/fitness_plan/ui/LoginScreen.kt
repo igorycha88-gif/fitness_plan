@@ -24,6 +24,7 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.example.fitness_plan.presentation.viewmodel.ProfileViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 

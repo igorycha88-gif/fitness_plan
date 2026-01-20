@@ -14,6 +14,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.example.fitness_plan.domain.model.Exercise
 import com.example.fitness_plan.domain.model.WorkoutPlan
+import com.example.fitness_plan.presentation.viewmodel.WorkoutViewModel
 import com.example.fitness_plan.ui.theme.SuccessGreen
 import kotlinx.coroutines.delay
 import java.net.URLDecoder
