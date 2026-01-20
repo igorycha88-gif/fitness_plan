@@ -20,6 +20,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.layout.WindowInsetsSides
 import com.example.fitness_plan.domain.model.UserProfile
 import com.example.fitness_plan.presentation.viewmodel.ProfileViewModel
 import java.text.SimpleDateFormat
@@ -88,6 +89,7 @@ fun UserProfileForm(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(16.dp)
+                .windowInsetsPadding(WindowInsets.systemBars.only(WindowInsetsSides.Top))
                 .verticalScroll(scrollState),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
