@@ -10,6 +10,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.example.fitness_plan.domain.model.Exercise
 import com.example.fitness_plan.domain.model.WorkoutPlan
@@ -89,7 +90,7 @@ fun ExerciseDetailScreen(
             TopAppBar(
                 title = {},
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface
+                    containerColor = Color.Transparent
                 ),
                 navigationIcon = {
                     IconButton(onClick = onBackClick) {

@@ -33,9 +33,9 @@ fun CycleHistoryScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("История циклов") },
+                title = {},
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface
+                    containerColor = Color.Transparent
                 ),
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {

@@ -5,6 +5,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.ui.unit.Dp
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -65,7 +66,7 @@ fun HomeScreen(
             TopAppBar(
                 title = {},
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface
+                    containerColor = Color.Transparent
                 ),
                 actions = {
                     IconButton(onClick = { }) {
@@ -84,6 +85,7 @@ fun HomeScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(paddingValues)
+                    .padding(top = WindowInsets.statusBars.asPaddingValues().calculateTopPadding())
             ) {
                 CircularProgressIndicator()
                 Text(
@@ -105,7 +107,7 @@ fun HomeScreen(
                     onDateChange = { dayIndex, date ->
                         viewModel.updateWorkoutDayDate(dayIndex, date)
                     },
-                    modifier = Modifier.padding(paddingValues)
+                    modifier = Modifier.padding(paddingValues).padding(top = WindowInsets.statusBars.asPaddingValues().calculateTopPadding())
                 )
             } else {
                 PlanDetailsScreen(
@@ -120,7 +122,7 @@ fun HomeScreen(
                     onDateChange = { dayIndex, date ->
                         viewModel.updateWorkoutDayDate(dayIndex, date)
                     },
-                    modifier = Modifier.padding(paddingValues)
+                    modifier = Modifier.padding(paddingValues).padding(top = WindowInsets.statusBars.asPaddingValues().calculateTopPadding())
                 )
             }
         }
