@@ -25,7 +25,6 @@ import com.example.fitness_plan.presentation.viewmodel.ProfileViewModel
 import com.example.fitness_plan.presentation.viewmodel.WorkoutViewModel
 import com.example.fitness_plan.ui.RegisterScreen
 import com.example.fitness_plan.ui.UserProfileForm
-import com.example.fitness_plan.ui.WelcomeScreen
 import com.example.fitness_plan.ui.theme.Fitness_planTheme
 import dagger.hilt.android.AndroidEntryPoint
 import java.net.URLEncoder
@@ -56,12 +55,12 @@ class MainActivity : ComponentActivity() {
                                 Log.d(TAG, "User is logged in: ${credentials.username}")
                                 startDestination = "main_tabs"
                             } else {
-                                Log.d(TAG, "No user logged in, showing welcome screen")
-                                startDestination = "welcome"
+                                Log.d(TAG, "No user logged in, showing login screen")
+                                startDestination = "login_screen"
                             }
                         } catch (e: Exception) {
                             Log.e(TAG, "Error checking credentials", e)
-                            startDestination = "welcome"
+                            startDestination = "login_screen"
                         }
                     }
 
@@ -70,12 +69,6 @@ class MainActivity : ComponentActivity() {
                             navController = navController,
                             startDestination = start
                         ) {
-                            composable("welcome") {
-                                WelcomeScreen(
-                                    onGetStartedClick = { navController.navigate("login_screen") }
-                                )
-                            }
-
                             composable("login_screen") {
                                 LoginScreen(
                                     onLoginSuccess = {
