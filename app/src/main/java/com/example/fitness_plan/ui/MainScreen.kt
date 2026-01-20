@@ -1,6 +1,7 @@
 package com.example.fitness_plan.ui
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Home
@@ -48,7 +49,7 @@ fun MainScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .windowInsetsPadding(WindowInsets.systemBars.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal))
-                .padding(bottom = 80.dp) // Отступ для NavigationBar
+                .padding(bottom = 100.dp) // Увеличенный отступ для NavigationBar
         ) {
             composable(Screen.Home.route) {
                 HomeScreen(onExerciseClick = onExerciseClick)
@@ -74,7 +75,8 @@ fun MainScreen(
         NavigationBar(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
-                .windowInsetsPadding(WindowInsets.navigationBars) // Отступ от системных кнопок
+                .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom))
+                .padding(bottom = 8.dp) // Дополнительный отступ для безопасности
         ) {
             items.forEach { screen ->
                 NavigationBarItem(
