@@ -3,6 +3,7 @@ package com.example.fitness_plan.ui
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountCircle
@@ -41,9 +42,7 @@ fun MainScreen(
 
     Scaffold(
         bottomBar = {
-            NavigationBar(
-                modifier = Modifier.windowInsetsPadding(WindowInsets.navigationBars)
-            ) {
+            NavigationBar {
                 val navBackStackEntry = bottomNavController.currentBackStackEntryAsState().value
                 val currentDestination = navBackStackEntry?.destination
 
@@ -67,7 +66,9 @@ fun MainScreen(
         NavHost(
             navController = bottomNavController,
             startDestination = Screen.Home.route,
-            modifier = Modifier.padding(innerPadding)
+            modifier = Modifier
+                .padding(innerPadding)
+                .windowInsetsPadding(WindowInsets.statusBars)
         ) {
             composable(Screen.Home.route) {
                 HomeScreen(onExerciseClick = onExerciseClick)

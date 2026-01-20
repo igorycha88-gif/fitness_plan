@@ -85,7 +85,6 @@ fun HomeScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(paddingValues)
-                    .padding(top = WindowInsets.statusBars.asPaddingValues().calculateTopPadding())
             ) {
                 CircularProgressIndicator()
                 Text(
@@ -107,7 +106,7 @@ fun HomeScreen(
                     onDateChange = { dayIndex, date ->
                         viewModel.updateWorkoutDayDate(dayIndex, date)
                     },
-                    modifier = Modifier.padding(paddingValues).padding(top = WindowInsets.statusBars.asPaddingValues().calculateTopPadding())
+                    modifier = Modifier.padding(paddingValues)
                 )
             } else {
                 PlanDetailsScreen(
@@ -122,7 +121,7 @@ fun HomeScreen(
                     onDateChange = { dayIndex, date ->
                         viewModel.updateWorkoutDayDate(dayIndex, date)
                     },
-                    modifier = Modifier.padding(paddingValues).padding(top = WindowInsets.statusBars.asPaddingValues().calculateTopPadding())
+                    modifier = Modifier.padding(paddingValues)
                 )
             }
         }
