@@ -1,22 +1,14 @@
 package com.example.fitness_plan.ui
 
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.WindowInsetsSides
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBars
-import androidx.compose.foundation.layout.only
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.statusBars
-import androidx.compose.foundation.layout.systemBars
-import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.List
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavDestination.Companion.hierarchy
@@ -45,40 +37,18 @@ fun MainScreen(
     onExerciseClick: (Exercise) -> Unit = {}
 ) {
     val bottomNavController = rememberNavController()
+    val navBackStackEntry = bottomNavController.currentBackStackEntryAsState().value
+    val currentDestination = navBackStackEntry?.destination
 
-    Scaffold(
-        containerColor = Color.Transparent,
-        bottomBar = {
-            NavigationBar(
-                modifier = Modifier.height(80.dp)
-            ) {
-                val navBackStackEntry = bottomNavController.currentBackStackEntryAsState().value
-                val currentDestination = navBackStackEntry?.destination
-
-                items.forEach { screen ->
-                    NavigationBarItem(
-                        icon = { Icon(screen.icon, contentDescription = null) },
-                        label = { Text(screen.label) },
-                        selected = currentDestination?.hierarchy?.any { navDestination -> navDestination.route == screen.route } == true,
-                        onClick = {
-                            bottomNavController.navigate(screen.route) {
-                                popUpTo(bottomNavController.graph.startDestinationId) { saveState = true }
-                                launchSingleTop = true
-                                restoreState = true
-                            }
-                        }
-                    )
-                }
-            }
-        }
-    ) { innerPadding ->
+    Box(modifier = Modifier.fillMaxSize()) {
+        // Основной контент
         NavHost(
             navController = bottomNavController,
             startDestination = Screen.Home.route,
             modifier = Modifier
-                .padding(innerPadding)
+                .fillMaxSize()
                 .windowInsetsPadding(WindowInsets.systemBars.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal))
-                .padding(bottom = 80.dp) // Фиксированный padding для NavigationBar
+                .padding(bottom = 80.dp) // Отступ для NavigationBar
         ) {
             composable(Screen.Home.route) {
                 HomeScreen(onExerciseClick = onExerciseClick)
@@ -97,6 +67,28 @@ fun MainScreen(
             }
             composable(Screen.CycleHistory.route) {
                 CycleHistoryScreen(navController = mainNavController)
+            }
+        }
+
+        // NavigationBar внизу экрана с отступом от системных кнопок
+        NavigationBar(
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .windowInsetsPadding(WindowInsets.navigationBars) // Отступ от системных кнопок
+        ) {
+            items.forEach { screen ->
+                NavigationBarItem(
+                    icon = { Icon(screen.icon, contentDescription = null) },
+                    label = { Text(screen.label) },
+                    selected = currentDestination?.hierarchy?.any { navDestination -> navDestination.route == screen.route } == true,
+                    onClick = {
+                        bottomNavController.navigate(screen.route) {
+                            popUpTo(bottomNavController.graph.startDestinationId) { saveState = true }
+                            launchSingleTop = true
+                            restoreState = true
+                        }
+                    }
+                )
             }
         }
     }
