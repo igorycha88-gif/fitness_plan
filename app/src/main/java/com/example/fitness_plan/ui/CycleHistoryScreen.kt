@@ -31,26 +31,34 @@ fun CycleHistoryScreen(
     val cycleHistory by viewModel.cycleHistory.collectAsState()
     val currentCycle by viewModel.currentCycle.collectAsState()
 
+    // Расчет адаптивных размеров для CycleHistoryScreen
+    val screenInsets = calculateScreenInsets()
+
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = {},
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color.Transparent
-                ),
-                navigationIcon = {
+            // Адаптивная верхняя область
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(screenInsets.topInset) // Адаптивная высота
+                    .windowInsetsPadding(WindowInsets.statusBars)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxSize(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
                     IconButton(onClick = { navController.popBackStack() }) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "Назад")
                     }
                 }
-            )
+            }
         }
     ) { paddingValues ->
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
-                .padding(16.dp),
+                .padding(bottom = screenInsets.bottomInset), // Адаптивный bottom padding
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             currentCycle?.let { cycle ->

@@ -14,10 +14,20 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.IntrinsicMeasurable
+import androidx.compose.ui.layout.IntrinsicMeasureScope
+import androidx.compose.ui.layout.LayoutModifier
+import androidx.compose.ui.layout.Measurable
+import androidx.compose.ui.layout.MeasureResult
+import androidx.compose.ui.layout.MeasureScope
+import androidx.compose.ui.layout.Placeable
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -29,6 +39,81 @@ import com.example.fitness_plan.presentation.viewmodel.WorkoutViewModel
 import com.example.fitness_plan.ui.theme.SuccessGreen
 import java.text.SimpleDateFormat
 import java.util.*
+
+// Интеллектуальная адаптация размеров верхней и нижней областей
+@Composable
+fun calculateAdaptiveInsets(
+    availableHeight: Dp? = null,
+    contentHeight: Dp? = null,
+    isScrollable: Boolean = false
+): ScreenInsets {
+    val configuration = LocalConfiguration.current
+
+    // Базовые размеры системных элементов (приближенные значения)
+    val statusBarHeight = 24.dp // Примерное значение status bar
+    val navigationBarHeight = 48.dp // Примерное значение navigation bar
+
+    // Размеры экрана
+    val screenHeight = configuration.screenHeightDp.dp
+    val screenWidth = configuration.screenWidthDp.dp
+
+    // Интеллектуальные коэффициенты адаптации
+    val sizeMultiplier = when {
+        screenHeight < 600.dp -> 0.75f  // Очень маленькие экраны (компактные)
+        screenHeight < 800.dp -> 0.85f  // Маленькие экраны
+        screenHeight > 1000.dp -> 1.15f // Большие экраны
+        screenHeight > 1200.dp -> 1.25f // Очень большие экраны
+        else -> 1.0f
+    }
+
+    val aspectRatioMultiplier = when {
+        screenWidth / screenHeight > 0.7f -> 1.2f  // Широкие экраны (планшеты)
+        screenWidth / screenHeight > 0.6f -> 1.1f  // Широкие экраны
+        screenWidth / screenHeight < 0.45f -> 0.8f  // Узкие экраны (старые телефоны)
+        screenWidth / screenHeight < 0.5f -> 0.9f  // Узкие экраны
+        else -> 1.0f
+    }
+
+    // Динамическая адаптация на основе доступного пространства
+    val availableSpaceMultiplier = when {
+        availableHeight != null && contentHeight != null -> {
+            val availableRatio = availableHeight / screenHeight
+            when {
+                availableRatio < 0.6f -> 0.8f  // Мало места
+                availableRatio > 0.8f -> 1.1f  // Много места
+                else -> 1.0f
+            }
+        }
+        else -> 1.0f
+    }
+
+    // Учитываем скролл - если контент скроллится, уменьшаем insets
+    val scrollMultiplier = if (isScrollable) 0.9f else 1.0f
+
+    val finalMultiplier = sizeMultiplier * aspectRatioMultiplier * availableSpaceMultiplier * scrollMultiplier
+
+    // Расчет верхнего inset (status bar + top content padding)
+    val baseTopInset = (statusBarHeight + 32.dp) * finalMultiplier
+    val topInset = baseTopInset.coerceIn(24.dp, 120.dp)
+
+    // Расчет нижнего inset (navigation bar + bottom content padding)
+    val baseBottomInset = (navigationBarHeight + 48.dp) * finalMultiplier
+    val bottomInset = baseBottomInset.coerceIn(32.dp, 140.dp)
+
+    return ScreenInsets(
+        topInset = topInset,
+        bottomInset = bottomInset
+    )
+}
+
+// Упрощенная версия для обратной совместимости
+@Composable
+fun calculateScreenInsets(): ScreenInsets = calculateAdaptiveInsets()
+
+data class ScreenInsets(
+    val topInset: Dp,
+    val bottomInset: Dp
+)
 
 fun formatDate(timestamp: Long): String {
     val sdf = SimpleDateFormat("dd MMM yyyy", Locale.getDefault())
@@ -62,14 +147,26 @@ fun HomeScreen(
     val screenWidthDp = configuration.screenWidthDp
     val isExpandedScreen = screenWidthDp >= 600
 
+    // Расчет адаптивных размеров
+    val screenInsets = calculateScreenInsets()
+
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = {},
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color.Transparent
-                ),
-                actions = {
+            // Адаптивная верхняя область
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(screenInsets.topInset) // Адаптивная высота
+                    .windowInsetsPadding(WindowInsets.statusBars) // Учет status bar
+            ) {
+                // Содержимое верхней области (иконки)
+                Row(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = 16.dp),
+                    horizontalArrangement = Arrangement.End,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
                     IconButton(onClick = { }) {
                         Icon(Icons.Default.Notifications, contentDescription = "Уведомления")
                     }
@@ -77,7 +174,7 @@ fun HomeScreen(
                         Icon(Icons.Default.Person, contentDescription = "Профиль")
                     }
                 }
-            )
+            }
         }
     ) { paddingValues ->
         if (workoutPlan == null || isLoading) {

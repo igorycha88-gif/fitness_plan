@@ -55,13 +55,18 @@ fun StatisticsScreen(
     val screenPadding = getScreenPadding()
     val maxWidth = getContentMaxWidth()
 
+    // Расчет адаптивных размеров для StatisticsScreen
+    val screenInsets = calculateScreenInsets()
+
     Scaffold(
         containerColor = BackgroundLight
     ) { paddingValues ->
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(paddingValues),
+                .padding(paddingValues)
+                .windowInsetsPadding(WindowInsets.systemBars.only(WindowInsetsSides.Top))
+                .padding(bottom = screenInsets.bottomInset),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             item {

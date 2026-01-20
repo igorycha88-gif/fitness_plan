@@ -2,12 +2,9 @@ package com.example.fitness_plan.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -22,8 +19,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.runtime.remember
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.fitness_plan.presentation.viewmodel.ProfileViewModel
 import com.example.fitness_plan.ui.theme.*
@@ -45,9 +45,12 @@ fun ProfileScreen(
     val adaptiveInfo = rememberAdaptiveInfo()
     val spacing = getSpacing()
     val cornerRadius = getCornerRadius()
-    val cardElevation = getCardElevation()
-    val iconSize = getIconSize()
     val screenPadding = getScreenPadding()
+    val iconSize = getIconSize()
+    val cardElevation = getCardElevation()
+
+    // Расчет адаптивных размеров для ProfileScreen
+    val screenInsets = calculateScreenInsets()
 
     LaunchedEffect(Unit) {
         currentUsername = viewModel.getCurrentUsername()
@@ -55,100 +58,152 @@ fun ProfileScreen(
 
     val tabs = listOf("Профиль", "Статистика", "Аккаунт")
 
-    Scaffold(
-        containerColor = BackgroundLight
-    ) { paddingValues ->
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-                .windowInsetsPadding(WindowInsets.systemBars.only(WindowInsetsSides.Top))
-                .padding(bottom = 80.dp), // Дополнительный padding для кнопки выхода
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            item {
-                ProfileHeader(
-                    username = currentUsername,
-                    profile = userProfile,
-                    adaptiveInfo = adaptiveInfo,
-                    cornerRadius = cornerRadius,
-                    iconSize = iconSize,
-                    modifier = Modifier.fillMaxWidth()
-                )
-            }
+    // Определение типа контента для баров
+    val topBarContentType = when {
+        selectedTab == 3 -> BarContentType.EMPTY // В режиме редактирования нет topBar
+        else -> BarContentType.ICON_AND_TEXT // Иконки + текст табов
+    }
 
-            item {
-                TabRow(
-                    selectedTabIndex = selectedTab,
-                    containerColor = SurfaceLight,
-                    contentColor = FitnessPrimary,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    tabs.forEachIndexed { index, title ->
-                        Tab(
-                            selected = selectedTab == index,
-                            onClick = { selectedTab = index },
-                            text = {
-                                Text(
-                                    text = title,
-                                    fontWeight = if (selectedTab == index) FontWeight.SemiBold else FontWeight.Normal
-                                )
-                            },
-                            icon = {
-                                Icon(
-                                    imageVector = when (index) {
-                                        0 -> Icons.Default.Person
-                                        1 -> Icons.Default.List
-                                        else -> Icons.Default.Settings
-                                    },
-                                    contentDescription = null
-                                )
-                            }
-                        )
+    val bottomBarContentType = when {
+        selectedTab == 3 -> BarContentType.FULL_CONTENT // В режиме редактирования есть кнопки сохранения
+        else -> BarContentType.FULL_CONTENT // Кнопка выхода
+    }
+
+    Scaffold(
+        containerColor = BackgroundLight,
+        topBar = {
+            AdaptiveTopBar(contentType = topBarContentType) {
+                if (selectedTab != 3) {
+                    TabRow(
+                        selectedTabIndex = selectedTab,
+                        containerColor = Color.Transparent,
+                        contentColor = FitnessPrimary,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        val tabs = listOf("Профиль", "Статистика", "Аккаунт")
+                        tabs.forEachIndexed { index, title ->
+                            Tab(
+                                selected = selectedTab == index,
+                                onClick = { selectedTab = index },
+                                text = { Text(text = title) },
+                                icon = {
+                                    Icon(
+                                        imageVector = when (index) {
+                                            0 -> Icons.Default.Person
+                                            1 -> Icons.Default.List
+                                            else -> Icons.Default.Settings
+                                        },
+                                        contentDescription = null
+                                    )
+                                }
+                            )
+                        }
                     }
                 }
             }
-
-            item {
+        },
+        bottomBar = {
+            AdaptiveBottomBar(contentType = bottomBarContentType) {
                 when (selectedTab) {
-                    0 -> ProfileContent(
-                        userProfile = userProfile,
-                        onEditClick = { selectedTab = 3 },
-                        onWeightEditClick = { showWeightDialog = true },
-                        adaptiveInfo = adaptiveInfo,
-                        spacing = spacing,
-                        cornerRadius = cornerRadius,
-                        cardElevation = cardElevation
-                    )
-                    1 -> StatsContent(userProfile = userProfile)
-                    2 -> AccountContent(
-                        username = currentUsername,
-                        onPasswordChange = { showPasswordDialog = true }
-                    )
-                    3 -> EditProfileContent(
-                        userProfile = userProfile,
-                        onSave = { profile ->
-                            viewModel.saveUserProfile(profile)
-                            selectedTab = 0
-                        },
-                        onCancel = { selectedTab = 0 }
-                    )
+                    3 -> {
+                        // Кнопки сохранения в режиме редактирования
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            OutlinedButton(
+                                onClick = { selectedTab = 0 },
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Text("Отмена")
+                            }
+                            Button(
+                                onClick = {
+                                    userProfile?.let { profile ->
+                                        viewModel.saveUserProfile(profile)
+                                        selectedTab = 0
+                                    }
+                                },
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Text("Сохранить")
+                            }
+                        }
+                    }
+                    else -> {
+                        // Кнопка выхода
+                        Button(
+                            onClick = {
+                                viewModel.logout()
+                                onLogoutClick()
+                            },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Icon(Icons.Default.ExitToApp, contentDescription = null)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Выйти из аккаунта")
+                        }
+                    }
                 }
             }
+        }
+    ) { paddingValues ->
+        BoxWithConstraints(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(paddingValues)
+        ) {
+            val availableHeight = maxHeight
+            val availableWidth = maxWidth
 
-            if (selectedTab != 3) {
-                item {
-                    LogoutButton(
-                        onLogoutClick = {
-                            viewModel.logout()
-                            onLogoutClick()
-                        },
-                        cornerRadius = cornerRadius
-                    )
-                }
-                // Дополнительное пространство для полной прокрутки
-                item {
-                    Spacer(modifier = Modifier.height(24.dp))
+            // Интеллектуальная адаптация контента
+            val contentAdaptation = calculateContentAdaptation(
+                availableHeight = availableHeight,
+                contentType = ContentType.NORMAL
+            )
+
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal)),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                // Основной контент без скролла
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth()
+                ) {
+                    when (selectedTab) {
+                        0 -> ProfileContent(
+                            userProfile = userProfile,
+                            onEditClick = { selectedTab = 3 },
+                            onWeightEditClick = { showWeightDialog = true },
+                            adaptiveInfo = adaptiveInfo,
+                            spacing = contentAdaptation.spacing,
+                            cornerRadius = contentAdaptation.cornerRadius,
+                            cardElevation = cardElevation,
+                            adaptation = contentAdaptation
+                        )
+                        1 -> StatsContent(
+                            userProfile = userProfile,
+                            adaptation = contentAdaptation
+                        )
+                        2 -> AccountContent(
+                            username = currentUsername,
+                            onPasswordChange = { showPasswordDialog = true },
+                            adaptation = contentAdaptation
+                        )
+                        3 -> EditProfileContent(
+                            userProfile = userProfile,
+                            onSave = { profile ->
+                                viewModel.saveUserProfile(profile)
+                                selectedTab = 0
+                            },
+                            onCancel = { selectedTab = 0 },
+                            adaptation = contentAdaptation
+                        )
+                    }
                 }
             }
         }
@@ -189,24 +244,23 @@ fun ProfileHeader(
     adaptiveInfo: AdaptiveInfo,
     cornerRadius: Dp,
     iconSize: Dp,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    adaptation: ContentAdaptation = ContentAdaptation(
+        textSize = 16.sp,
+        spacing = 12.dp,
+        iconSize = 24.dp,
+        buttonHeight = 48.dp,
+        cornerRadius = 12.dp
+    )
 ) {
-    val headerPadding = when (adaptiveInfo.deviceType) {
-        DeviceType.COMPACT -> 16.dp
-        DeviceType.MEDIUM -> 24.dp
-        DeviceType.EXPANDED -> 32.dp
-    }
+    val headerPadding = adaptation.spacing * 1.5f
     val avatarSize = when (adaptiveInfo.deviceType) {
-        DeviceType.COMPACT -> 64.dp
-        DeviceType.MEDIUM -> 72.dp
-        DeviceType.EXPANDED -> 88.dp
-    }
-    val iconPadding = iconSize * 2
-    val headerElevation = when (adaptiveInfo.deviceType) {
-        DeviceType.COMPACT -> 4.dp
-        DeviceType.MEDIUM -> 6.dp
-        DeviceType.EXPANDED -> 8.dp
-    }
+        DeviceType.COMPACT -> 56.dp
+        DeviceType.MEDIUM -> 64.dp
+        DeviceType.EXPANDED -> 72.dp
+    } * (adaptation.spacing / 12.dp) // Масштабируем относительно базового spacing
+    val iconPadding = adaptation.iconSize
+    val headerElevation = getCardElevation()
 
     Card(
         modifier = modifier.padding(headerPadding, 8.dp),
@@ -319,14 +373,16 @@ fun ProfileContent(
     adaptiveInfo: AdaptiveInfo,
     spacing: Dp,
     cornerRadius: Dp,
-    cardElevation: Dp
+    cardElevation: Dp,
+    adaptation: ContentAdaptation = ContentAdaptation(
+        textSize = 14.sp,
+        spacing = 12.dp,
+        iconSize = 20.dp,
+        buttonHeight = 48.dp,
+        cornerRadius = 12.dp
+    )
 ) {
-    val scrollState = rememberScrollState()
-    val horizontalPadding = when (adaptiveInfo.deviceType) {
-        DeviceType.COMPACT -> 16.dp
-        DeviceType.MEDIUM -> 24.dp
-        DeviceType.EXPANDED -> 32.dp
-    }
+    val horizontalPadding = adaptation.spacing * 1.5f
     val maxWidth = getContentMaxWidth()
 
     Column(
@@ -468,20 +524,29 @@ fun WeightCard(
 }
 
 @Composable
-fun StatsContent(userProfile: com.example.fitness_plan.domain.model.UserProfile?) {
-    val spacing = getSpacing()
-    val cornerRadius = getCornerRadius()
+fun StatsContent(
+    userProfile: com.example.fitness_plan.domain.model.UserProfile?,
+    adaptation: ContentAdaptation = ContentAdaptation(
+        textSize = 14.sp,
+        spacing = 12.dp,
+        iconSize = 20.dp,
+        buttonHeight = 48.dp,
+        cornerRadius = 12.dp
+    )
+) {
+    val spacing = adaptation.spacing
+    val cornerRadius = adaptation.cornerRadius
     val maxWidth = getContentMaxWidth()
 
     Column(
         modifier = Modifier
             .width(maxWidth)
-            .padding(horizontal = 16.dp),
+            .padding(horizontal = adaptation.spacing * 1.5f),
         verticalArrangement = Arrangement.spacedBy(spacing)
     ) {
         Text(
             text = "Ваши показатели",
-            style = MaterialTheme.typography.titleMedium,
+            style = MaterialTheme.typography.titleMedium.copy(fontSize = adaptation.textSize * 1.1f),
             fontWeight = FontWeight.SemiBold
         )
 
@@ -603,16 +668,23 @@ fun StatsContent(userProfile: com.example.fitness_plan.domain.model.UserProfile?
 @Composable
 fun AccountContent(
     username: String,
-    onPasswordChange: () -> Unit
+    onPasswordChange: () -> Unit,
+    adaptation: ContentAdaptation = ContentAdaptation(
+        textSize = 14.sp,
+        spacing = 12.dp,
+        iconSize = 20.dp,
+        buttonHeight = 48.dp,
+        cornerRadius = 12.dp
+    )
 ) {
-    val spacing = getSpacing()
-    val cornerRadius = getCornerRadius()
+    val spacing = adaptation.spacing
+    val cornerRadius = adaptation.cornerRadius
     val maxWidth = getContentMaxWidth()
 
     Column(
         modifier = Modifier
             .width(maxWidth)
-            .padding(horizontal = 16.dp),
+            .padding(horizontal = adaptation.spacing * 1.5f),
         verticalArrangement = Arrangement.spacedBy(spacing)
     ) {
         Text(
@@ -682,7 +754,14 @@ fun AccountContent(
 fun EditProfileContent(
     userProfile: com.example.fitness_plan.domain.model.UserProfile?,
     onSave: (com.example.fitness_plan.domain.model.UserProfile) -> Unit,
-    onCancel: () -> Unit
+    onCancel: () -> Unit,
+    adaptation: ContentAdaptation = ContentAdaptation(
+        textSize = 14.sp,
+        spacing = 12.dp,
+        iconSize = 20.dp,
+        buttonHeight = 48.dp,
+        cornerRadius = 12.dp
+    )
 ) {
     var editedGoal by remember { mutableStateOf(userProfile?.goal ?: "") }
     var editedLevel by remember { mutableStateOf(userProfile?.level ?: "") }
@@ -692,8 +771,8 @@ fun EditProfileContent(
     val levelOptions = listOf("Новичок", "Любитель", "Профессионал")
     val frequencyOptions = listOf("1 раз в неделю", "3 раза в неделю", "5 раз в неделю")
 
-    val spacing = getSpacing()
-    val cornerRadius = getCornerRadius()
+    val spacing = adaptation.spacing
+    val cornerRadius = adaptation.cornerRadius
     val maxWidth = getContentMaxWidth()
 
     Column(
@@ -767,15 +846,25 @@ fun EditProfileContent(
 }
 
 @Composable
-fun LogoutButton(onLogoutClick: () -> Unit, cornerRadius: Dp) {
-    val spacing = getSpacing()
-    val buttonHeight = getButtonHeight()
+fun LogoutButton(
+    onLogoutClick: () -> Unit,
+    cornerRadius: Dp,
+    adaptation: ContentAdaptation = ContentAdaptation(
+        textSize = 14.sp,
+        spacing = 12.dp,
+        iconSize = 20.dp,
+        buttonHeight = 48.dp,
+        cornerRadius = 12.dp
+    )
+) {
+    val spacing = adaptation.spacing
+    val buttonHeight = adaptation.buttonHeight
     val maxWidth = getContentMaxWidth()
 
     Card(
         modifier = Modifier
             .width(maxWidth)
-            .padding(horizontal = 16.dp, vertical = spacing),
+            .padding(horizontal = adaptation.spacing * 1.5f, vertical = spacing),
         colors = CardDefaults.cardColors(containerColor = SurfaceLight)
     ) {
         Button(

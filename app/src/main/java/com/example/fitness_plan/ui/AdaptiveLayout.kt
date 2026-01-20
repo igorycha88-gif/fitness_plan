@@ -3,12 +3,17 @@ package com.example.fitness_plan.ui
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 
 enum class DeviceType {
     COMPACT,    // Phone portrait, Fold folded (< 600dp)
@@ -174,3 +179,243 @@ fun shouldShowTwoPane(): Boolean {
 fun isCompactDevice(): Boolean {
     return rememberAdaptiveInfo().deviceType == DeviceType.COMPACT
 }
+
+// Умный адаптивный TopBar
+@Composable
+fun AdaptiveTopBar(
+    contentType: BarContentType = BarContentType.ICON_AND_TEXT,
+    modifier: Modifier = Modifier,
+    content: @Composable () -> Unit
+) {
+    val dimensions = calculateAdaptiveBarDimensions(BarType.TOP, contentType)
+
+    if (dimensions.height > 0.dp) {
+        Surface(
+            modifier = modifier
+                .fillMaxWidth()
+                .height(dimensions.height)
+                .windowInsetsPadding(WindowInsets.statusBars),
+            color = MaterialTheme.colorScheme.surface,
+            tonalElevation = getCardElevation()
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(dimensions.padding),
+                contentAlignment = Alignment.CenterStart
+            ) {
+                content()
+            }
+        }
+    }
+}
+
+// Умный адаптивный BottomBar
+@Composable
+fun AdaptiveBottomBar(
+    contentType: BarContentType = BarContentType.ICON_ONLY,
+    modifier: Modifier = Modifier,
+    content: @Composable () -> Unit
+) {
+    val dimensions = calculateAdaptiveBarDimensions(BarType.BOTTOM, contentType)
+
+    if (dimensions.height > 0.dp) {
+        Surface(
+            modifier = modifier
+                .fillMaxWidth()
+                .height(dimensions.height)
+                .windowInsetsPadding(WindowInsets.navigationBars),
+            color = MaterialTheme.colorScheme.surface,
+            tonalElevation = getCardElevation()
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(dimensions.padding),
+                contentAlignment = Alignment.Center
+            ) {
+                content()
+            }
+        }
+    }
+}
+
+// Интеллектуальная адаптация размеров баров
+@Composable
+fun calculateAdaptiveBarDimensions(
+    barType: BarType,
+    contentType: BarContentType,
+    screenInsets: ScreenInsets = calculateAdaptiveInsets()
+): AdaptiveBarDimensions {
+    val adaptiveInfo = rememberAdaptiveInfo()
+
+    val baseHeight = when (barType) {
+        BarType.TOP -> when (contentType) {
+            BarContentType.EMPTY -> 0.dp // Полностью скрыт при отсутствии контента
+            BarContentType.ICON_ONLY -> 48.dp
+            BarContentType.TEXT_ONLY -> 56.dp
+            BarContentType.ICON_AND_TEXT -> 64.dp
+            BarContentType.FULL_CONTENT -> 72.dp
+        }
+        BarType.BOTTOM -> when (contentType) {
+            BarContentType.EMPTY -> 0.dp // Полностью скрыт при отсутствии контента
+            BarContentType.ICON_ONLY -> 56.dp // Минимальный для навигации
+            BarContentType.TEXT_ONLY -> 64.dp
+            BarContentType.ICON_AND_TEXT -> 72.dp
+            BarContentType.FULL_CONTENT -> 80.dp
+        }
+    }
+
+    // Адаптация под устройство
+    val deviceMultiplier = when (adaptiveInfo.deviceType) {
+        DeviceType.COMPACT -> 0.9f
+        DeviceType.MEDIUM -> 1.0f
+        DeviceType.EXPANDED -> 1.1f
+    }
+
+    // Адаптация под размер экрана
+    val screenMultiplier = when {
+        adaptiveInfo.screenHeight < 600.dp -> 0.85f
+        adaptiveInfo.screenHeight > 1000.dp -> 1.15f
+        else -> 1.0f
+    }
+
+    val finalHeight = if (contentType == BarContentType.EMPTY) {
+        0.dp
+    } else {
+        val minHeight = when (barType) {
+            BarType.TOP -> 40.dp
+            BarType.BOTTOM -> 48.dp
+        }
+        val maxHeight = when (barType) {
+            BarType.TOP -> 120.dp
+            BarType.BOTTOM -> 120.dp
+        }
+        (baseHeight * deviceMultiplier * screenMultiplier).coerceIn(minHeight, maxHeight)
+    }
+
+    // Расчет отступов
+    val padding = when (barType) {
+        BarType.TOP -> PaddingValues(
+            start = 16.dp * deviceMultiplier,
+            end = 16.dp * deviceMultiplier,
+            top = 8.dp * deviceMultiplier,
+            bottom = 8.dp * deviceMultiplier
+        )
+        BarType.BOTTOM -> PaddingValues(
+            start = 12.dp * deviceMultiplier,
+            end = 12.dp * deviceMultiplier,
+            top = 4.dp * deviceMultiplier,
+            bottom = 4.dp * deviceMultiplier
+        )
+    }
+
+    val contentPadding = when (barType) {
+        BarType.TOP -> PaddingValues(
+            horizontal = 8.dp * deviceMultiplier,
+            vertical = 4.dp * deviceMultiplier
+        )
+        BarType.BOTTOM -> PaddingValues(
+            horizontal = 6.dp * deviceMultiplier,
+            vertical = 2.dp * deviceMultiplier
+        )
+    }
+
+    return AdaptiveBarDimensions(
+        height = finalHeight,
+        padding = padding,
+        contentPadding = contentPadding
+    )
+}
+
+enum class BarType {
+    TOP, BOTTOM
+}
+
+// Интеллектуальная адаптация контента без скролла
+@Composable
+fun calculateContentAdaptation(
+    availableHeight: Dp,
+    contentType: ContentType = ContentType.NORMAL
+): ContentAdaptation {
+    val adaptiveInfo = rememberAdaptiveInfo()
+    val screenHeight = adaptiveInfo.screenHeight
+
+    // Расчет соотношения доступного пространства
+    val heightRatio = availableHeight / screenHeight
+
+    // Базовые размеры
+    val baseTextSize = when (adaptiveInfo.deviceType) {
+        DeviceType.COMPACT -> 14.sp
+        DeviceType.MEDIUM -> 16.sp
+        DeviceType.EXPANDED -> 18.sp
+    }
+
+    val baseSpacing = when (adaptiveInfo.deviceType) {
+        DeviceType.COMPACT -> 8.dp
+        DeviceType.MEDIUM -> 12.dp
+        DeviceType.EXPANDED -> 16.dp
+    }
+
+    // Интеллектуальные множители на основе доступного пространства
+    val textMultiplier = when {
+        heightRatio < 0.4f -> 0.8f  // Очень мало места
+        heightRatio < 0.6f -> 0.9f  // Мало места
+        heightRatio > 0.8f -> 1.1f  // Много места
+        heightRatio > 1.0f -> 1.2f  // Очень много места
+        else -> 1.0f
+    }
+
+    val spacingMultiplier = when {
+        heightRatio < 0.4f -> 0.6f  // Компактнее spacing
+        heightRatio < 0.6f -> 0.8f  // Меньше spacing
+        heightRatio > 0.8f -> 1.1f  // Больше spacing
+        else -> 1.0f
+    }
+
+    // Учитываем тип контента
+    val contentMultiplier = when (contentType) {
+        ContentType.COMPACT -> 0.9f
+        ContentType.NORMAL -> 1.0f
+        ContentType.SPACIOUS -> 1.1f
+    }
+
+    val finalTextMultiplier = textMultiplier * contentMultiplier
+    val finalSpacingMultiplier = spacingMultiplier * contentMultiplier
+
+    return ContentAdaptation(
+        textSize = (baseTextSize.value * finalTextMultiplier).coerceIn(12f, 24f).sp,
+        spacing = (baseSpacing * finalSpacingMultiplier).coerceIn(4.dp, 24.dp),
+        iconSize = (getIconSize() * finalTextMultiplier).coerceIn(16.dp, 36.dp),
+        buttonHeight = (getButtonHeight() * finalSpacingMultiplier).coerceIn(40.dp, 64.dp),
+        cornerRadius = (getCornerRadius() * finalSpacingMultiplier).coerceIn(8.dp, 24.dp)
+    )
+}
+
+enum class ContentType {
+    COMPACT,    // Для очень компактного контента
+    NORMAL,     // Стандартный контент
+    SPACIOUS    // Для просторного контента
+}
+
+enum class BarContentType {
+    EMPTY,      // Нет контента - минимальный размер
+    ICON_ONLY,  // Только иконки
+    TEXT_ONLY,  // Только текст
+    ICON_AND_TEXT, // Иконки + текст
+    FULL_CONTENT   // Полный контент (кнопки, формы и т.д.)
+}
+
+data class ContentAdaptation(
+    val textSize: TextUnit,
+    val spacing: Dp,
+    val iconSize: Dp,
+    val buttonHeight: Dp,
+    val cornerRadius: Dp
+)
+
+data class AdaptiveBarDimensions(
+    val height: Dp,
+    val padding: PaddingValues,
+    val contentPadding: PaddingValues
+)
