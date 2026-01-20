@@ -1,6 +1,8 @@
 package com.example.fitness_plan.ui
 
+import android.content.res.Configuration
 import android.os.Build
+import android.provider.Settings
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.material.icons.Icons
@@ -9,10 +11,13 @@ import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.List
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavHostController
@@ -32,6 +37,81 @@ sealed class Screen(val route: String, val label: String, val icon: ImageVector)
 
 private val items = listOf(Screen.Home, Screen.Profile, Screen.Statistics)
 
+// Функция определения режима навигации
+@Composable
+private fun getNavigationMode(context: android.content.Context): NavigationMode {
+    return remember {
+        try {
+            val mode = Settings.Secure.getInt(
+                context.contentResolver,
+                "navigation_mode", 0
+            )
+            when (mode) {
+                0 -> NavigationMode.BUTTONS_3 // 3 кнопки
+                1 -> NavigationMode.BUTTONS_2 // 2 кнопки (без home)
+                2 -> NavigationMode.GESTURES // Жесты
+                else -> NavigationMode.BUTTONS_3
+            }
+        } catch (e: Exception) {
+            // По умолчанию жесты на новых устройствах
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                NavigationMode.GESTURES
+            } else {
+                NavigationMode.BUTTONS_3
+            }
+        }
+    }
+}
+
+enum class NavigationMode {
+    BUTTONS_3,    // 3 кнопки (back, home, recent)
+    BUTTONS_2,    // 2 кнопки (back, recent)
+    GESTURES      // Жестовая навигация
+}
+
+// Расчет адаптивных отступов
+@Composable
+private fun calculateAdaptiveInsets(
+    isFoldDevice: Boolean,
+    isFoldedMode: Boolean,
+    navigationMode: NavigationMode,
+    configuration: Configuration
+): AdaptiveInsets {
+    val screenHeight = configuration.screenHeightDp.dp
+    val screenWidth = configuration.screenWidthDp.dp
+
+    // Базовые отступы в зависимости от режима навигации
+    val baseNavBarHeight = when (navigationMode) {
+        NavigationMode.GESTURES -> 0.dp  // Жесты не занимают место
+        NavigationMode.BUTTONS_2 -> 48.dp
+        NavigationMode.BUTTONS_3 -> 56.dp
+    }
+
+    // Дополнительные отступы для Samsung Fold
+    val foldMultiplier = if (isFoldDevice) {
+        if (isFoldedMode) 1.2f else 1.0f
+    } else {
+        1.0f
+    }
+
+    // Адаптация под размер экрана
+    val screenMultiplier = when {
+        screenHeight < 600.dp -> 0.8f  // Маленькие экраны
+        screenHeight > 1000.dp -> 1.2f  // Большие экраны
+        else -> 1.0f
+    }
+
+    val navBarPadding = (baseNavBarHeight * foldMultiplier * screenMultiplier).coerceIn(0.dp, 120.dp)
+    val contentPadding = (navBarPadding + 24.dp).coerceIn(24.dp, 144.dp)
+
+    return AdaptiveInsets(navBarPadding, contentPadding)
+}
+
+data class AdaptiveInsets(
+    val navBarPadding: Dp,
+    val contentPadding: Dp
+)
+
 @Composable
 fun MainScreen(
     mainNavController: NavHostController,
@@ -43,25 +123,22 @@ fun MainScreen(
     val navBackStackEntry = bottomNavController.currentBackStackEntryAsState().value
     val currentDestination = navBackStackEntry?.destination
 
-    // Специальная логика для Samsung устройств (особенно Fold)
-    val isSamsungFold = Build.MANUFACTURER.contains("samsung", ignoreCase = true) &&
-                       Build.MODEL.contains("fold", ignoreCase = true)
-
+    val context = LocalContext.current
     val configuration = LocalConfiguration.current
+
+    // Определение характеристик устройства
+    val isFoldDevice = Build.MANUFACTURER.contains("samsung", ignoreCase = true) &&
+                      Build.MODEL.contains("fold", ignoreCase = true)
     val isFoldedMode = configuration.screenWidthDp < 600
+    val navigationMode = getNavigationMode(context)
 
-    // Специальные отступы для Samsung Fold
-    val navBarBottomPadding = if (isSamsungFold) {
-        if (isFoldedMode) 80.dp else 60.dp  // Уменьшенный отступ
-    } else {
-        60.dp  // Уменьшенный отступ для обычных устройств
-    }
-
-    val contentBottomPadding = if (isSamsungFold) {
-        if (isFoldedMode) 100.dp else 80.dp  // Уменьшенный отступ
-    } else {
-        80.dp  // Уменьшенный отступ для обычных устройств
-    }
+    // Расчет адаптивных отступов
+    val adaptiveInsets = calculateAdaptiveInsets(
+        isFoldDevice = isFoldDevice,
+        isFoldedMode = isFoldedMode,
+        navigationMode = navigationMode,
+        configuration = configuration
+    )
 
     Box(modifier = Modifier.fillMaxSize()) {
         // Основной контент
@@ -71,7 +148,7 @@ fun MainScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .windowInsetsPadding(WindowInsets.systemBars.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal))
-                .padding(bottom = contentBottomPadding) // Адаптивный отступ для NavigationBar
+                .padding(bottom = adaptiveInsets.contentPadding) // Адаптивный отступ для NavigationBar
         ) {
             composable(Screen.Home.route) {
                 HomeScreen(onExerciseClick = onExerciseClick)
@@ -98,7 +175,7 @@ fun MainScreen(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom))
-                .padding(bottom = navBarBottomPadding) // Специальный отступ для Samsung Fold
+                .padding(bottom = adaptiveInsets.navBarPadding) // Адаптивный отступ
         ) {
             items.forEach { screen ->
                 NavigationBarItem(
