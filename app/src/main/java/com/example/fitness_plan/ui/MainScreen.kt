@@ -187,36 +187,39 @@ fun MainScreen(
     onExerciseClick: (Exercise) -> Unit = {}
 ) {
     val bottomNavController = rememberNavController()
-    val navBackStackEntry = bottomNavController.currentBackStackEntryAsState().value
-    val currentDestination = navBackStackEntry?.destination
 
-    val context = LocalContext.current
-    val configuration = LocalConfiguration.current
+    Scaffold(
+        containerColor = androidx.compose.ui.graphics.Color.Transparent,
+        bottomBar = {
+            NavigationBar(
+                modifier = Modifier.windowInsetsPadding(WindowInsets.navigationBars)
+            ) {
+                val navBackStackEntry = bottomNavController.currentBackStackEntryAsState().value
+                val currentDestination = navBackStackEntry?.destination
 
-    // Определение характеристик устройства
-    val isFoldDevice = Build.MANUFACTURER.contains("samsung", ignoreCase = true) &&
-                      Build.MODEL.contains("fold", ignoreCase = true)
-    val isFoldedMode = configuration.screenWidthDp < 600
-    val navigationMode = getNavigationMode(context)
-    val screenMetrics = getScreenMetrics(context, configuration)
-
-    // Расчет адаптивных отступов на основе реальных метрик
-    val adaptiveInsets = calculateAdaptiveInsets(
-        isFoldDevice = isFoldDevice,
-        isFoldedMode = isFoldedMode,
-        navigationMode = navigationMode,
-        screenMetrics = screenMetrics
-    )
-
-    Box(modifier = Modifier.fillMaxSize()) {
-        // Основной контент
+                items.forEach { screen ->
+                    NavigationBarItem(
+                        icon = { Icon(screen.icon, contentDescription = null) },
+                        label = { Text(screen.label) },
+                        selected = currentDestination?.hierarchy?.any { navDestination -> navDestination.route == screen.route } == true,
+                        onClick = {
+                            bottomNavController.navigate(screen.route) {
+                                popUpTo(bottomNavController.graph.startDestinationId) { saveState = true }
+                                launchSingleTop = true
+                                restoreState = true
+                            }
+                        }
+                    )
+                }
+            }
+        }
+    ) { innerPadding ->
         NavHost(
             navController = bottomNavController,
             startDestination = Screen.Home.route,
             modifier = Modifier
-                .fillMaxSize()
+                .padding(innerPadding)
                 .windowInsetsPadding(WindowInsets.systemBars.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal))
-                .padding(bottom = adaptiveInsets.contentPadding) // Адаптивный отступ для NavigationBar
         ) {
             composable(Screen.Home.route) {
                 HomeScreen(onExerciseClick = onExerciseClick)
@@ -235,29 +238,6 @@ fun MainScreen(
             }
             composable(Screen.CycleHistory.route) {
                 CycleHistoryScreen(navController = mainNavController)
-            }
-        }
-
-        // NavigationBar внизу экрана с отступом от системных кнопок
-        NavigationBar(
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom))
-                .padding(bottom = adaptiveInsets.navBarPadding) // Адаптивный отступ
-        ) {
-            items.forEach { screen ->
-                NavigationBarItem(
-                    icon = { Icon(screen.icon, contentDescription = null) },
-                    label = { Text(screen.label) },
-                    selected = currentDestination?.hierarchy?.any { navDestination -> navDestination.route == screen.route } == true,
-                    onClick = {
-                        bottomNavController.navigate(screen.route) {
-                            popUpTo(bottomNavController.graph.startDestinationId) { saveState = true }
-                            launchSingleTop = true
-                            restoreState = true
-                        }
-                    }
-                )
             }
         }
     }
