@@ -14,5 +14,11 @@
         <!-- Window flags for edge-to-edge -->
         <item name="android:windowTranslucentStatus">false</item>
         <item name="android:windowTranslucentNavigation">false</item>
+        <!-- Minimal ActionBar -->
+        <item name="android:actionBarSize">1dp</item>
+        <item name="actionBarSize">1dp</item>
+        <!-- Transparent ActionBar -->
+        <item name="android:windowActionBarOverlay">true</item>
+        <item name="windowActionBarOverlay">true</item>
     </style>
 </resources>
