@@ -30,7 +30,7 @@ fun RegisterScreen(
         modifier = Modifier
             .fillMaxSize()
             .padding(24.dp)
-            .windowInsetsPadding(WindowInsets.systemBars.only(WindowInsetsSides.Top)),
+            .padding(top = 48.dp), // Фиксированный отступ для status bar
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {

@@ -89,7 +89,7 @@ fun UserProfileForm(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(16.dp)
-                .windowInsetsPadding(WindowInsets.systemBars.only(WindowInsetsSides.Top))
+                .padding(top = 48.dp) // Фиксированный отступ для status bar
                 .verticalScroll(scrollState),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
