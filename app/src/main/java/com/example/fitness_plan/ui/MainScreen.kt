@@ -3,8 +3,12 @@ package com.example.fitness_plan.ui
 import android.content.res.Configuration
 import android.os.Build
 import android.provider.Settings
+import android.util.DisplayMetrics
+import android.view.WindowManager
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.systemBars
+import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Home
@@ -12,11 +16,15 @@ import androidx.compose.material.icons.filled.List
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavDestination.Companion.hierarchy
@@ -27,6 +35,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.fitness_plan.domain.model.Exercise
+import kotlin.math.roundToInt
 import com.example.fitness_plan.presentation.viewmodel.ProfileViewModel
 import com.example.fitness_plan.presentation.viewmodel.WorkoutViewModel
 
@@ -65,49 +74,105 @@ private fun getNavigationMode(context: android.content.Context): NavigationMode 
     }
 }
 
+// Получение реальных метрик экрана
+@Composable
+private fun getScreenMetrics(context: android.content.Context, configuration: Configuration): ScreenMetrics {
+    val density = LocalDensity.current
+    val displayMetrics = remember {
+        val windowManager = context.getSystemService(android.content.Context.WINDOW_SERVICE) as WindowManager
+        val metrics = DisplayMetrics()
+        windowManager.defaultDisplay.getRealMetrics(metrics)
+        metrics
+    }
+
+    return remember(displayMetrics, configuration) {
+        ScreenMetrics(
+            widthPx = displayMetrics.widthPixels,
+            heightPx = displayMetrics.heightPixels,
+            density = displayMetrics.density,
+            widthDp = configuration.screenWidthDp,
+            heightDp = configuration.screenHeightDp,
+            smallestWidthDp = configuration.smallestScreenWidthDp
+        )
+    }
+}
+
 enum class NavigationMode {
     BUTTONS_3,    // 3 кнопки (back, home, recent)
     BUTTONS_2,    // 2 кнопки (back, recent)
     GESTURES      // Жестовая навигация
 }
 
-// Расчет адаптивных отступов
+// Расчет адаптивных отступов с учетом реальных метрик
 @Composable
 private fun calculateAdaptiveInsets(
     isFoldDevice: Boolean,
     isFoldedMode: Boolean,
     navigationMode: NavigationMode,
-    configuration: Configuration
+    screenMetrics: ScreenMetrics
 ): AdaptiveInsets {
-    val screenHeight = configuration.screenHeightDp.dp
-    val screenWidth = configuration.screenWidthDp.dp
+    val density = LocalDensity.current
 
-    // Базовые отступы в зависимости от режима навигации
-    val baseNavBarHeight = when (navigationMode) {
-        NavigationMode.GESTURES -> 0.dp  // Жесты не занимают место
-        NavigationMode.BUTTONS_2 -> 48.dp
-        NavigationMode.BUTTONS_3 -> 56.dp
+    // Базовые отступы в зависимости от режима навигации (в пикселях)
+    val baseNavBarHeightPx = when (navigationMode) {
+        NavigationMode.GESTURES -> 0f  // Жесты не занимают место
+        NavigationMode.BUTTONS_2 -> 48f * screenMetrics.density
+        NavigationMode.BUTTONS_3 -> 56f * screenMetrics.density
+    }
+
+    // Адаптация под размер экрана (в пикселях)
+    val screenHeightPx = screenMetrics.heightPx.toFloat()
+    val screenWidthPx = screenMetrics.widthPx.toFloat()
+
+    // Коэффициенты для разных типов устройств
+    val deviceMultiplier = when {
+        // Маленькие экраны (< 5 дюймов)
+        screenMetrics.smallestWidthDp < 360 -> 0.7f
+        // Средние экраны (5-6 дюймов)
+        screenMetrics.smallestWidthDp < 400 -> 0.85f
+        // Большие экраны (6+ дюймов)
+        screenMetrics.smallestWidthDp < 600 -> 1.0f
+        // Очень большие экраны (планшеты, foldables)
+        else -> 1.1f
     }
 
     // Дополнительные отступы для Samsung Fold
     val foldMultiplier = if (isFoldDevice) {
-        if (isFoldedMode) 1.2f else 1.0f
+        if (isFoldedMode) 1.3f else 1.1f
     } else {
         1.0f
     }
 
-    // Адаптация под размер экрана
-    val screenMultiplier = when {
-        screenHeight < 600.dp -> 0.8f  // Маленькие экраны
-        screenHeight > 1000.dp -> 1.2f  // Большие экраны
+    // Адаптация под соотношение сторон
+    val aspectRatioMultiplier = when {
+        screenWidthPx / screenHeightPx > 0.7f -> 1.2f  // Широкие экраны
+        screenWidthPx / screenHeightPx < 0.5f -> 0.8f  // Узкие экраны
         else -> 1.0f
     }
 
-    val navBarPadding = (baseNavBarHeight * foldMultiplier * screenMultiplier).coerceIn(0.dp, 120.dp)
-    val contentPadding = (navBarPadding + 24.dp).coerceIn(24.dp, 144.dp)
+    // Финальный расчет
+    val finalMultiplier = deviceMultiplier * foldMultiplier * aspectRatioMultiplier
+    val navBarPaddingPx = baseNavBarHeightPx * finalMultiplier
+    val navBarPadding = with(density) { navBarPaddingPx.toDp() }
 
-    return AdaptiveInsets(navBarPadding, contentPadding)
+    // Content padding всегда на 20dp больше NavBar padding
+    val contentPadding = (navBarPadding + 20.dp).coerceIn(16.dp, 120.dp)
+
+    // Ограничения для безопасности
+    val safeNavBarPadding = navBarPadding.coerceIn(0.dp, 100.dp)
+    val safeContentPadding = contentPadding.coerceIn(20.dp, 120.dp)
+
+    return AdaptiveInsets(safeNavBarPadding, safeContentPadding)
 }
+
+data class ScreenMetrics(
+    val widthPx: Int,
+    val heightPx: Int,
+    val density: Float,
+    val widthDp: Int,
+    val heightDp: Int,
+    val smallestWidthDp: Int
+)
 
 data class AdaptiveInsets(
     val navBarPadding: Dp,
@@ -133,13 +198,14 @@ fun MainScreen(
                       Build.MODEL.contains("fold", ignoreCase = true)
     val isFoldedMode = configuration.screenWidthDp < 600
     val navigationMode = getNavigationMode(context)
+    val screenMetrics = getScreenMetrics(context, configuration)
 
-    // Расчет адаптивных отступов
+    // Расчет адаптивных отступов на основе реальных метрик
     val adaptiveInsets = calculateAdaptiveInsets(
         isFoldDevice = isFoldDevice,
         isFoldedMode = isFoldedMode,
         navigationMode = navigationMode,
-        configuration = configuration
+        screenMetrics = screenMetrics
     )
 
     Box(modifier = Modifier.fillMaxSize()) {
