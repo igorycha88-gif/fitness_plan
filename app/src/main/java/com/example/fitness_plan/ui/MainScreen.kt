@@ -2,6 +2,7 @@ package com.example.fitness_plan.ui
 
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
@@ -17,6 +18,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.unit.dp
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
@@ -48,7 +50,7 @@ fun MainScreen(
         containerColor = Color.Transparent,
         bottomBar = {
             NavigationBar(
-                modifier = Modifier.windowInsetsPadding(WindowInsets.systemBars.only(WindowInsetsSides.Bottom))
+                modifier = Modifier.height(80.dp)
             ) {
                 val navBackStackEntry = bottomNavController.currentBackStackEntryAsState().value
                 val currentDestination = navBackStackEntry?.destination
@@ -76,6 +78,7 @@ fun MainScreen(
             modifier = Modifier
                 .padding(innerPadding)
                 .windowInsetsPadding(WindowInsets.systemBars.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal))
+                .padding(bottom = 80.dp) // Фиксированный padding для NavigationBar
         ) {
             composable(Screen.Home.route) {
                 HomeScreen(onExerciseClick = onExerciseClick)

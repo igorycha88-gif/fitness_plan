@@ -107,9 +107,7 @@ fun HomeScreen(
                     onDateChange = { dayIndex, date ->
                         viewModel.updateWorkoutDayDate(dayIndex, date)
                     },
-                    modifier = Modifier
-                        .padding(paddingValues)
-                        .windowInsetsPadding(WindowInsets.systemBars.only(WindowInsetsSides.Bottom))
+                    modifier = Modifier.padding(paddingValues)
                 )
             } else {
                 PlanDetailsScreen(
@@ -124,9 +122,7 @@ fun HomeScreen(
                     onDateChange = { dayIndex, date ->
                         viewModel.updateWorkoutDayDate(dayIndex, date)
                     },
-                    modifier = Modifier
-                        .padding(paddingValues)
-                        .windowInsetsPadding(WindowInsets.systemBars.only(WindowInsetsSides.Bottom))
+                    modifier = Modifier.padding(paddingValues)
                 )
             }
         }
