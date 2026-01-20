@@ -23,6 +23,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.fitness_plan.presentation.viewmodel.ProfileViewModel
 import com.example.fitness_plan.ui.theme.*
@@ -60,7 +61,9 @@ fun ProfileScreen(
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(paddingValues),
+                .padding(paddingValues)
+                .windowInsetsPadding(WindowInsets.systemBars.only(WindowInsetsSides.Top))
+                .padding(bottom = 80.dp), // Дополнительный padding для кнопки выхода
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             item {
@@ -142,6 +145,10 @@ fun ProfileScreen(
                         },
                         cornerRadius = cornerRadius
                     )
+                }
+                // Дополнительное пространство для полной прокрутки
+                item {
+                    Spacer(modifier = Modifier.height(24.dp))
                 }
             }
         }
