@@ -855,7 +855,7 @@ fun TrainingTab(
                     Spacer(modifier = Modifier.height(16.dp))
 
                     LinearProgressIndicator(
-                        progress = { cycleProgress },
+                        progress = cycleProgress,
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(12.dp)
