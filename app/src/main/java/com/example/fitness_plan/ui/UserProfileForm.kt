@@ -1,26 +1,42 @@
 package com.example.fitness_plan.ui
 
+import android.util.Log
+import androidx.compose.animation.*
+import androidx.compose.animation.core.*
+import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.dp
-import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.ui.text.input.KeyboardType
-import com.example.fitness_plan.data.UserProfile
+import androidx.compose.foundation.gestures.detectTapGestures
+import com.example.fitness_plan.domain.model.UserProfile
 import java.text.SimpleDateFormat
 import java.util.*
+
+data class DropdownOption(
+    val label: String,
+    val icon: ImageVector,
+    val description: String = ""
+)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun UserProfileForm(
-    viewModel: UserProfileViewModel,
-    onProfileSaved: () -> Unit
+    viewModel: ProfileViewModel,
+    onProfileSaved: () -> Unit,
+    onBackClick: () -> Unit = {},
+    username: String = ""
 ) {
     var goal by remember { mutableStateOf<String?>(null) }
     var level by remember { mutableStateOf<String?>(null) }
@@ -32,10 +48,28 @@ fun UserProfileForm(
     var showSlowWeightLossDialog by remember { mutableStateOf(false) }
     var showScheduleDialog by remember { mutableStateOf(false) }
 
-    val goals = listOf("Похудение", "Наращивание мышечной массы", "Поддержание формы")
-    val levels = listOf("Новичок", "Любитель", "Профессионал")
-    val frequencies = listOf("1 раз в неделю", "3 раза в неделю", "5 раз в неделю")
-    val genders = listOf("Мужской", "Женский")
+    val goalOptions = listOf(
+        DropdownOption("Похудение", Icons.Filled.Star, "Снижение веса и жировой массы"),
+        DropdownOption("Наращивание мышечной массы", Icons.Filled.Add, "Увеличение мышечной массы"),
+        DropdownOption("Поддержание формы", Icons.Filled.Check, "Сохранение текущей формы")
+    )
+
+    val levelOptions = listOf(
+        DropdownOption("Новичок", Icons.Filled.Close, "Начальный уровень"),
+        DropdownOption("Любитель", Icons.Filled.Clear, "Есть базовый опыт"),
+        DropdownOption("Профессионал", Icons.Filled.Edit, "Продвинутый уровень")
+    )
+
+    val frequencyOptions = listOf(
+        DropdownOption("1 раз в неделю", Icons.Filled.Refresh, "Лёгкий режим"),
+        DropdownOption("3 раза в неделю", Icons.Filled.Settings, "Стандартный режим"),
+        DropdownOption("5 раз в неделю", Icons.Filled.ThumbUp, "Интенсивный режим")
+    )
+
+    val genderOptions = listOf(
+        DropdownOption("Мужской", Icons.Filled.Person, "Для мужчин"),
+        DropdownOption("Женский", Icons.Filled.Person, "Для женщин")
+    )
 
     val showWarning = goal == "Похудение" && frequency == "1 раз в неделю"
 
@@ -56,31 +90,43 @@ fun UserProfileForm(
                 .verticalScroll(scrollState),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                IconButton(onClick = onBackClick) {
+                    Icon(
+                        imageVector = Icons.Filled.ArrowBack,
+                        contentDescription = "Назад"
+                    )
+                }
+            }
+
             Text(
                 text = "Расскажи о себе",
                 style = MaterialTheme.typography.headlineMedium,
                 modifier = Modifier.padding(bottom = 24.dp)
             )
 
-            DropdownField(
+            ModernDropdown(
                 label = "Цель тренировок",
-                options = goals,
+                options = goalOptions,
                 selectedOption = goal,
                 onOptionSelected = { goal = it }
             )
             Spacer(modifier = Modifier.height(16.dp))
 
-            DropdownField(
+            ModernDropdown(
                 label = "Уровень подготовки",
-                options = levels,
+                options = levelOptions,
                 selectedOption = level,
                 onOptionSelected = { level = it }
             )
             Spacer(modifier = Modifier.height(16.dp))
 
-            DropdownField(
+            ModernDropdown(
                 label = "Частота тренировок",
-                options = frequencies,
+                options = frequencyOptions,
                 selectedOption = frequency,
                 onOptionSelected = { frequency = it }
             )
@@ -91,8 +137,14 @@ fun UserProfileForm(
                 onValueChange = { weight = it },
                 label = { Text("Вес (кг)") },
                 isError = weight.isNotEmpty() && (weightDouble == null || weightDouble <= 0),
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = MaterialTheme.colorScheme.primary,
+                    unfocusedBorderColor = MaterialTheme.colorScheme.outline,
+                    focusedLabelColor = MaterialTheme.colorScheme.primary,
+                    cursorColor = MaterialTheme.colorScheme.primary
+                ),
+                shape = RoundedCornerShape(12.dp)
             )
             Spacer(modifier = Modifier.height(16.dp))
 
@@ -101,14 +153,20 @@ fun UserProfileForm(
                 onValueChange = { height = it },
                 label = { Text("Рост (см)") },
                 isError = height.isNotEmpty() && (heightDouble == null || heightDouble <= 0),
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = MaterialTheme.colorScheme.primary,
+                    unfocusedBorderColor = MaterialTheme.colorScheme.outline,
+                    focusedLabelColor = MaterialTheme.colorScheme.primary,
+                    cursorColor = MaterialTheme.colorScheme.primary
+                ),
+                shape = RoundedCornerShape(12.dp)
             )
             Spacer(modifier = Modifier.height(16.dp))
 
-            DropdownField(
+            ModernDropdown(
                 label = "Пол",
-                options = genders,
+                options = genderOptions,
                 selectedOption = gender,
                 onOptionSelected = { gender = it }
             )
@@ -127,9 +185,18 @@ fun UserProfileForm(
                     }
                 },
                 enabled = isValid && isNumericValid,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(56.dp),
+                shape = RoundedCornerShape(16.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.primary
+                )
             ) {
-                Text("Сохранить профиль")
+                Text(
+                    "Сохранить профиль",
+                    style = MaterialTheme.typography.titleMedium
+                )
             }
         }
 
@@ -159,9 +226,10 @@ fun UserProfileForm(
                 frequency = frequency!!,
                 onDismiss = { showScheduleDialog = false },
                 onConfirm = { dates ->
-                    val username = viewModel.currentUsername.value
+                    val profileUsername = username.ifEmpty { viewModel.currentUsername.value }
+
                     val profile = UserProfile(
-                        username = username,
+                        username = profileUsername,
                         goal = goal!!,
                         level = level!!,
                         frequency = frequency!!,
@@ -169,13 +237,195 @@ fun UserProfileForm(
                         height = heightDouble!!,
                         gender = gender!!
                     )
+
+                    Log.d("UserProfileForm", "onConfirm: Saving profile with username=${profile.username}")
                     viewModel.saveUserProfile(profile)
-                    viewModel.saveWorkoutSchedule(dates)
+                    viewModel.setCurrentUsername(profileUsername)
+
                     onProfileSaved()
                 }
             )
         }
     }
+}
+
+@Composable
+fun ModernDropdown(
+    label: String,
+    options: List<DropdownOption>,
+    selectedOption: String?,
+    onOptionSelected: (String) -> Unit
+) {
+    var expanded by remember { mutableStateOf(false) }
+    val alpha by animateFloatAsState(
+        targetValue = if (expanded) 1f else 0.6f,
+        animationSpec = tween(200),
+        label = "chevronAlpha"
+    )
+
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(bottom = 8.dp)
+        )
+
+        Box {
+            OutlinedTextField(
+                value = selectedOption ?: "",
+                onValueChange = {},
+                readOnly = true,
+                placeholder = {
+                    Text(
+                        "Выберите...",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                    )
+                },
+                trailingIcon = {
+                    Icon(
+                        imageVector = Icons.Filled.KeyboardArrowDown,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(24.dp)
+                    )
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .shadow(
+                        elevation = if (expanded) 8.dp else 0.dp,
+                        shape = RoundedCornerShape(12.dp)
+                    )
+                    .clip(RoundedCornerShape(12.dp))
+                    .border(
+                        width = if (expanded) 2.dp else 1.dp,
+                        color = if (expanded) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
+                        shape = RoundedCornerShape(12.dp)
+                    )
+                    .noRippleClickable { expanded = !expanded },
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = MaterialTheme.colorScheme.primary,
+                    unfocusedBorderColor = MaterialTheme.colorScheme.outline,
+                    focusedContainerColor = MaterialTheme.colorScheme.surface,
+                    unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+                    cursorColor = MaterialTheme.colorScheme.primary
+                ),
+                shape = RoundedCornerShape(12.dp)
+            )
+
+            Spacer(
+                modifier = Modifier
+                    .matchParentSize()
+                    .noRippleClickable { expanded = !expanded }
+            )
+        }
+
+        AnimatedVisibility(
+            visible = expanded,
+            enter = expandVertically(
+                expandFrom = Alignment.Top,
+                animationSpec = tween(250, easing = FastOutSlowInEasing)
+            ) + fadeIn(),
+            exit = shrinkVertically(
+                shrinkTowards = Alignment.Top,
+                animationSpec = tween(200, easing = FastOutSlowInEasing)
+            ) + fadeOut()
+        ) {
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 8.dp)
+                    .shadow(12.dp, RoundedCornerShape(16.dp)),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surface
+                )
+            ) {
+                Column(
+                    modifier = Modifier.padding(8.dp)
+                ) {
+                    options.forEachIndexed { index, option ->
+                        val isSelected = selectedOption == option.label
+
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(
+                                    if (isSelected) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
+                                    else MaterialTheme.colorScheme.surface
+                                )
+                                .noRippleClickable {
+                                    onOptionSelected(option.label)
+                                    expanded = false
+                                }
+                                .padding(16.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(44.dp)
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .background(
+                                        if (isSelected) MaterialTheme.colorScheme.primary
+                                        else MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
+                                    ),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = option.icon,
+                                    contentDescription = null,
+                                    tint = if (isSelected) MaterialTheme.colorScheme.onPrimary
+                                    else MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                            }
+
+                            Spacer(modifier = Modifier.width(16.dp))
+
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = option.label,
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    color = if (isSelected) MaterialTheme.colorScheme.primary
+                                    else MaterialTheme.colorScheme.onSurface
+                                )
+                                if (option.description.isNotEmpty()) {
+                                    Text(
+                                        text = option.description,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+
+                            if (isSelected) {
+                                Icon(
+                                    imageVector = Icons.Filled.Check,
+                                    contentDescription = "Выбрано",
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                        }
+
+                        if (index < options.lastIndex) {
+                            Spacer(modifier = Modifier.height(4.dp))
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun Modifier.noRippleClickable(onClick: () -> Unit): Modifier {
+    return this.then(
+        Modifier.pointerInput(Unit) {
+            detectTapGestures(onTap = { onClick() })
+        }
+    )
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -216,34 +466,14 @@ fun WorkoutScheduleDialog(
 
                 OutlinedButton(
                     onClick = { showStartDatePicker = true },
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp)
                 ) {
                     Icon(Icons.Filled.DateRange, contentDescription = null)
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
                         if (startDate != null) formatDate(startDate!!) else "Выберите дату начала"
                     )
-                }
-
-                if (dates.isNotEmpty()) {
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Text(
-                        "Будет создано $trainingCount тренировок на 4 недели:",
-                        style = MaterialTheme.typography.bodySmall
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    Text(
-                        text = dates.take(4).joinToString("\n") { "Неделя 1: ${formatDate(it)}" },
-                        style = MaterialTheme.typography.bodySmall
-                    )
-                    if (dates.size > 4) {
-                        Text(
-                            "... и ещё ${dates.size - 4} дат",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
                 }
             }
         },
@@ -297,32 +527,28 @@ fun calculateWorkoutDates(startDate: Long, frequency: String, totalCount: Int): 
 
     when (frequency) {
         "1 раз в неделю" -> {
-            // Same weekday each week
             for (i in 0 until totalCount) {
                 dates.add(calendar.timeInMillis)
                 calendar.add(Calendar.WEEK_OF_YEAR, 1)
             }
         }
         "3 раза в неделю" -> {
-            // Start date, then every other day (3 days in first week)
             var count = 0
             while (dates.size < totalCount) {
                 dates.add(calendar.timeInMillis)
                 count++
                 if (count == 3) {
-                    // Move to next week, same starting day
                     calendar.add(Calendar.WEEK_OF_YEAR, 1)
                     calendar.set(Calendar.DAY_OF_WEEK, Calendar.getInstance().apply {
                         timeInMillis = startDate
                     }.get(Calendar.DAY_OF_WEEK))
                     count = 0
                 } else {
-                    calendar.add(Calendar.DAY_OF_YEAR, 2) // Every other day
+                    calendar.add(Calendar.DAY_OF_YEAR, 2)
                 }
             }
         }
         "5 раз в неделю" -> {
-            // 5 consecutive days, then next week
             var weekStart = calendar.clone() as Calendar
             while (dates.size < totalCount) {
                 for (dayOffset in 0 until 5) {
@@ -338,50 +564,4 @@ fun calculateWorkoutDates(startDate: Long, frequency: String, totalCount: Int): 
     }
 
     return dates
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun DropdownField(
-    label: String,
-    options: List<String>,
-    selectedOption: String?,
-    onOptionSelected: (String) -> Unit
-) {
-    var expanded by remember { mutableStateOf(false) }
-
-    ExposedDropdownMenuBox(
-        expanded = expanded,
-        onExpandedChange = { expanded = !expanded },
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        OutlinedTextField(
-            value = selectedOption ?: "",
-            onValueChange = {},
-            readOnly = true,
-            label = { Text(label) },
-            trailingIcon = {
-                ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded)
-            },
-            modifier = Modifier
-                .menuAnchor()
-                .fillMaxWidth()
-        )
-
-        ExposedDropdownMenu(
-            expanded = expanded,
-            onDismissRequest = { expanded = false }
-        ) {
-            options.forEach { option ->
-                DropdownMenuItem(
-                    text = { Text(text = option) },
-                    onClick = {
-                        onOptionSelected(option)
-                        expanded = false
-                    },
-                    contentPadding = ExposedDropdownMenuDefaults.ItemContentPadding
-                )
-            }
-        }
-    }
 }

@@ -10,7 +10,9 @@ data class Exercise(
     val description: String? = null, // Дополнительные инструкции
     val imageRes: String? = null, // Ресурс картинки упражнения
     val muscleGroups: List<String> = emptyList(), // Группы мышц
-    val alternatives: List<Exercise> = emptyList() // Альтернативные упражнения
+    val alternatives: List<Exercise> = emptyList(), // Альтернативные упражнения
+    val targetGoal: String = "Похудение", // Целевая цель
+    val targetLevel: String = "Новичок" // Уровень подготовки
 )
 
 // Модель для одного дня тренировки
@@ -48,6 +50,7 @@ data class ExerciseStats(
     val date: Long,
     val weight: Double,
     val reps: Int,
-    val sets: Int
+    val setNumber: Int,  // Номер подхода (1, 2, 3...)
+    val sets: Int        // Всего подходов в упражнении
 )
 

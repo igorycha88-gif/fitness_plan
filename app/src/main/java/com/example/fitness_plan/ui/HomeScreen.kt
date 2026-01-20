@@ -2,84 +2,343 @@ package com.example.fitness_plan.ui
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.example.fitness_plan.data.Exercise
-import com.example.fitness_plan.data.ExerciseStats
-import com.example.fitness_plan.data.Week
-import com.example.fitness_plan.data.WorkoutDay
-import com.example.fitness_plan.data.WorkoutPlan
+import com.example.fitness_plan.domain.model.Exercise
+import com.example.fitness_plan.domain.model.ExerciseStats
+import com.example.fitness_plan.domain.model.WorkoutDay
+import com.example.fitness_plan.domain.model.WorkoutPlan
+import com.example.fitness_plan.ui.theme.SuccessGreen
 import java.text.SimpleDateFormat
 import java.util.*
-
-enum class DayCompletionStatus {
-    COMPLETED,  // All exercises completed - GREEN
-    PARTIAL,    // Some exercises completed - YELLOW
-    NONE        // No exercises completed - GRAY/WHITE
-}
 
 fun formatDate(timestamp: Long): String {
     val sdf = SimpleDateFormat("dd MMM yyyy", Locale.getDefault())
     return sdf.format(Date(timestamp))
 }
 
+fun isAllSetsCompleted(exerciseName: String, totalSets: Int, exerciseStats: List<ExerciseStats>): Boolean {
+    val completedSets = exerciseStats
+        .filter { it.exerciseName == exerciseName && it.weight > 0 && it.reps > 0 }
+        .size
+    return completedSets >= totalSets
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
-    viewModel: UserProfileViewModel = hiltViewModel(),
+    viewModel: WorkoutViewModel = hiltViewModel(),
     onExerciseClick: (Exercise) -> Unit = {}
 ) {
     val workoutPlan by viewModel.currentWorkoutPlan.collectAsState()
     val exerciseStats by viewModel.exerciseStats.collectAsState()
     val completedExercises by viewModel.completedExercises.collectAsState()
+    val completedDays by viewModel.completedDays.collectAsState()
+    val isLoading by viewModel.isLoading.collectAsState()
+
+    LaunchedEffect(Unit) {
+        viewModel.initializeWorkout()
+    }
+
+    val configuration = LocalConfiguration.current
+    val screenWidthDp = configuration.screenWidthDp
+    val isExpandedScreen = screenWidthDp >= 600
 
     Scaffold(
         topBar = {
-            TopAppBar(title = { Text("Мой план тренировок") })
+            TopAppBar(
+                title = {},
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.surface
+                ),
+                actions = {
+                    IconButton(onClick = { }) {
+                        Icon(Icons.Default.Notifications, contentDescription = "Уведомления")
+                    }
+                    IconButton(onClick = { }) {
+                        Icon(Icons.Default.Person, contentDescription = "Профиль")
+                    }
+                }
+            )
         }
     ) { paddingValues ->
-        Column(modifier = Modifier
-            .fillMaxSize()
-            .padding(paddingValues)
-            .padding(16.dp)) {
-
-            if (workoutPlan == null) {
-                Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
-                    CircularProgressIndicator()
-                    Text("Загрузка плана...", modifier = Modifier.padding(top = 40.dp))
-                }
+        if (workoutPlan == null || isLoading) {
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues)
+            ) {
+                CircularProgressIndicator()
+                Text(
+                    "Загрузка плана...",
+                    modifier = Modifier.padding(top = if (isExpandedScreen) 60.dp else 40.dp)
+                )
+            }
+        } else {
+            if (isExpandedScreen) {
+                AdaptivePlanDetailsScreen(
+                    plan = workoutPlan!!,
+                    exerciseStats = exerciseStats,
+                    completedExercises = completedExercises,
+                    completedDays = completedDays,
+                    onExerciseClick = onExerciseClick,
+                    onExerciseToggle = { name, completed ->
+                        viewModel.toggleExerciseCompletion(name, completed)
+                    },
+                    onDateChange = { dayIndex, date ->
+                        viewModel.updateWorkoutDayDate(dayIndex, date)
+                    },
+                    modifier = Modifier.padding(paddingValues)
+                )
             } else {
                 PlanDetailsScreen(
                     plan = workoutPlan!!,
                     exerciseStats = exerciseStats,
                     completedExercises = completedExercises,
+                    completedDays = completedDays,
                     onExerciseClick = onExerciseClick,
-                    onExerciseToggle = { exerciseName, completed ->
-                        viewModel.toggleExerciseCompletion(exerciseName, completed)
+                    onExerciseToggle = { name, completed ->
+                        viewModel.toggleExerciseCompletion(name, completed)
                     },
                     onDateChange = { dayIndex, date ->
                         viewModel.updateWorkoutDayDate(dayIndex, date)
-                    }
+                    },
+                    modifier = Modifier.padding(paddingValues)
                 )
+            }
+        }
+    }
+}
+
+@Composable
+fun AdaptivePlanDetailsScreen(
+    plan: WorkoutPlan,
+    exerciseStats: List<ExerciseStats>,
+    completedExercises: Set<String>,
+    completedDays: Set<Int>,
+    onExerciseClick: (Exercise) -> Unit,
+    onExerciseToggle: (String, Boolean) -> Unit,
+    onDateChange: (Int, Long?) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    var selectedDayIndex by remember { mutableStateOf(0) }
+
+    Row(modifier = modifier.fillMaxSize()) {
+        Column(
+            modifier = Modifier
+                .weight(0.35f)
+                .fillMaxHeight()
+                .verticalScroll(rememberScrollState())
+                .padding(16.dp)
+        ) {
+            Text(
+                text = plan.name,
+                style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.Bold
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = "Группы мышц: ${plan.muscleGroups.joinToString(", ")}",
+                style = MaterialTheme.typography.bodyMedium
+            )
+            Spacer(modifier = Modifier.height(24.dp))
+
+            Text(
+                text = "Дни",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.SemiBold
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+
+            plan.days.forEachIndexed { index, day ->
+                val isSelected = selectedDayIndex == index
+                val isCompleted = index in completedDays
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 4.dp)
+                        .clickable { selectedDayIndex = index },
+                    colors = CardDefaults.cardColors(
+                        containerColor = if (isSelected)
+                            MaterialTheme.colorScheme.primaryContainer
+                        else if (isCompleted)
+                            Color(0xFF2DD4BF).copy(alpha = 0.1f)
+                        else
+                            MaterialTheme.colorScheme.surface
+                    ),
+                    border = if (isCompleted && !isSelected) {
+                        BorderStroke(1.dp, Color(0xFF2DD4BF))
+                    } else null
+                ) {
+                    Column(modifier = Modifier.padding(12.dp)) {
+                        Text(
+                            text = day.dayName,
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                        )
+                        Text(
+                            text = "${day.exercises.size} упражнений",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        if (isCompleted) {
+                            Text(
+                                text = "✓",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = Color(0xFF2DD4BF)
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        Box(
+            modifier = Modifier
+                .width(1.dp)
+                .fillMaxHeight()
+                .padding(vertical = 16.dp)
+                .background(MaterialTheme.colorScheme.outlineVariant)
+        )
+
+        Column(
+            modifier = Modifier
+                .weight(0.65f)
+                .fillMaxHeight()
+                .verticalScroll(rememberScrollState())
+                .padding(16.dp)
+        ) {
+            val selectedDay = plan.days.getOrNull(selectedDayIndex)
+            selectedDay?.let { day ->
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(
+                        containerColor = if (selectedDayIndex in completedDays)
+                            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
+                        else
+                            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                    )
+                ) {
+                    Column(modifier = Modifier.padding(20.dp)) {
+                        Text(
+                            text = day.dayName,
+                            style = MaterialTheme.typography.headlineSmall,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = "Группы мышц: ${day.muscleGroups.joinToString(", ")}",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "${day.exercises.size} упражнений",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                        if (selectedDayIndex in completedDays) {
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = "✓ Выполнено",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = Color(0xFF2DD4BF),
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Text(
+                    text = "Упражнения:",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+
+                day.exercises.forEachIndexed { index, exercise ->
+                    val exerciseKey = "${selectedDayIndex}_${exercise.name}"
+                    val isExerciseCompleted = exerciseKey in completedExercises
+                    val isAllSetsDone = isAllSetsCompleted(exercise.name, exercise.sets, exerciseStats)
+                    val showCheckmark = isAllSetsDone || isExerciseCompleted
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 4.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = if (showCheckmark)
+                                SuccessGreen.copy(alpha = 0.08f)
+                            else
+                                MaterialTheme.colorScheme.surface
+                        ),
+                        border = if (showCheckmark) {
+                            BorderStroke(1.dp, SuccessGreen.copy(alpha = 0.3f))
+                        } else null
+                    ) {
+                        Column(modifier = Modifier.padding(12.dp)) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    if (showCheckmark) {
+                                        Icon(
+                                            imageVector = Icons.Filled.Check,
+                                            contentDescription = "Выполнено",
+                                            tint = SuccessGreen,
+                                            modifier = Modifier.size(20.dp)
+                                        )
+                                    } else {
+                                        Icon(
+                                            imageVector = Icons.Filled.Close,
+                                            contentDescription = "Не выполнено",
+                                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            modifier = Modifier.size(20.dp)
+                                        )
+                                    }
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(
+                                        text = exercise.name,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = if (showCheckmark) SuccessGreen else MaterialTheme.colorScheme.onSurface
+                                    )
+                                }
+                                Column(horizontalAlignment = Alignment.End) {
+                                    Text(
+                                        text = "${exercise.sets} сетов",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+                                    Text(
+                                        text = exercise.reps,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
             }
         }
     }
@@ -90,125 +349,46 @@ fun PlanDetailsScreen(
     plan: WorkoutPlan,
     exerciseStats: List<ExerciseStats>,
     completedExercises: Set<String>,
+    completedDays: Set<Int>,
     onExerciseClick: (Exercise) -> Unit,
     onExerciseToggle: (String, Boolean) -> Unit,
-    onDateChange: ((Int, Long?) -> Unit)? = null
+    onDateChange: ((Int, Long?) -> Unit)? = null,
+    modifier: Modifier = Modifier
 ) {
-    Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
-        Text(text = plan.name, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
-        Spacer(modifier = Modifier.height(8.dp))
-        Text(text = plan.description, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Text(text = "Группы мышц: ${plan.muscleGroups.joinToString(", ")}", style = MaterialTheme.typography.bodyMedium)
-        Spacer(modifier = Modifier.height(16.dp))
-
-        if (plan.weeks.isNotEmpty()) {
-            WeekPager(
-                weeks = plan.weeks,
-                exerciseStats = exerciseStats,
-                completedExercises = completedExercises,
-                onExerciseClick = onExerciseClick,
-                onExerciseToggle = onExerciseToggle,
-                onDateChange = onDateChange
-            )
-        } else if (plan.days.isNotEmpty()) {
-            WorkoutDaysList(
-                days = plan.days,
-                exerciseStats = exerciseStats,
-                completedExercises = completedExercises,
-                onExerciseClick = onExerciseClick,
-                onExerciseToggle = onExerciseToggle,
-                onDateChange = onDateChange
-            )
-        } else {
-            Text("План пуст", style = MaterialTheme.typography.bodyLarge)
-        }
-
-        Spacer(modifier = Modifier.height(16.dp))
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun WeekPager(
-    weeks: List<Week>,
-    exerciseStats: List<ExerciseStats>,
-    completedExercises: Set<String>,
-    onExerciseClick: (Exercise) -> Unit,
-    onExerciseToggle: (String, Boolean) -> Unit,
-    onDateChange: ((Int, Long?) -> Unit)? = null
-) {
-    var selectedWeekIndex by remember { mutableStateOf(0) }
-
-    Column {
-        TabRow(selectedTabIndex = selectedWeekIndex) {
-            weeks.forEachIndexed { index, week ->
-                Tab(
-                    selected = selectedWeekIndex == index,
-                    onClick = { selectedWeekIndex = index },
-                    text = { Text("Неделя ${week.weekNumber}") }
-                )
-            }
-        }
-
-        WeekContent(
-            week = weeks[selectedWeekIndex],
-            exerciseStats = exerciseStats,
-            completedExercises = completedExercises,
-            onExerciseClick = onExerciseClick,
-            onExerciseToggle = onExerciseToggle,
-            onDateChange = onDateChange
-        )
-    }
-}
-
-@Composable
-fun WeekContent(
-    week: Week,
-    exerciseStats: List<ExerciseStats>,
-    completedExercises: Set<String>,
-    onExerciseClick: (Exercise) -> Unit,
-    onExerciseToggle: (String, Boolean) -> Unit,
-    onDateChange: ((Int, Long?) -> Unit)? = null
-) {
-    Column(modifier = Modifier.fillMaxWidth()) {
-        Spacer(modifier = Modifier.height(16.dp))
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
-        ) {
-            Column(modifier = Modifier.padding(16.dp)) {
-                Text(
-                    text = "Неделя ${week.weekNumber}",
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold
-                )
-                Text(
-                    text = week.focus,
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.primary
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    text = week.description,
-                    style = MaterialTheme.typography.bodyMedium
-                )
-            }
-        }
-        Spacer(modifier = Modifier.height(16.dp))
+    Column(modifier = modifier.verticalScroll(rememberScrollState())) {
         Text(
-            text = "Тренировочные дни:",
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.SemiBold
+            text = plan.name,
+            style = MaterialTheme.typography.headlineMedium,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(16.dp)
         )
         Spacer(modifier = Modifier.height(8.dp))
+        Text(
+            text = "Группы мышц: ${plan.muscleGroups.joinToString(", ")}",
+            style = MaterialTheme.typography.bodyMedium,
+            modifier = Modifier.padding(horizontal = 16.dp)
+        )
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Text(
+            text = "Тренировки:",
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.SemiBold,
+            modifier = Modifier.padding(horizontal = 16.dp)
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+
         WorkoutDaysList(
-            days = week.workoutPlan.days,
+            days = plan.days,
             exerciseStats = exerciseStats,
             completedExercises = completedExercises,
+            completedDays = completedDays,
             onExerciseClick = onExerciseClick,
             onExerciseToggle = onExerciseToggle,
             onDateChange = onDateChange
         )
+
+        Spacer(modifier = Modifier.height(16.dp))
     }
 }
 
@@ -217,16 +397,18 @@ fun WorkoutDaysList(
     days: List<WorkoutDay>,
     exerciseStats: List<ExerciseStats>,
     completedExercises: Set<String>,
+    completedDays: Set<Int>,
     onExerciseClick: (Exercise) -> Unit,
     onExerciseToggle: (String, Boolean) -> Unit,
     onDateChange: ((Int, Long?) -> Unit)? = null
 ) {
-    Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+    Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         days.forEachIndexed { index, day ->
-            val completionStatus = getDayCompletionStatus(day, completedExercises, exerciseStats)
+            val isCompleted = index in completedDays
             WorkoutDayCard(
                 day = day,
-                completionStatus = completionStatus,
+                dayIndex = index,
+                isCompleted = isCompleted,
                 completedExercises = completedExercises,
                 exerciseStats = exerciseStats,
                 onExerciseClick = onExerciseClick,
@@ -237,27 +419,12 @@ fun WorkoutDaysList(
     }
 }
 
-fun getDayCompletionStatus(day: WorkoutDay, completedExercises: Set<String>, exerciseStats: List<ExerciseStats>): DayCompletionStatus {
-    if (day.exercises.isEmpty()) return DayCompletionStatus.NONE
-
-    val completedCount = day.exercises.count { exercise ->
-        val hasManualCompletion = completedExercises.contains(exercise.name)
-        val hasStats = exerciseStats.any { it.exerciseName == exercise.name }
-        hasManualCompletion || hasStats
-    }
-
-    return when {
-        completedCount == day.exercises.size -> DayCompletionStatus.COMPLETED
-        completedCount > 0 -> DayCompletionStatus.PARTIAL
-        else -> DayCompletionStatus.NONE
-    }
-}
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun WorkoutDayCard(
     day: WorkoutDay,
-    completionStatus: DayCompletionStatus,
+    dayIndex: Int = 0,
+    isCompleted: Boolean = false,
     completedExercises: Set<String>,
     exerciseStats: List<ExerciseStats>,
     onExerciseClick: (Exercise) -> Unit,
@@ -267,22 +434,21 @@ fun WorkoutDayCard(
     var isExpanded by remember { mutableStateOf(false) }
     var showDatePicker by remember { mutableStateOf(false) }
 
-    val backgroundColor = when (completionStatus) {
-        DayCompletionStatus.COMPLETED -> Color(0xFF4CAF50).copy(alpha = 0.2f)
-        DayCompletionStatus.PARTIAL -> Color(0xFFFFEB3B).copy(alpha = 0.3f)
-        DayCompletionStatus.NONE -> MaterialTheme.colorScheme.surface
+    val backgroundColor = when {
+        isCompleted -> Color(0xFF2DD4BF).copy(alpha = 0.15f)
+        else -> MaterialTheme.colorScheme.surface
     }
 
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp),
         colors = CardDefaults.cardColors(containerColor = backgroundColor),
-        border = if (completionStatus != DayCompletionStatus.NONE) {
-            BorderStroke(1.dp, when (completionStatus) {
-                DayCompletionStatus.COMPLETED -> Color(0xFF4CAF50)
-                DayCompletionStatus.PARTIAL -> Color(0xFFFFEB3B)
-                DayCompletionStatus.NONE -> Color.Transparent
-            })
-        } else null
+        border = if (isCompleted) {
+            BorderStroke(2.dp, Color(0xFF2DD4BF))
+        } else {
+            BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+        }
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(
@@ -291,7 +457,11 @@ fun WorkoutDayCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Column(modifier = Modifier.weight(1f)) {
-                    Text(text = day.dayName, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                    Text(
+                        text = day.dayName,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold
+                    )
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         day.scheduledDate?.let { date ->
                             Text(
@@ -315,28 +485,32 @@ fun WorkoutDayCard(
                             }
                         }
                     }
-                    Text(text = "Группы мышц: ${day.muscleGroups.joinToString(", ")}", style = MaterialTheme.typography.bodySmall)
+                    Text(
+                        text = "Группы мышц: ${day.muscleGroups.joinToString(", ")}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    if (isCompleted) {
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "✓ Выполнено",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = Color(0xFF2DD4BF),
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
                 }
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    val statusText = when (completionStatus) {
-                        DayCompletionStatus.COMPLETED -> "✓"
-                        DayCompletionStatus.PARTIAL -> "◐"
-                        DayCompletionStatus.NONE -> ""
-                    }
-                    val statusColor = when (completionStatus) {
-                        DayCompletionStatus.COMPLETED -> Color(0xFF4CAF50)
-                        DayCompletionStatus.PARTIAL -> Color(0xFFFF9800)
-                        DayCompletionStatus.NONE -> Color.Transparent
-                    }
-                    if (statusText.isNotEmpty()) {
-                        Text(
-                            text = statusText,
-                            color = statusColor,
-                            style = MaterialTheme.typography.bodyLarge
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                    }
-                    Text(if (isExpanded) "-" else "+")
+                    Text(
+                        text = "${day.exercises.size} упр.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        if (isExpanded) "-" else "+",
+                        style = MaterialTheme.typography.titleMedium
+                    )
                 }
             }
 
@@ -344,15 +518,16 @@ fun WorkoutDayCard(
                 Spacer(modifier = Modifier.height(12.dp))
 
                 day.exercises.forEachIndexed { index, exercise ->
-                    val hasManualCompletion = completedExercises.contains(exercise.name)
-                    val hasStats = exerciseStats.any { it.exerciseName == exercise.name }
-                    val isCompleted = hasManualCompletion || hasStats
+                    val exerciseKey = "${dayIndex}_${exercise.name}"
+                    val isExerciseCompleted = exerciseKey in completedExercises
                     ExerciseRow(
                         exercise = exercise,
-                        isCompleted = isCompleted,
+                        isCompleted = isExerciseCompleted,
                         isLast = index == day.exercises.lastIndex,
+                        dayIndex = dayIndex,
+                        exerciseStats = exerciseStats,
                         onClick = { onExerciseClick(exercise) },
-                        onToggle = { completed -> onExerciseToggle(exercise.name, completed) }
+                        onToggle = { completed -> onExerciseToggle(exerciseKey, completed) }
                     )
                 }
             }
@@ -400,10 +575,14 @@ fun ExerciseRow(
     exercise: Exercise,
     isCompleted: Boolean,
     isLast: Boolean,
+    dayIndex: Int = 0,
+    exerciseStats: List<ExerciseStats> = emptyList(),
     onClick: () -> Unit = {},
     onToggle: (Boolean) -> Unit = {}
 ) {
     val context = LocalContext.current
+    val isAllSetsDone = isAllSetsCompleted(exercise.name, exercise.sets, exerciseStats)
+    val showCheckmark = isAllSetsDone || isCompleted
 
     Column(modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
         Row(
@@ -415,26 +594,39 @@ fun ExerciseRow(
                 modifier = Modifier.weight(1f),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                    IconButton(
-                    onClick = { onToggle(!isCompleted) },
-                    modifier = Modifier.size(32.dp)
-                ) {
+                if (showCheckmark) {
                     Icon(
-                        imageVector = if (isCompleted) Icons.Filled.Check else Icons.Filled.Close,
-                        contentDescription = if (isCompleted) "Отменить выполнение" else "Отметить как выполненное",
-                        tint = if (isCompleted) Color(0xFF4CAF50) else MaterialTheme.colorScheme.onSurfaceVariant
+                        imageVector = Icons.Filled.Check,
+                        contentDescription = "Выполнено",
+                        tint = SuccessGreen,
+                        modifier = Modifier.size(24.dp)
+                    )
+                } else {
+                    Icon(
+                        imageVector = Icons.Filled.Close,
+                        contentDescription = "Не выполнено",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(24.dp)
                     )
                 }
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
                     text = exercise.name,
                     style = MaterialTheme.typography.bodyLarge,
-                    color = if (isCompleted) Color(0xFF4CAF50) else MaterialTheme.colorScheme.onSurface
+                    color = if (showCheckmark) SuccessGreen else MaterialTheme.colorScheme.onSurface
                 )
             }
             Column(horizontalAlignment = Alignment.End) {
-                Text(text = "${exercise.sets} сетов", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.primary)
-                Text(text = exercise.reps, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(
+                    text = "${exercise.sets} сетов",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                Text(
+                    text = exercise.reps,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
         }
 
@@ -444,7 +636,10 @@ fun ExerciseRow(
                 Image(
                     painter = painterResource(id = resId),
                     contentDescription = exercise.name,
-                    modifier = Modifier.fillMaxWidth().height(150.dp).padding(top = 8.dp)
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(150.dp)
+                        .padding(top = 8.dp)
                 )
             }
         }

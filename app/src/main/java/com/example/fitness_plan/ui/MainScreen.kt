@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.List
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -13,25 +14,27 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
-import com.example.fitness_plan.data.Exercise
 import androidx.navigation.compose.rememberNavController
-import com.example.fitness_plan.ui.ProfileScreen
+import androidx.hilt.navigation.compose.hiltViewModel
+import com.example.fitness_plan.domain.model.Exercise
 
-// Определяем маршруты и иконки для наших вкладок
 sealed class Screen(val route: String, val label: String, val icon: ImageVector) {
     object Home : Screen("home", "Главная", Icons.Default.Home)
     object Profile : Screen("profile", "Профиль", Icons.Default.AccountCircle)
-    object Statistics : Screen("statistics", "Статистика", Icons.Default.Home)
+    object Statistics : Screen("statistics", "Статистика", Icons.Default.List)
+    object CycleHistory : Screen("cycle_history", "История циклов", Icons.Default.Home)
 }
 
 private val items = listOf(Screen.Home, Screen.Profile, Screen.Statistics)
 
 @Composable
 fun MainScreen(
-    mainNavController: NavHostController, // Контроллер для глобальных переходов (например, выход из аккаунта)
+    mainNavController: NavHostController,
+    profileViewModel: ProfileViewModel? = null,
+    workoutViewModel: WorkoutViewModel? = null,
     onExerciseClick: (Exercise) -> Unit = {}
 ) {
-    val bottomNavController = rememberNavController() // Контроллер для навигации между вкладками
+    val bottomNavController = rememberNavController()
 
     Scaffold(
         bottomBar = {
@@ -46,10 +49,7 @@ fun MainScreen(
                         selected = currentDestination?.hierarchy?.any { navDestination -> navDestination.route == screen.route } == true,
                         onClick = {
                             bottomNavController.navigate(screen.route) {
-                                // Настройка поведения для предотвращения накопления стека
-                                popUpTo(bottomNavController.graph.startDestinationId) {
-                                    saveState = true
-                                }
+                                popUpTo(bottomNavController.graph.startDestinationId) { saveState = true }
                                 launchSingleTop = true
                                 restoreState = true
                             }
@@ -59,7 +59,6 @@ fun MainScreen(
             }
         }
     ) { innerPadding ->
-        // Навигация внутри главного экрана
         NavHost(
             navController = bottomNavController,
             startDestination = Screen.Home.route,
@@ -70,19 +69,18 @@ fun MainScreen(
             }
             composable(Screen.Profile.route) {
                 ProfileScreen(
+                    viewModel = profileViewModel ?: hiltViewModel(),
                     onLogoutClick = {
-                        // При выходе переходим к экрану входа
-                        mainNavController.navigate("login_screen") {
-                            popUpTo("welcome") { inclusive = true }
-                        }
-                    },
-                    onStatisticsClick = {
-                        bottomNavController.navigate(Screen.Statistics.route)
+                        profileViewModel?.logout()
+                        mainNavController.navigate("login_screen") { popUpTo("welcome") { inclusive = true } }
                     }
                 )
             }
             composable(Screen.Statistics.route) {
-                StatisticsScreen(navController = mainNavController)
+                StatisticsScreen()
+            }
+            composable(Screen.CycleHistory.route) {
+                CycleHistoryScreen(navController = mainNavController)
             }
         }
     }
