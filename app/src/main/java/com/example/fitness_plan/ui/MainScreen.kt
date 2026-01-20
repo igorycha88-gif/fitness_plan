@@ -1,9 +1,12 @@
 package com.example.fitness_plan.ui
 
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountCircle
@@ -12,6 +15,7 @@ import androidx.compose.material.icons.filled.List
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavHostController
@@ -41,8 +45,11 @@ fun MainScreen(
     val bottomNavController = rememberNavController()
 
     Scaffold(
+        containerColor = Color.Transparent,
         bottomBar = {
-            NavigationBar {
+            NavigationBar(
+                modifier = Modifier.windowInsetsPadding(WindowInsets.systemBars.only(WindowInsetsSides.Bottom))
+            ) {
                 val navBackStackEntry = bottomNavController.currentBackStackEntryAsState().value
                 val currentDestination = navBackStackEntry?.destination
 
@@ -68,7 +75,7 @@ fun MainScreen(
             startDestination = Screen.Home.route,
             modifier = Modifier
                 .padding(innerPadding)
-                .windowInsetsPadding(WindowInsets.statusBars)
+                .windowInsetsPadding(WindowInsets.systemBars.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal))
         ) {
             composable(Screen.Home.route) {
                 HomeScreen(onExerciseClick = onExerciseClick)
