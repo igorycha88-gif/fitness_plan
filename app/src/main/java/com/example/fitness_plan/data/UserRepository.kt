@@ -6,15 +6,19 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import com.example.fitness_plan.domain.model.UserProfile
+import com.example.fitness_plan.domain.repository.UserRepository as DomainUserRepository
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 
 private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "user_preferences")
 
-class UserRepository(private val context: Context) {
+class UserRepository(private val context: Context) : DomainUserRepository {
 
-    suspend fun saveUserProfile(userProfile: UserProfile) {
+    override suspend fun saveUserProfile(userProfile: UserProfile) {
         context.dataStore.edit { preferences ->
+            preferences[USERNAME_KEY] = userProfile.username
             preferences[GOAL_KEY] = userProfile.goal
             preferences[LEVEL_KEY] = userProfile.level
             preferences[FREQUENCY_KEY] = userProfile.frequency
@@ -24,7 +28,8 @@ class UserRepository(private val context: Context) {
         }
     }
 
-    fun getUserProfile(): Flow<UserProfile?> = context.dataStore.data.map { preferences ->
+    override fun getUserProfile(): Flow<UserProfile?> = context.dataStore.data.map { preferences ->
+        val username = preferences[USERNAME_KEY]
         val goal = preferences[GOAL_KEY]
         val level = preferences[LEVEL_KEY]
         val frequency = preferences[FREQUENCY_KEY]
@@ -34,6 +39,7 @@ class UserRepository(private val context: Context) {
 
         if (goal != null && level != null && frequency != null && weightStr != null && heightStr != null && gender != null) {
             UserProfile(
+                username = username ?: "",
                 goal = goal,
                 level = level,
                 frequency = frequency,
@@ -46,7 +52,18 @@ class UserRepository(private val context: Context) {
         }
     }
 
+    override suspend fun getUserProfileForUsername(username: String): UserProfile? {
+        return getUserProfile().first().takeIf { it?.username == username }
+    }
+
+    override suspend fun clearUserProfile() {
+        context.dataStore.edit { preferences ->
+            preferences.clear()
+        }
+    }
+
     companion object {
+        private val USERNAME_KEY = stringPreferencesKey("username")
         private val GOAL_KEY = stringPreferencesKey("goal")
         private val LEVEL_KEY = stringPreferencesKey("level")
         private val FREQUENCY_KEY = stringPreferencesKey("frequency")
@@ -56,11 +73,7 @@ class UserRepository(private val context: Context) {
     }
 }
 
-data class UserProfile(
-    val goal: String,
-    val level: String,
-    val frequency: String,
-    val weight: Double,
-    val height: Double,
-    val gender: String
+data class WeightEntry(
+    val date: Long,
+    val weight: Double
 )

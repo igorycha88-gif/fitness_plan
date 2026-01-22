@@ -1,12 +1,12 @@
 // build.gradle.kts (корневой)
 
 // Добавляем переменную для управления версией компилятора Compose
-// Версия 1.5.4 совместима с Kotlin 1.9.20
-extra["composeCompilerVersion"] = "1.5.4"
+// Версия 1.4.3 совместима с BOM 2023.08.00
+extra["composeCompilerVersion"] = "1.4.3"
 
 plugins {
     id("com.android.application") version "8.13.2" apply false
-    id("org.jetbrains.kotlin.android") version "1.9.20" apply false
+    id("org.jetbrains.kotlin.android") version "1.8.10" apply false
 }
 
 // Вручную добавляем Hilt plugin
