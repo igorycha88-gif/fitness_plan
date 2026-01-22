@@ -1,7 +1,8 @@
 package com.example.fitness_plan.ui
 
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -26,14 +27,27 @@ fun RegisterScreen(
 
     val coroutineScope = rememberCoroutineScope()
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(24.dp)
-            .padding(top = 48.dp), // Фиксированный отступ для status bar
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("Регистрация") },
+                navigationIcon = {
+                    IconButton(onClick = onBackClick) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Назад")
+                    }
+                }
+            )
+        }
+    ) { paddingValues ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(paddingValues)
+                .padding(24.dp)
+                .windowInsetsPadding(WindowInsets.systemBars),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
         Text(
             text = "Регистрация",
             style = MaterialTheme.typography.headlineMedium
@@ -98,10 +112,6 @@ fun RegisterScreen(
             Text("Зарегистрироваться")
         }
 
-        Spacer(modifier = Modifier.height(8.dp))
-
-        TextButton(onClick = onBackClick) {
-            Text("Назад")
         }
     }
 }
