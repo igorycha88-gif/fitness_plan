@@ -41,11 +41,8 @@ fun MainScreen(
     val bottomNavController = rememberNavController()
 
     Scaffold(
-        containerColor = androidx.compose.ui.graphics.Color.Transparent,
         bottomBar = {
-            NavigationBar(
-                modifier = Modifier.windowInsetsPadding(WindowInsets.navigationBars)
-            ) {
+            NavigationBar {
                 val navBackStackEntry = bottomNavController.currentBackStackEntryAsState().value
                 val currentDestination = navBackStackEntry?.destination
 
@@ -69,9 +66,7 @@ fun MainScreen(
         NavHost(
             navController = bottomNavController,
             startDestination = Screen.Home.route,
-            modifier = Modifier
-                .padding(innerPadding)
-                .windowInsetsPadding(WindowInsets.systemBars.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal))
+            modifier = Modifier.padding(innerPadding)
         ) {
             composable(Screen.Home.route) {
                 HomeScreen(onExerciseClick = onExerciseClick)

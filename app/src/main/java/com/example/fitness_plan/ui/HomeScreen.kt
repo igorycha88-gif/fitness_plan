@@ -152,29 +152,17 @@ fun HomeScreen(
 
     Scaffold(
         topBar = {
-            // Адаптивная верхняя область
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(screenInsets.topInset) // Адаптивная высота
-                    .windowInsetsPadding(WindowInsets.statusBars) // Учет status bar
-            ) {
-                // Содержимое верхней области (иконки)
-                Row(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(horizontal = 16.dp),
-                    horizontalArrangement = Arrangement.End,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    IconButton(onClick = { }) {
+            TopAppBar(
+                title = { Text("Главная") },
+                actions = {
+                    IconButton(onClick = { /* TODO: notifications */ }) {
                         Icon(Icons.Default.Notifications, contentDescription = "Уведомления")
                     }
-                    IconButton(onClick = { }) {
+                    IconButton(onClick = { /* TODO: profile */ }) {
                         Icon(Icons.Default.Person, contentDescription = "Профиль")
                     }
                 }
-            }
+            )
         }
     ) { paddingValues ->
         if (workoutPlan == null || isLoading) {

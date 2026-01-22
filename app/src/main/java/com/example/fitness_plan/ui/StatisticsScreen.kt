@@ -64,9 +64,7 @@ fun StatisticsScreen(
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(paddingValues)
-                .windowInsetsPadding(WindowInsets.systemBars.only(WindowInsetsSides.Top))
-                .padding(bottom = screenInsets.bottomInset),
+                .padding(paddingValues),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             item {

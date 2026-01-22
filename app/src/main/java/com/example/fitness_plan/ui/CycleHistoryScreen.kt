@@ -36,29 +36,20 @@ fun CycleHistoryScreen(
 
     Scaffold(
         topBar = {
-            // Адаптивная верхняя область
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(screenInsets.topInset) // Адаптивная высота
-                    .windowInsetsPadding(WindowInsets.statusBars)
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxSize(),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
+            TopAppBar(
+                title = { Text("История циклов") },
+                navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "Назад")
                     }
                 }
-            }
+            )
         }
     ) { paddingValues ->
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(paddingValues)
-                .padding(bottom = screenInsets.bottomInset), // Адаптивный bottom padding
+                .padding(paddingValues),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             currentCycle?.let { cycle ->
