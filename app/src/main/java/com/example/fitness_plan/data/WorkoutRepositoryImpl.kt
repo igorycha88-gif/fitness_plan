@@ -177,89 +177,154 @@ class WorkoutRepositoryImpl @Inject constructor(
     private fun getAlternatives(exerciseName: String): List<Exercise> {
         return when (exerciseName) {
             "Приседания" -> listOf(
-                Exercise("alt1_1", "Приседания с гантелями", 3, "12-15"),
-                Exercise("alt1_2", "Гакк-приседания", 3, "10-12")
+                Exercise(id = "alt1_1", name = "Приседания с гантелями", sets = 3, reps = "12-15"),
+                Exercise(id = "alt1_2", name = "Гакк-приседания", sets = 3, reps = "10-12")
             )
             "Приседания со штангой" -> listOf(
-                Exercise("alt2_1", "Приседания в Смите", 4, "8-10"),
-                Exercise("alt2_2", "Фронтальные приседания", 4, "8-10")
+                Exercise(id = "alt2_1", name = "Приседания в Смите", sets = 4, reps = "8-10", isCompleted = false, alternatives = emptyList()),
+                Exercise(id = "alt2_2", name = "Фронтальные приседания", sets = 4, reps = "8-10", isCompleted = false, alternatives = emptyList())
             )
             "Жим лёжа" -> listOf(
-                Exercise("alt3_1", "Жим на наклонной скамье", 4, "10-12"),
-                Exercise("alt3_2", "Жим гантелей лёжа", 4, "10-12")
+                Exercise(id = "alt3_1", name = "Жим на наклонной скамье", sets = 4, reps = "10-12", isCompleted = false, alternatives = emptyList()),
+                Exercise(id = "alt3_2", name = "Жим гантелей лёжа", sets = 4, reps = "10-12", isCompleted = false, alternatives = emptyList())
             )
             "Жим гантелей сидя" -> listOf(
-                Exercise("alt4_1", "Жим Арнольда", 4, "10-12"),
-                Exercise("alt4_2", "Подъём гантелей через стороны", 4, "12-15")
+                Exercise(id = "alt4_1", name = "Жим Арнольда", sets = 4, reps = "10-12", isCompleted = false, alternatives = emptyList()),
+                Exercise(id = "alt4_2", name = "Подъём гантелей через стороны", sets = 4, reps = "12-15", isCompleted = false, alternatives = emptyList())
             )
             "Тяга штанги в наклоне" -> listOf(
-                Exercise("alt5_1", "Тяга гантели одной рукой", 4, "10-12"),
-                Exercise("alt5_2", "Тяга верхнего блока", 4, "10-12")
+                Exercise(id = "alt5_1", name = "Тяга гантели одной рукой", sets = 4, reps = "10-12", isCompleted = false, alternatives = emptyList()),
+                Exercise(id = "alt5_2", name = "Тяга верхнего блока", sets = 4, reps = "10-12", isCompleted = false, alternatives = emptyList())
             )
             "Тяга верхнего блока" -> listOf(
-                Exercise("alt6_1", "Тяга штанги в наклоне", 4, "10-12"),
-                Exercise("alt6_2", "Подтягивания", 4, "макс")
+                Exercise(id = "alt6_1", name = "Тяга штанги в наклоне", sets = 4, reps = "10-12", isCompleted = false, alternatives = emptyList()),
+                Exercise(id = "alt6_2", name = "Подтягивания", sets = 4, reps = "макс", isCompleted = false, alternatives = emptyList())
             )
             "Становая тяга" -> listOf(
-                Exercise("alt7_1", "Румынская тяга", 4, "10-12"),
-                Exercise("alt7_2", "Тяга с плинтов", 3, "6-8")
+                Exercise(id = "alt7_1", name = "Румынская тяга", sets = 4, reps = "10-12", isCompleted = false, alternatives = emptyList()),
+                Exercise(id = "alt7_2", name = "Тяга с плинтов", sets = 3, reps = "6-8", isCompleted = false, alternatives = emptyList())
             )
             "Подтягивания" -> listOf(
-                Exercise("alt8_1", "Тяга верхнего блока", 4, "10-12"),
-                Exercise("alt8_2", "Подтягивания с assistance", 3, "макс")
+                Exercise(id = "alt8_1", name = "Тяга верхнего блока", sets = 4, reps = "10-12", isCompleted = false, alternatives = emptyList()),
+                Exercise(id = "alt8_2", name = "Подтягивания с assistance", sets = 3, reps = "макс", isCompleted = false, alternatives = emptyList())
             )
             "Отжимания" -> listOf(
-                Exercise("alt9_1", "Отжимания на брусьях", 3, "10-15"),
-                Exercise("alt9_2", "Жим лёжа", 4, "10-12")
+                Exercise(id = "alt9_1", name = "Отжимания на брусьях", sets = 3, reps = "10-15", isCompleted = false, alternatives = emptyList()),
+                Exercise(id = "alt9_2", name = "Жим лёжа", sets = 4, reps = "10-12", isCompleted = false, alternatives = emptyList())
             )
             "Выпады" -> listOf(
-                Exercise("alt10_1", "Выпады с гантелями", 3, "12-15"),
-                Exercise("alt10_2", "Сjump squat", 3, "15-20")
+                Exercise(id = "alt10_1", name = "Выпады с гантелями", sets = 3, reps = "12-15", isCompleted = false, alternatives = emptyList()),
+                Exercise(id = "alt10_2", name = "Сjump squat", sets = 3, reps = "15-20", isCompleted = false, alternatives = emptyList())
             )
             "Бицепс" -> listOf(
-                Exercise("alt11_1", "Подъём штанги на бицепс", 3, "10-12"),
-                Exercise("alt11_2", "Молотки", 3, "12-15")
+                Exercise(id = "alt11_1", name = "Подъём штанги на бицепс", sets = 3, reps = "10-12", isCompleted = false, alternatives = emptyList()),
+                Exercise(id = "alt11_2", name = "Молотки", sets = 3, reps = "12-15", isCompleted = false, alternatives = emptyList())
             )
             "Трицепс" -> listOf(
-                Exercise("alt12_1", "Французский жим", 3, "10-12"),
-                Exercise("alt12_2", "Отжимания на брусьях", 3, "10-15")
+                Exercise(id = "alt12_1", name = "Французский жим", sets = 3, reps = "10-12", isCompleted = false, alternatives = emptyList()),
+                Exercise(id = "alt12_2", name = "Отжимания на брусьях", sets = 3, reps = "10-15", isCompleted = false, alternatives = emptyList())
             )
             else -> emptyList()
         }
     }
 
-    private fun createExerciseWithAlternatives(id: String, name: String, sets: Int, reps: String): Exercise {
-        return Exercise(id, name, sets, reps, null, false, getAlternatives(name))
+    private fun createExerciseWithAlternatives(
+        id: String,
+        name: String,
+        sets: Int,
+        reps: String,
+        description: String? = null,
+        recommendedWeight: Float? = null,
+        recommendedRepsPerSet: String? = null
+    ): Exercise {
+        return Exercise(
+            id = id,
+            name = name,
+            sets = sets,
+            reps = reps,
+            weight = null,
+            imageRes = null,
+            isCompleted = false,
+            alternatives = emptyList(),
+            description = description,
+            recommendedWeight = recommendedWeight,
+            recommendedRepsPerSet = recommendedRepsPerSet
+        )
     }
 
     private fun createWeightLossBeginnerPlan(profile: com.example.fitness_plan.domain.model.UserProfile): WorkoutPlan {
         return WorkoutPlan(
             id = "weight_loss_beginner",
-            name = "Похудение: Начальный",
-            description = "Легкая тренировка для начинающих",
-            muscleGroups = listOf("Ноги", "Грудь", "Спина", "Плечи", "Пресс"),
+            name = "Похудение: Любитель 30 дней",
+            description = "Программа на 30 дней с разнообразием упражнений для похудения",
+            muscleGroups = listOf("Ноги", "Грудь", "Спина", "Плечи", "Руки", "Core"),
             goal = profile.goal,
             level = profile.level,
-            days = listOf(
-                WorkoutDay(0, "День 1", listOf(
-                    createExerciseWithAlternatives("1", "Приседания", 3, "12-15"),
-                    createExerciseWithAlternatives("2", "Жим лёжа", 3, "10-12"),
-                    createExerciseWithAlternatives("3", "Тяга штанги в наклоне", 3, "10-12"),
-                    createExerciseWithAlternatives("4", "Пресс", 3, "15-20")
-                ), listOf("Ноги", "Грудь", "Спина", "Пресс")),
-                WorkoutDay(1, "День 2", listOf(
-                    createExerciseWithAlternatives("5", "Выпады", 3, "12-15"),
-                    createExerciseWithAlternatives("6", "Жим гантелей сидя", 3, "10-12"),
-                    createExerciseWithAlternatives("7", "Подтягивания", 3, "макс"),
-                    createExerciseWithAlternatives("8", "Пресс", 3, "15-20")
-                ), listOf("Ноги", "Плечи", "Спина", "Пресс")),
-                WorkoutDay(2, "День 3", listOf(
-                    createExerciseWithAlternatives("9", "Становая тяга", 3, "8-10"),
-                    createExerciseWithAlternatives("10", "Отжимания", 3, "10-15"),
-                    createExerciseWithAlternatives("11", "Тяга верхнего блока", 3, "10-12"),
-                    createExerciseWithAlternatives("12", "Пресс", 3, "15-20")
-                ), listOf("Спина", "Грудь", "Пресс"))
-            )
+            days = (1..30).map { dayIndex ->
+                val cycle = (dayIndex - 1) / 10 + 1 // Цикл 1,2,3
+                val progress = (cycle - 1) * 2.0f // +2 кг за цикл
+                when {
+                    dayIndex in listOf(1, 5) || (dayIndex in 11..12 && cycle == 2) || (dayIndex in 21..22 && cycle == 3) -> WorkoutDay(dayIndex - 1, "День $dayIndex: Ноги + Кардио", listOf(
+                        createExerciseWithAlternatives("1", "Приседания со штангой", 3, "12-15", "Ноги на ширине плеч, спина прямая, опускайся до параллели", 20.0f + progress, "12,13,14"),
+                        createExerciseWithAlternatives("2", "Жим ногами в машине", 3, "12-15", "Ступни на платформе, колени не выходят за носки", 40.0f + progress, "12,13,14"),
+                        createExerciseWithAlternatives("3", "Выпады с гантелями", 3, "10/ногу", "Шаг вперёд, колено не касается пола", 8.0f + progress / 2, "10,10,10"),
+                        createExerciseWithAlternatives("4", "Подъёмы на носки", 3, "15", "На икровой машине или с гантелью", 10.0f + progress, "15,15,15"),
+                        createExerciseWithAlternatives("5", "Кардио: Эллипс", 1, "15 мин", "Умеренный темп", null, null)
+                    ), listOf("Ноги", "Кардио"))
+                    dayIndex in listOf(3, 7) || (dayIndex in 13..14 && cycle == 2) || (dayIndex in 23..24 && cycle == 3) -> WorkoutDay(dayIndex - 1, "День $dayIndex: Грудь + Спина + Кардио", listOf(
+                        createExerciseWithAlternatives("6", "Жим штанги лёжа", 3, "12-15", "Гриф на уровне груди, локти под 45°", 25.0f + progress, "12,13,14"),
+                        createExerciseWithAlternatives("7", "Тяга верхнего блока", 3, "12-15", "Тяни к груди, лопатки сведены", 30.0f + progress, "12,13,14"),
+                        createExerciseWithAlternatives("8", "Разведение гантелей лёжа", 3, "12-15", "Разводи в стороны, локти слегка согнуты", 6.0f + progress / 2, "12,13,14"),
+                        createExerciseWithAlternatives("9", "Тяга гантели одной рукой", 3, "10/руку", "В наклоне, тяни к поясу", 10.0f + progress / 2, "10,10,10"),
+                        createExerciseWithAlternatives("10", "Кардио: Велотренажёр", 1, "15 мин", "Умеренный темп", null, null)
+                    ), listOf("Грудь", "Спина", "Кардио"))
+                    dayIndex in listOf(9, 19, 29) -> WorkoutDay(dayIndex - 1, "День $dayIndex: Плечи + Руки + Core + Кардио", listOf(
+                        createExerciseWithAlternatives("11", "Армейский жим с гантелями", 3, "12-15", "Жим вверх над головой", 8.0f + progress / 2, "12,13,14"),
+                        createExerciseWithAlternatives("12", "Разведение гантелей в стороны", 3, "12-15", "Стоя, руки параллельно полу", 5.0f + progress / 2, "12,13,14"),
+                        createExerciseWithAlternatives("13", "Сгибания рук с гантелями", 3, "12-15", "Бицепс, локти неподвижны", 6.0f + progress / 2, "12,13,14"),
+                        createExerciseWithAlternatives("14", "Разгибания рук на блоке", 3, "12-15", "Трицепс, над головой", 15.0f + progress, "12,13,14"),
+                        createExerciseWithAlternatives("15", "Планка", 3, "30-45 сек", "На предплечьях, тело прямое", null, null),
+                        createExerciseWithAlternatives("16", "Кардио: Беговая дорожка", 1, "15 мин", "Умеренный темп", null, null)
+                    ), listOf("Плечи", "Руки", "Core", "Кардио"))
+                    dayIndex in listOf(15, 25) -> WorkoutDay(dayIndex - 1, "День $dayIndex: Ноги (вариации) + Кардио", listOf(
+                        createExerciseWithAlternatives("17", "Фронтальные приседания", 3, "10-12", "Штанга на плечах спереди", 18.0f + progress, "10,11,12"),
+                        createExerciseWithAlternatives("18", "Румынская тяга", 3, "10-12", "Тяга штанги к коленям, спина прямая", 25.0f + progress, "10,11,12"),
+                        createExerciseWithAlternatives("19", "Болгарские сплит-приседания", 3, "8-10/ногу", "Задняя нога на скамье", 7.0f + progress / 2, "8,9,10"),
+                        createExerciseWithAlternatives("20", "Икры стоя", 3, "15", "С гантелью в руке", 12.0f + progress, "15,15,15"),
+                        createExerciseWithAlternatives("21", "Кардио: Интервальный бег", 1, "20 мин", "1 мин бег, 1 мин ходьба", null, null)
+                    ), listOf("Ноги", "Кардио"))
+                    dayIndex in listOf(17, 27) -> WorkoutDay(dayIndex - 1, "День $dayIndex: Грудь + Спина (вариации) + Кардио", listOf(
+                        createExerciseWithAlternatives("22", "Жим гантелей на наклонной скамье", 3, "10-12", "Голова выше ног", 10.0f + progress, "10,11,12"),
+                        createExerciseWithAlternatives("23", "Тяга штанги в наклоне", 3, "10-12", "Тяни к поясу", 28.0f + progress, "10,11,12"),
+                        createExerciseWithAlternatives("24", "Пуловер с гантелью", 3, "10-12", "Лёжа, руки за голову", 12.0f + progress, "10,11,12"),
+                        createExerciseWithAlternatives("25", "Подтягивания с резинкой", 3, "8-10", "Если нет — тяга нижнего блока", null, "8,9,10"),
+                        createExerciseWithAlternatives("26", "Кардио: Велотренажёр с сопротивлением", 1, "20 мин", "Среднее сопротивление", null, null)
+                    ), listOf("Грудь", "Спина", "Кардио"))
+                    dayIndex in listOf(21) -> WorkoutDay(dayIndex - 1, "День $dayIndex: Ноги (комбо) + Кардио", listOf(
+                        createExerciseWithAlternatives("27", "Сумо-приседания", 4, "8-10", "Ноги широко, носки в стороны", 22.0f + progress, "8,9,10,10"),
+                        createExerciseWithAlternatives("28", "Ягодичный мостик", 4, "10-12", "Лёжа, подъём таза", null, "10,11,12,12"),
+                        createExerciseWithAlternatives("29", "Шагающий выпад с поворотом", 4, "8/ногу", "Шаг + поворот корпуса", 9.0f + progress / 2, "8,8,9,9"),
+                        createExerciseWithAlternatives("30", "Осёл-качки", 4, "12", "Икры, в наклоне", 14.0f + progress, "12,12,13,13"),
+                        createExerciseWithAlternatives("31", "Кардио: HIIT", 1, "20 мин", "30 сек спринт, 30 сек отдых", null, null)
+                    ), listOf("Ноги", "Кардио"))
+                    dayIndex in listOf(23) -> WorkoutDay(dayIndex - 1, "День $dayIndex: Грудь + Спина (комбо) + Кардио", listOf(
+                        createExerciseWithAlternatives("32", "Жим в хаммере", 4, "8-10", "Машина, грудь вперёд", 27.0f + progress, "8,9,10,10"),
+                        createExerciseWithAlternatives("33", "Т-тяга с гантелью", 4, "8-10", "Одной рукой, упор на скамью", 13.0f + progress, "8,9,10,10"),
+                        createExerciseWithAlternatives("34", "Кроссовер", 4, "10-12", "Блочный тренажёр, сведение рук", 18.0f + progress, "10,11,12,12"),
+                        createExerciseWithAlternatives("35", "Тяга каната", 4, "10-12", "К груди, локти назад", 22.0f + progress, "10,11,12,12"),
+                        createExerciseWithAlternatives("36", "Кардио: Гребной тренажёр", 1, "20 мин", "Полная амплитуда", null, null)
+                    ), listOf("Грудь", "Спина", "Кардио"))
+                    dayIndex in listOf(25) -> WorkoutDay(dayIndex - 1, "День $dayIndex: Плечи + Руки (комбо) + Core + Кардио", listOf(
+                        createExerciseWithAlternatives("37", "Жим плечами в машине", 4, "8-10", "Сидя, хват сверху", 20.0f + progress, "8,9,10,10"),
+                        createExerciseWithAlternatives("38", "Обратные разведения", 4, "10-12", "Задние дельты", 8.0f + progress / 2, "10,11,12,12"),
+                        createExerciseWithAlternatives("39", "Концентрированные сгибания", 4, "10-12", "Бицепс, одной рукой", 7.0f + progress / 2, "10,11,12,12"),
+                        createExerciseWithAlternatives("40", "Кикбэки", 4, "10-12", "Трицепс, на блоке", 18.0f + progress, "10,11,12,12"),
+                        createExerciseWithAlternatives("41", "Велосипед", 4, "20", "Лёжа, скручивания", null, "20,20,20,20"),
+                        createExerciseWithAlternatives("42", "Кардио: Комбо", 1, "20 мин", "10 мин бег + 10 мин велотренажёр", null, null)
+                    ), listOf("Плечи", "Руки", "Core", "Кардио"))
+                    else -> WorkoutDay(dayIndex - 1, "День $dayIndex: Отдых", emptyList(), emptyList())
+                }
+            }
         )
     }
 

@@ -454,42 +454,42 @@ private fun findExerciseInAllAlternatives(name: String): Exercise? {
 private fun createExerciseWithAlternatives(id: String, name: String, sets: Int, reps: String): Exercise {
     val alternatives = when (name) {
         "Приседания" -> listOf(
-            Exercise("alt1_1", "Приседания с гантелями", 3, "12-15"),
-            Exercise("alt1_2", "Гакк-приседания", 3, "10-12")
+            Exercise(id = "alt1_1", name = "Приседания с гантелями", sets = 3, reps = "12-15", isCompleted = false, alternatives = emptyList()),
+            Exercise(id = "alt1_2", name = "Гакк-приседания", sets = 3, reps = "10-12", isCompleted = false, alternatives = emptyList())
         )
         "Жим лёжа" -> listOf(
-            Exercise("alt3_1", "Жим на наклонной скамье", 3, "10-12"),
-            Exercise("alt3_2", "Жим гантелей лёжа", 3, "10-12")
+            Exercise(id = "alt3_1", name = "Жим на наклонной скамье", sets = 3, reps = "10-12", isCompleted = false, alternatives = emptyList()),
+            Exercise(id = "alt3_2", name = "Жим гантелей лёжа", sets = 3, reps = "10-12", isCompleted = false, alternatives = emptyList())
         )
         "Тяга штанги в наклоне" -> listOf(
-            Exercise("alt5_1", "Тяга гантели одной рукой", 3, "10-12"),
-            Exercise("alt5_2", "Тяга верхнего блока", 3, "10-12")
+            Exercise(id = "alt5_1", name = "Тяга гантели одной рукой", sets = 3, reps = "10-12", isCompleted = false, alternatives = emptyList()),
+            Exercise(id = "alt5_2", name = "Тяга верхнего блока", sets = 3, reps = "10-12", isCompleted = false, alternatives = emptyList())
         )
         "Жим гантелей сидя" -> listOf(
-            Exercise("alt4_1", "Жим Арнольда", 3, "10-12"),
-            Exercise("alt4_2", "Подъём гантелей через стороны", 3, "12-15")
+            Exercise(id = "alt4_1", name = "Жим Арнольда", sets = 3, reps = "10-12", isCompleted = false, alternatives = emptyList()),
+            Exercise(id = "alt4_2", name = "Подъём гантелей через стороны", sets = 3, reps = "12-15", isCompleted = false, alternatives = emptyList())
         )
         "Тяга верхнего блока" -> listOf(
-            Exercise("alt6_1", "Тяга штанги в наклоне", 3, "10-12"),
-            Exercise("alt6_2", "Подтягивания", 3, "макс")
+            Exercise(id = "alt8_1", name = "Тяга верхнего блока", sets = 3, reps = "10-12", isCompleted = false, alternatives = emptyList()),
+            Exercise(id = "alt8_2", name = "Подтягивания с assistance", sets = 3, reps = "макс", isCompleted = false, alternatives = emptyList())
         )
         "Становая тяга" -> listOf(
-            Exercise("alt7_1", "Румынская тяга", 3, "10-12"),
-            Exercise("alt7_2", "Тяга с плинтов", 3, "6-8")
+            Exercise(id = "alt7_1", name = "Румынская тяга", sets = 3, reps = "10-12", isCompleted = false, alternatives = emptyList()),
+            Exercise(id = "alt7_2", name = "Тяга с плинтов", sets = 3, reps = "6-8", isCompleted = false, alternatives = emptyList())
         )
         "Подтягивания" -> listOf(
-            Exercise("alt8_1", "Тяга верхнего блока", 3, "10-12"),
-            Exercise("alt8_2", "Подтягивания с assistance", 3, "макс")
+            Exercise(id = "alt6_1", name = "Тяга штанги в наклоне", sets = 3, reps = "10-12", isCompleted = false, alternatives = emptyList()),
+            Exercise(id = "alt6_2", name = "Подтягивания", sets = 3, reps = "макс", isCompleted = false, alternatives = emptyList())
         )
         "Отжимания" -> listOf(
-            Exercise("alt9_1", "Отжимания на брусьях", 3, "10-15"),
-            Exercise("alt9_2", "Жим лёжа", 3, "10-12")
+            Exercise(id = "alt9_1", name = "Отжимания на брусьях", sets = 3, reps = "10-15", isCompleted = false, alternatives = emptyList()),
+            Exercise(id = "alt9_2", name = "Жим лёжа", sets = 3, reps = "10-12", isCompleted = false, alternatives = emptyList())
         )
         "Выпады" -> listOf(
-            Exercise("alt10_1", "Выпады с гантелями", 3, "12-15"),
-            Exercise("alt10_2", "Сjump squat", 3, "15-20")
+            Exercise(id = "alt10_1", name = "Выпады с гантелями", sets = 3, reps = "12-15", isCompleted = false, alternatives = emptyList()),
+            Exercise(id = "alt10_2", name = "Сjump squat", sets = 3, reps = "15-20", isCompleted = false, alternatives = emptyList())
         )
         else -> emptyList()
     }
-    return Exercise(id, name, sets, reps, null, false, alternatives)
+    return Exercise(id = id, name = name, sets = sets, reps = reps, isCompleted = false, alternatives = alternatives)
 }

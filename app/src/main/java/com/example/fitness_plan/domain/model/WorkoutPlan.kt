@@ -40,9 +40,13 @@ data class Exercise(
     val name: String,
     val sets: Int,
     val reps: String,
+    val weight: Float? = null,
     val imageRes: String? = null,
     val isCompleted: Boolean = false,
-    val alternatives: List<Exercise> = emptyList()
+    val alternatives: List<Exercise> = emptyList(),
+    val description: String? = null,
+    val recommendedWeight: Float? = null,
+    val recommendedRepsPerSet: String? = null
 )
 
 data class ExerciseWithStats(
