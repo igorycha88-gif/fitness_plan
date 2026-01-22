@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
@@ -84,20 +85,27 @@ fun UserProfileForm(
 
     val scrollState = rememberScrollState()
 
-    Box(modifier = Modifier.fillMaxSize()) {
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("Расскажите о себе") },
+                navigationIcon = {
+                    IconButton(onClick = onBackClick) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Назад")
+                    }
+                }
+            )
+        }
+    ) { paddingValues ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .padding(paddingValues)
                 .padding(16.dp)
-                .padding(top = 48.dp) // Фиксированный отступ для status bar
+                .windowInsetsPadding(WindowInsets.systemBars)
                 .verticalScroll(scrollState),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                IconButton(onClick = onBackClick) {
                     Icon(
                         imageVector = Icons.Filled.ArrowBack,
                         contentDescription = "Назад"
@@ -201,53 +209,6 @@ fun UserProfileForm(
                     style = MaterialTheme.typography.titleMedium
                 )
             }
-        }
-
-        if (showSlowWeightLossDialog) {
-            AlertDialog(
-                onDismissRequest = { showSlowWeightLossDialog = false },
-                title = { Text("Внимание!") },
-                text = { Text("Похудение на режиме \"не спеша\". Ты точно этого хотел?") },
-                confirmButton = {
-                    TextButton(onClick = {
-                        showSlowWeightLossDialog = false
-                        showScheduleDialog = true
-                    }) {
-                        Text("Да, продолжить")
-                    }
-                },
-                dismissButton = {
-                    TextButton(onClick = { showSlowWeightLossDialog = false }) {
-                        Text("Нет, изменить")
-                    }
-                }
-            )
-        }
-
-        if (showScheduleDialog) {
-            WorkoutScheduleDialog(
-                frequency = frequency!!,
-                onDismiss = { showScheduleDialog = false },
-                onConfirm = { dates ->
-                    val profileUsername = username.ifEmpty { viewModel.currentUsername.value }
-
-                    val profile = UserProfile(
-                        username = profileUsername,
-                        goal = goal!!,
-                        level = level!!,
-                        frequency = frequency!!,
-                        weight = weightDouble!!,
-                        height = heightDouble!!,
-                        gender = gender!!
-                    )
-
-                    Log.d("UserProfileForm", "onConfirm: Saving profile with username=${profile.username}")
-                    viewModel.saveUserProfile(profile)
-                    viewModel.setCurrentUsername(profileUsername)
-
-                    onProfileSaved()
-                }
-            )
         }
     }
 }
@@ -399,8 +360,9 @@ fun ModernDropdown(
                                         style = MaterialTheme.typography.bodySmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
-                                }
-                            }
+        }
+    }
+}
 
                             if (isSelected) {
                                 Icon(
@@ -415,9 +377,51 @@ fun ModernDropdown(
                         if (index < options.lastIndex) {
                             Spacer(modifier = Modifier.height(4.dp))
                         }
-                    }
+        }
+    }
+
+    if (showSlowWeightLossDialog) {
+        AlertDialog(
+            onDismissRequest = { showSlowWeightLossDialog = false },
+            title = { Text("Внимание!") },
+            text = { Text("Похудение на режиме \"не спеша\". Ты точно этого хотел?") },
+            confirmButton = {
+                TextButton(onClick = {
+                    showSlowWeightLossDialog = false
+                    showScheduleDialog = true
+                }) {
+                    Text("Да")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showSlowWeightLossDialog = false }) {
+                    Text("Нет")
                 }
             }
+        )
+    }
+
+    if (showScheduleDialog) {
+        WorkoutScheduleDialog(
+            frequency = frequency ?: "",
+            onDismiss = { showScheduleDialog = false },
+            onConfirm = { dates ->
+                val profile = UserProfile(
+                    username = username,
+                    goal = goal!!,
+                    level = level!!,
+                    frequency = frequency!!,
+                    weight = weightDouble!!,
+                    height = heightDouble!!,
+                    gender = gender!!
+                )
+                viewModel.saveUserProfile(profile)
+                viewModel.saveWorkoutDates(dates)
+                showScheduleDialog = false
+                onProfileSaved()
+            }
+        )
+    }
         }
     }
 }
