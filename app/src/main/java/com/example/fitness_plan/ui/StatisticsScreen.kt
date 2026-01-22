@@ -48,16 +48,12 @@ fun StatisticsScreen(
 
     var selectedCategory by remember { mutableStateOf(StatCategory.WEIGHT) }
 
-    val adaptiveInfo = rememberAdaptiveInfo()
-    val spacing = getSpacing()
-    val cornerRadius = getCornerRadius()
-    val screenPadding = getScreenPadding()
-    val maxWidth = getContentMaxWidth()
-
-    // Screen insets handled by Scaffold
-
     Scaffold(
-        containerColor = BackgroundLight
+        topBar = {
+            TopAppBar(
+                title = { Text("Статистика") }
+            )
+        }
     ) { paddingValues ->
         LazyColumn(
             modifier = Modifier

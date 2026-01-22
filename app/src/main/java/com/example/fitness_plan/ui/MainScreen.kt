@@ -35,8 +35,7 @@ private val items = listOf(Screen.Home, Screen.Profile, Screen.Statistics)
 fun MainScreen(
     mainNavController: NavHostController,
     profileViewModel: ProfileViewModel? = null,
-    workoutViewModel: WorkoutViewModel? = null,
-    onExerciseClick: (Exercise) -> Unit = {}
+    workoutViewModel: WorkoutViewModel? = null
 ) {
     val bottomNavController = rememberNavController()
 
@@ -73,7 +72,7 @@ fun MainScreen(
                 .windowInsetsPadding(WindowInsets.systemBars.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal))
         ) {
             composable(Screen.Home.route) {
-                HomeScreen(onExerciseClick = onExerciseClick)
+                HomeScreen()
             }
             composable(Screen.Profile.route) {
                 ProfileScreen(
