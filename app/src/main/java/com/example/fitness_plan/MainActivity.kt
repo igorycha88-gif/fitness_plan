@@ -47,14 +47,14 @@ fun FitnessApp() {
             modifier = Modifier.fillMaxSize(),
             color = MaterialTheme.colorScheme.background
         ) {
-            // Ждем, пока ViewModel проверит состояние
-            if (isProfileChecked == null || currentPlan == null) {
+            // Ждем, пока ViewModel проверит состояние профиля
+            if (!isProfileChecked) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     CircularProgressIndicator()
                 }
             } else {
                 val mainNavController = rememberNavController()
-                val startDest = if (isProfileChecked == true && currentPlan != null) "main_tabs" else "welcome"
+                val startDest = if (currentPlan != null) "main_tabs" else "welcome"
 
                 NavHost(
                     navController = mainNavController,
