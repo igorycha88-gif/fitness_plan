@@ -208,175 +208,6 @@ fun UserProfileForm(
                     "Сохранить профиль",
                     style = MaterialTheme.typography.titleMedium
                 )
-            }
-        }
-    }
-}
-
-@Composable
-fun ModernDropdown(
-    label: String,
-    options: List<DropdownOption>,
-    selectedOption: String?,
-    onOptionSelected: (String) -> Unit
-) {
-    var expanded by remember { mutableStateOf(false) }
-    val alpha by animateFloatAsState(
-        targetValue = if (expanded) 1f else 0.6f,
-        animationSpec = tween(200),
-        label = "chevronAlpha"
-    )
-
-    Column(modifier = Modifier.fillMaxWidth()) {
-        Text(
-            text = label,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(bottom = 8.dp)
-        )
-
-        Box {
-            OutlinedTextField(
-                value = selectedOption ?: "",
-                onValueChange = {},
-                readOnly = true,
-                placeholder = {
-                    Text(
-                        "Выберите...",
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
-                    )
-                },
-                trailingIcon = {
-                    Icon(
-                        imageVector = Icons.Filled.KeyboardArrowDown,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(24.dp)
-                    )
-                },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .shadow(
-                        elevation = if (expanded) 8.dp else 0.dp,
-                        shape = RoundedCornerShape(12.dp)
-                    )
-                    .clip(RoundedCornerShape(12.dp))
-                    .border(
-                        width = if (expanded) 2.dp else 1.dp,
-                        color = if (expanded) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
-                        shape = RoundedCornerShape(12.dp)
-                    )
-                    .noRippleClickable { expanded = !expanded },
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = MaterialTheme.colorScheme.primary,
-                    unfocusedBorderColor = MaterialTheme.colorScheme.outline,
-                    focusedContainerColor = MaterialTheme.colorScheme.surface,
-                    unfocusedContainerColor = MaterialTheme.colorScheme.surface,
-                    cursorColor = MaterialTheme.colorScheme.primary
-                ),
-                shape = RoundedCornerShape(12.dp)
-            )
-
-            Spacer(
-                modifier = Modifier
-                    .matchParentSize()
-                    .noRippleClickable { expanded = !expanded }
-            )
-        }
-
-        AnimatedVisibility(
-            visible = expanded,
-            enter = expandVertically(
-                expandFrom = Alignment.Top,
-                animationSpec = tween(250, easing = FastOutSlowInEasing)
-            ) + fadeIn(),
-            exit = shrinkVertically(
-                shrinkTowards = Alignment.Top,
-                animationSpec = tween(200, easing = FastOutSlowInEasing)
-            ) + fadeOut()
-        ) {
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 8.dp)
-                    .shadow(12.dp, RoundedCornerShape(16.dp)),
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surface
-                )
-            ) {
-                Column(
-                    modifier = Modifier.padding(8.dp)
-                ) {
-                    options.forEachIndexed { index, option ->
-                        val isSelected = selectedOption == option.label
-
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(RoundedCornerShape(12.dp))
-                                .background(
-                                    if (isSelected) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
-                                    else MaterialTheme.colorScheme.surface
-                                )
-                                .noRippleClickable {
-                                    onOptionSelected(option.label)
-                                    expanded = false
-                                }
-                                .padding(16.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(44.dp)
-                                    .clip(RoundedCornerShape(12.dp))
-                                    .background(
-                                        if (isSelected) MaterialTheme.colorScheme.primary
-                                        else MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
-                                    ),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    imageVector = option.icon,
-                                    contentDescription = null,
-                                    tint = if (isSelected) MaterialTheme.colorScheme.onPrimary
-                                    else MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(24.dp)
-                                )
-                            }
-
-                            Spacer(modifier = Modifier.width(16.dp))
-
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = option.label,
-                                    style = MaterialTheme.typography.bodyLarge,
-                                    color = if (isSelected) MaterialTheme.colorScheme.primary
-                                    else MaterialTheme.colorScheme.onSurface
-                                )
-                                if (option.description.isNotEmpty()) {
-                                    Text(
-                                        text = option.description,
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-        }
-    }
-}
-
-                            if (isSelected) {
-                                Icon(
-                                    imageVector = Icons.Filled.Check,
-                                    contentDescription = "Выбрано",
-                                    tint = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                            }
-                        }
-
-                        if (index < options.lastIndex) {
-                            Spacer(modifier = Modifier.height(4.dp))
-                        }
         }
     }
 
@@ -390,12 +221,12 @@ fun ModernDropdown(
                     showSlowWeightLossDialog = false
                     showScheduleDialog = true
                 }) {
-                    Text("Да")
+                    Text("Да, продолжить")
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showSlowWeightLossDialog = false }) {
-                    Text("Нет")
+                    Text("Нет, изменить")
                 }
             }
         )
@@ -421,8 +252,6 @@ fun ModernDropdown(
                 onProfileSaved()
             }
         )
-    }
-        }
     }
 }
 
