@@ -147,8 +147,7 @@ fun HomeScreen(
     val screenWidthDp = configuration.screenWidthDp
     val isExpandedScreen = screenWidthDp >= 600
 
-    // Расчет адаптивных размеров
-    val screenInsets = calculateScreenInsets()
+    // Screen insets handled by Scaffold
 
     Scaffold(
         topBar = {
@@ -733,6 +732,6 @@ fun ExerciseRow(
     }
 
     if (!isLast) {
-        Divider(modifier = Modifier.padding(top = 4.dp))
+        HorizontalDivider(modifier = Modifier.padding(top = 4.dp))
     }
 }

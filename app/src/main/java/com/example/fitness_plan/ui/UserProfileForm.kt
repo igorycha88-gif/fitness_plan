@@ -107,7 +107,7 @@ fun UserProfileForm(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
                     Icon(
-                        imageVector = Icons.Filled.ArrowBack,
+                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                         contentDescription = "Назад"
                     )
                 }

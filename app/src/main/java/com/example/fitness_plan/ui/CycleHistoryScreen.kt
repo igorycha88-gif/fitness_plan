@@ -4,7 +4,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.*
@@ -31,8 +31,7 @@ fun CycleHistoryScreen(
     val cycleHistory by viewModel.cycleHistory.collectAsState()
     val currentCycle by viewModel.currentCycle.collectAsState()
 
-    // Расчет адаптивных размеров для CycleHistoryScreen
-    val screenInsets = calculateScreenInsets()
+    // Screen insets handled by Scaffold
 
     Scaffold(
         topBar = {
@@ -40,7 +39,7 @@ fun CycleHistoryScreen(
                 title = { Text("История циклов") },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Назад")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Назад")
                     }
                 }
             )

@@ -4,7 +4,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -95,7 +95,7 @@ fun ExerciseDetailScreen(
                 ),
                 navigationIcon = {
                     IconButton(onClick = onBackClick) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Назад")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Назад")
                     }
                 },
                 actions = {
@@ -203,7 +203,7 @@ fun ExerciseDetailScreen(
                             readOnly = true,
                             label = { Text("Упражнение") },
                             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
-                            modifier = Modifier.menuAnchor().fillMaxWidth()
+                            modifier = Modifier.menuAnchor(type = MenuAnchorType.Primary, enabled = true).fillMaxWidth()
                         )
 
                         ExposedDropdownMenu(
@@ -227,7 +227,7 @@ fun ExerciseDetailScreen(
                                 }
                             )
 
-                            Divider()
+                            HorizontalDivider()
 
                             alternatives.forEach { alt ->
                                 DropdownMenuItem(

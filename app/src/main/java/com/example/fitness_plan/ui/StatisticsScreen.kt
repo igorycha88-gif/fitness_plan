@@ -43,8 +43,7 @@ fun StatisticsScreen(
     val weightHistory by viewModel.weightHistory.collectAsState()
     val exerciseStats by viewModel.exerciseStats.collectAsState()
     val currentCycle by viewModel.currentCycle.collectAsState()
-    val selectedTimeFilter by viewModel.selectedTimeFilter.collectAsState()
-    val selectedExercise by viewModel.selectedExercise.collectAsState()
+
     val availableExercises by viewModel.availableExercises.collectAsState()
 
     var selectedCategory by remember { mutableStateOf(StatCategory.WEIGHT) }
@@ -55,8 +54,7 @@ fun StatisticsScreen(
     val screenPadding = getScreenPadding()
     val maxWidth = getContentMaxWidth()
 
-    // Расчет адаптивных размеров для StatisticsScreen
-    val screenInsets = calculateScreenInsets()
+    // Screen insets handled by Scaffold
 
     Scaffold(
         containerColor = BackgroundLight

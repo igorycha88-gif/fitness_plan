@@ -2,9 +2,9 @@ package com.example.fitness_plan.ui
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.List
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -23,7 +23,7 @@ import com.example.fitness_plan.presentation.viewmodel.WorkoutViewModel
 sealed class Screen(val route: String, val label: String, val icon: ImageVector) {
     object Home : Screen("home", "Главная", Icons.Default.Home)
     object Profile : Screen("profile", "Профиль", Icons.Default.AccountCircle)
-    object Statistics : Screen("statistics", "Статистика", Icons.Default.List)
+    object Statistics : Screen("statistics", "Статистика", Icons.AutoMirrored.Filled.List)
     object CycleHistory : Screen("cycle_history", "История циклов", Icons.Default.Home)
 }
 
