@@ -37,6 +37,25 @@ class CredentialsRepository @Inject constructor(
             Log.d(TAG, "CredentialsRepository: init no credentials found")
         }
 
+        // Initialize admin credentials if not exist
+        val adminUsername = encryptedPrefs.getString(KEY_ADMIN_USERNAME, null)
+        if (adminUsername == null) {
+            Log.d(TAG, "CredentialsRepository: init creating admin credentials")
+            try {
+                // Create admin credentials: admin / admin123
+                val adminHashedPassword = passwordHasher.hashPassword("admin123")
+                encryptedPrefs.edit()
+                    .putString(KEY_ADMIN_USERNAME, "admin")
+                    .putString(KEY_ADMIN_HASHED_PASSWORD, adminHashedPassword)
+                    .apply()
+                Log.d(TAG, "CredentialsRepository: init admin credentials created")
+            } catch (e: Exception) {
+                Log.e(TAG, "CredentialsRepository: init failed to create admin credentials", e)
+            }
+        } else {
+            Log.d(TAG, "CredentialsRepository: init admin credentials already exist")
+        }
+
         Log.d(TAG, "CredentialsRepository: init complete, _credentialsFlow=${_credentialsFlow.value}")
     }
 
@@ -175,8 +194,70 @@ class CredentialsRepository @Inject constructor(
         Log.d(TAG, "clearSession: flow updated to null")
     }
 
+    // Admin credentials methods
+    suspend fun saveAdminCredentials(username: String, plainPassword: String) {
+        try {
+            Log.d(TAG, "saveAdminCredentials: START for user=$username")
+            val hashedPassword = passwordHasher.hashPassword(plainPassword)
+            Log.d(TAG, "saveAdminCredentials: hashedPassword length=${hashedPassword.length}")
+
+            val success = encryptedPrefs.edit()
+                .putString(KEY_ADMIN_USERNAME, username)
+                .putString(KEY_ADMIN_HASHED_PASSWORD, hashedPassword)
+                .commit()
+
+            Log.d(TAG, "saveAdminCredentials: saved username=$username, commit success=$success")
+        } catch (e: Exception) {
+            Log.e(TAG, "saveAdminCredentials: failed", e)
+        }
+    }
+ 
+    override suspend fun verifyAdminPassword(username: String, plainPassword: String): Boolean {
+        try {
+            val adminUsername = encryptedPrefs.getString(KEY_ADMIN_USERNAME, null)
+            val adminHashedPassword = encryptedPrefs.getString(KEY_ADMIN_HASHED_PASSWORD, null)
+
+            Log.d(TAG, "verifyAdminPassword: checking user=$username, stored=$adminUsername")
+
+            if (adminUsername == null || adminHashedPassword == null) {
+                Log.e(TAG, "verifyAdminPassword: no admin credentials found")
+                return false
+            }
+
+            if (adminUsername != username) {
+                Log.e(TAG, "verifyAdminPassword: username mismatch")
+                return false
+            }
+
+            val isValid = passwordHasher.verifyPassword(plainPassword, adminHashedPassword)
+            Log.d(TAG, "verifyAdminPassword: result=$isValid for user=$username")
+
+            if (isValid && passwordHasher.needsRehash(adminHashedPassword)) {
+                val hashedPassword = passwordHasher.hashPassword(plainPassword)
+                encryptedPrefs.edit().putString(KEY_ADMIN_HASHED_PASSWORD, hashedPassword).apply()
+                Log.d(TAG, "verifyAdminPassword: rehashed admin password")
+            }
+
+            return isValid
+        } catch (e: Exception) {
+            Log.e(TAG, "verifyAdminPassword: failed", e)
+            return false
+        }
+    }
+
+    suspend fun getAdminUsername(): String? {
+        return try {
+            encryptedPrefs.getString(KEY_ADMIN_USERNAME, null)
+        } catch (e: Exception) {
+            Log.e(TAG, "getAdminUsername: failed", e)
+            null
+        }
+    }
+
     companion object {
         private const val KEY_USERNAME = "credentials_username"
         private const val KEY_HASHED_PASSWORD = "credentials_hashed_password"
+        private const val KEY_ADMIN_USERNAME = "admin_username"
+        private const val KEY_ADMIN_HASHED_PASSWORD = "admin_hashed_password"
     }
 }

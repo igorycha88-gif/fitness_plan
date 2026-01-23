@@ -4,6 +4,7 @@ import android.util.Log
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -42,6 +43,7 @@ fun LoginScreen(
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var isLoading by remember { mutableStateOf(false) }
     var navigateTrigger by remember { mutableStateOf(false) }
+    var isAdminLogin by remember { mutableStateOf(false) }
 
     val keyboardController = LocalSoftwareKeyboardController.current
     val coroutineScope = rememberCoroutineScope()
@@ -223,9 +225,27 @@ fun LoginScreen(
                         )
                     }
                 }
+             }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Checkbox(
+                    checked = isAdminLogin,
+                    onCheckedChange = { isAdminLogin = it },
+                    enabled = !isLoading
+                )
+                Text(
+                    text = "Войти как администратор",
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.clickable(enabled = !isLoading) { isAdminLogin = !isAdminLogin }
+                )
             }
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
             Button(
                 onClick = {
@@ -248,10 +268,15 @@ fun LoginScreen(
                                 isLoading = false
                             }
                             else -> {
-                                val isValid = viewModel.verifyPassword(username, password)
+                                val isValid = if (isAdminLogin) {
+                                    viewModel.verifyAdminPassword(username, password)
+                                } else {
+                                    viewModel.verifyPassword(username, password)
+                                }
 
                                 if (isValid) {
                                     viewModel.setCurrentUsername(username)
+                                    viewModel.setIsAdmin(isAdminLogin)
                                     navigateTrigger = true
                                     isLoading = false
                                 } else {

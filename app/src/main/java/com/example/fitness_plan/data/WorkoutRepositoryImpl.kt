@@ -170,6 +170,29 @@ class WorkoutRepositoryImpl @Inject constructor(
         }
     }
 
+    override suspend fun saveAdminWorkoutPlan(plan: WorkoutPlan) {
+        val json = gson.toJson(plan)
+        context.workoutDataStore.edit { preferences ->
+            preferences[stringPreferencesKey("admin_workout_plan")] = json
+        }
+    }
+
+    override fun getAdminWorkoutPlan(): Flow<WorkoutPlan?> {
+        val key = stringPreferencesKey("admin_workout_plan")
+        return context.workoutDataStore.data.map { preferences ->
+            val json = preferences[key]
+            if (json != null) {
+                try {
+                    gson.fromJson(json, WorkoutPlan::class.java)
+                } catch (e: Exception) {
+                    null
+                }
+            } else {
+                null
+            }
+        }
+    }
+
     override suspend fun saveWorkoutSchedule(username: String, dates: List<Long>) {
         workoutScheduleRepository.saveWorkoutSchedule(username, dates)
     }

@@ -16,6 +16,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.example.fitness_plan.ui.AdminMainScreen
 import com.example.fitness_plan.ui.ExerciseDetailScreen
 import com.example.fitness_plan.ui.LoginScreen
 import com.example.fitness_plan.ui.MainScreen
@@ -65,13 +66,17 @@ class MainActivity : ComponentActivity() {
                         composable("login_screen") {
                             LoginScreen(
                                 onLoginSuccess = {
-                                    navController.navigate("main_tabs") {
+                                    // Check if user is admin
+                                    val isAdmin = profileViewModel.isAdmin.value
+                                    val destination = if (isAdmin) "admin_main" else "main_tabs"
+                                    navController.navigate(destination) {
                                         popUpTo("welcome") { inclusive = true }
                                     }
                                 },
                                 onRegisterClick = {
                                     navController.navigate("register_screen")
-                                }
+                                },
+                                viewModel = profileViewModel
                             )
                         }
 
@@ -106,10 +111,24 @@ class MainActivity : ComponentActivity() {
 
                         composable("exercise_detail/{exerciseName}") { backStackEntry ->
                             val exerciseName = backStackEntry.arguments?.getString("exerciseName") ?: ""
+                            val isAdmin = navController.previousBackStackEntry?.destination?.route == "admin_main"
                             ExerciseDetailScreen(
                                 exerciseName = exerciseName,
                                 onBackClick = { navController.popBackStack() },
-                                workoutViewModel = workoutViewModel
+                                workoutViewModel = workoutViewModel,
+                                isAdmin = isAdmin
+                            )
+                        }
+
+                        composable("admin_main") {
+                            AdminMainScreen(
+                                mainNavController = navController,
+                                profileViewModel = profileViewModel,
+                                workoutViewModel = workoutViewModel,
+                                onExerciseClick = { exercise ->
+                                    val encodedName = URLEncoder.encode(exercise.name, "UTF-8")
+                                    navController.navigate("exercise_detail/$encodedName")
+                                }
                             )
                         }
 

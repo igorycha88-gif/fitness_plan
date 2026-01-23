@@ -104,4 +104,12 @@ class WorkoutUseCase @Inject constructor(
     suspend fun updateWorkoutSchedule(username: String, dates: List<Long>) {
         workoutRepository.saveWorkoutSchedule(username, dates)
     }
+
+    suspend fun saveAdminWorkoutPlan(plan: WorkoutPlan) {
+        workoutRepository.saveAdminWorkoutPlan(plan)
+    }
+
+    fun getAdminWorkoutPlan(): Flow<WorkoutPlan?> {
+        return workoutRepository.getAdminWorkoutPlan()
+    }
 }

@@ -107,7 +107,7 @@ fun UserProfileForm(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
                     Icon(
-                        imageVector = Icons.Filled.ArrowBack,
+                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                         contentDescription = "Назад"
                     )
                 }
@@ -119,28 +119,94 @@ fun UserProfileForm(
                 modifier = Modifier.padding(bottom = 24.dp)
             )
 
-            ModernDropdown(
-                label = "Цель тренировок",
-                options = goalOptions,
-                selectedOption = goal,
-                onOptionSelected = { goal = it }
-            )
+            var expandedGoal by remember { mutableStateOf(false) }
+            ExposedDropdownMenuBox(
+                expanded = expandedGoal,
+                onExpandedChange = { expandedGoal = !expandedGoal }
+            ) {
+                OutlinedTextField(
+                    value = goal ?: "",
+                    onValueChange = {},
+                    readOnly = true,
+                    label = { Text("Цель тренировок") },
+                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedGoal) },
+                    modifier = Modifier.menuAnchor()
+                )
+                ExposedDropdownMenu(
+                    expanded = expandedGoal,
+                    onDismissRequest = { expandedGoal = false }
+                ) {
+                    goalOptions.forEach { option ->
+                        DropdownMenuItem(
+                            text = { Text(option.label) },
+                            onClick = {
+                                goal = option.label
+                                expandedGoal = false
+                            }
+                        )
+                    }
+                }
+            }
             Spacer(modifier = Modifier.height(16.dp))
 
-            ModernDropdown(
-                label = "Уровень подготовки",
-                options = levelOptions,
-                selectedOption = level,
-                onOptionSelected = { level = it }
-            )
+            var expandedLevel by remember { mutableStateOf(false) }
+            ExposedDropdownMenuBox(
+                expanded = expandedLevel,
+                onExpandedChange = { expandedLevel = !expandedLevel }
+            ) {
+                OutlinedTextField(
+                    value = level ?: "",
+                    onValueChange = {},
+                    readOnly = true,
+                    label = { Text("Уровень подготовки") },
+                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedLevel) },
+                    modifier = Modifier.menuAnchor()
+                )
+                ExposedDropdownMenu(
+                    expanded = expandedLevel,
+                    onDismissRequest = { expandedLevel = false }
+                ) {
+                    levelOptions.forEach { option ->
+                        DropdownMenuItem(
+                            text = { Text(option.label) },
+                            onClick = {
+                                level = option.label
+                                expandedLevel = false
+                            }
+                        )
+                    }
+                }
+            }
             Spacer(modifier = Modifier.height(16.dp))
 
-            ModernDropdown(
-                label = "Частота тренировок",
-                options = frequencyOptions,
-                selectedOption = frequency,
-                onOptionSelected = { frequency = it }
-            )
+            var expandedFrequency by remember { mutableStateOf(false) }
+            ExposedDropdownMenuBox(
+                expanded = expandedFrequency,
+                onExpandedChange = { expandedFrequency = !expandedFrequency }
+            ) {
+                OutlinedTextField(
+                    value = frequency ?: "",
+                    onValueChange = {},
+                    readOnly = true,
+                    label = { Text("Частота тренировок") },
+                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedFrequency) },
+                    modifier = Modifier.menuAnchor()
+                )
+                ExposedDropdownMenu(
+                    expanded = expandedFrequency,
+                    onDismissRequest = { expandedFrequency = false }
+                ) {
+                    frequencyOptions.forEach { option ->
+                        DropdownMenuItem(
+                            text = { Text(option.label) },
+                            onClick = {
+                                frequency = option.label
+                                expandedFrequency = false
+                            }
+                        )
+                    }
+                }
+            }
             Spacer(modifier = Modifier.height(16.dp))
 
             OutlinedTextField(
@@ -175,14 +241,35 @@ fun UserProfileForm(
             )
             Spacer(modifier = Modifier.height(16.dp))
 
-            ModernDropdown(
-                label = "Пол",
-                options = genderOptions,
-                selectedOption = gender,
-                onOptionSelected = { gender = it }
-            )
+            var expandedGender by remember { mutableStateOf(false) }
+            ExposedDropdownMenuBox(
+                expanded = expandedGender,
+                onExpandedChange = { expandedGender = !expandedGender }
+            ) {
+                OutlinedTextField(
+                    value = gender ?: "",
+                    onValueChange = {},
+                    readOnly = true,
+                    label = { Text("Пол") },
+                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedGender) },
+                    modifier = Modifier.menuAnchor()
+                )
+                ExposedDropdownMenu(
+                    expanded = expandedGender,
+                    onDismissRequest = { expandedGender = false }
+                ) {
+                    genderOptions.forEach { option ->
+                        DropdownMenuItem(
+                            text = { Text(option.label) },
+                            onClick = {
+                                gender = option.label
+                                expandedGender = false
+                            }
+                        )
+                    }
+                }
+            }
 
-            Spacer(modifier = Modifier.weight(1f))
             Spacer(modifier = Modifier.height(24.dp))
 
             Button(
@@ -209,9 +296,8 @@ fun UserProfileForm(
                     style = MaterialTheme.typography.titleMedium
                 )
         }
-    }
 
-    if (showSlowWeightLossDialog) {
+        if (showSlowWeightLossDialog) {
         AlertDialog(
             onDismissRequest = { showSlowWeightLossDialog = false },
             title = { Text("Внимание!") },
@@ -230,9 +316,9 @@ fun UserProfileForm(
                 }
             }
         )
-    }
+        }
 
-    if (showScheduleDialog) {
+        if (showScheduleDialog) {
         WorkoutScheduleDialog(
             frequency = frequency ?: "",
             onDismiss = { showScheduleDialog = false },
@@ -255,7 +341,6 @@ fun UserProfileForm(
     }
 }
 
-@Composable
 private fun Modifier.noRippleClickable(onClick: () -> Unit): Modifier {
     return this.then(
         Modifier.pointerInput(Unit) {

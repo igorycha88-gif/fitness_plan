@@ -62,11 +62,9 @@ class StatisticsViewModel @Inject constructor(
     private val _currentUsername = MutableStateFlow("")
     val currentUsername: StateFlow<String> = _currentUsername.asStateFlow()
 
-    private val _selectedTimeFilter = MutableStateFlow(TimeFilter.WEEK)
-    val selectedTimeFilter: StateFlow<TimeFilter> = _selectedTimeFilter.asStateFlow()
 
-    private val _selectedExercise = MutableStateFlow<String>("")
-    val selectedExercise: StateFlow<String> = _selectedExercise.asStateFlow()
+
+
 
     private val _availableExercises = MutableStateFlow<List<String>>(emptyList())
     val availableExercises: StateFlow<List<String>> = _availableExercises.asStateFlow()
@@ -101,9 +99,6 @@ class StatisticsViewModel @Inject constructor(
     private fun updateAvailableExercises(stats: List<ExerciseStats>) {
         val exercises = stats.map { it.exerciseName }.distinct().sorted()
         _availableExercises.value = exercises
-        if (_selectedExercise.value.isEmpty() && exercises.isNotEmpty()) {
-            _selectedExercise.value = exercises.first()
-        }
     }
 
     private suspend fun loadCycleData() {
@@ -121,24 +116,20 @@ class StatisticsViewModel @Inject constructor(
         }
     }
 
-    fun setTimeFilter(filter: TimeFilter) {
-        _selectedTimeFilter.value = filter
-    }
 
-    fun setSelectedExercise(exercise: String) {
-        _selectedExercise.value = exercise
-    }
+
+
 
     fun getFilteredWeightHistory(): List<WeightEntry> {
-        val days = _selectedTimeFilter.value.days
+        val days = TimeFilter.MONTH.days // Default to month
         val cutoffTime = System.currentTimeMillis() - (days * 24 * 60 * 60 * 1000L)
         return _weightHistory.value.filter { it.date >= cutoffTime }
     }
 
     fun getFilteredExerciseStats(): List<ExerciseStats> {
-        val days = _selectedTimeFilter.value.days
+        val days = TimeFilter.MONTH.days // Default to month
         val cutoffTime = System.currentTimeMillis() - (days * 24 * 60 * 60 * 1000L)
-        val exerciseName = _selectedExercise.value
+        val exerciseName = _availableExercises.value.firstOrNull() ?: ""
 
         return _exerciseStats.value
             .filter { it.date >= cutoffTime && it.exerciseName == exerciseName }
