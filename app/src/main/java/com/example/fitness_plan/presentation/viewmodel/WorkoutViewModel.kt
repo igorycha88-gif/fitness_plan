@@ -8,6 +8,7 @@ import com.example.fitness_plan.domain.model.CycleHistoryEntry
 import com.example.fitness_plan.domain.model.ExerciseStats
 import com.example.fitness_plan.domain.model.UserProfile
 import com.example.fitness_plan.domain.model.WorkoutPlan
+import com.example.fitness_plan.domain.model.WorkoutDay
 import com.example.fitness_plan.domain.repository.CycleRepository
 import com.example.fitness_plan.domain.repository.ExerciseStatsRepository
 import com.example.fitness_plan.domain.repository.UserRepository
@@ -35,6 +36,9 @@ class WorkoutViewModel @Inject constructor(
 
     private val _currentWorkoutPlan = MutableStateFlow<WorkoutPlan?>(null)
     val currentWorkoutPlan: StateFlow<WorkoutPlan?> = _currentWorkoutPlan.asStateFlow()
+
+    private val _adminWorkoutPlan = MutableStateFlow<WorkoutPlan?>(null)
+    val adminWorkoutPlan: StateFlow<WorkoutPlan?> = _adminWorkoutPlan.asStateFlow()
 
     private val _completedExercises = MutableStateFlow<Set<String>>(emptySet())
     val completedExercises: StateFlow<Set<String>> = _completedExercises.asStateFlow()
@@ -105,6 +109,7 @@ class WorkoutViewModel @Inject constructor(
 
         loadCompletedExercises(username)
         loadExerciseStats(username)
+        loadAdminWorkoutPlan()
     }
 
     private fun loadCompletedExercises(username: String) {
@@ -122,6 +127,18 @@ class WorkoutViewModel @Inject constructor(
                 _exerciseStats.value = stats
             }
         }
+    }
+
+    private fun loadAdminWorkoutPlan() {
+        viewModelScope.launch {
+            workoutUseCase.getAdminWorkoutPlan().collect { plan ->
+                _adminWorkoutPlan.value = plan
+            }
+        }
+    }
+
+    fun refreshAdminWorkoutPlan() {
+        loadAdminWorkoutPlan()
     }
 
     private fun updateCompletedDays(completedExercises: Set<String>) {
@@ -153,6 +170,77 @@ class WorkoutViewModel @Inject constructor(
             cycleUseCase.updateProgress(username, newCompletedDays.size)
 
             checkCycleCompletion(username, newCompletedDays.size)
+        }
+    }
+
+    // Admin plan management
+    fun createAdminPlan(name: String, description: String) {
+        viewModelScope.launch {
+            val newPlan = WorkoutPlan(
+                id = "admin_plan",
+                name = name,
+                description = description,
+                muscleGroups = listOf(),
+                goal = "Admin",
+                level = "Admin",
+                days = emptyList()
+            )
+            workoutUseCase.saveAdminWorkoutPlan(newPlan)
+            _adminWorkoutPlan.value = newPlan
+        }
+    }
+
+    fun addDayToAdminPlan(dayName: String) {
+        viewModelScope.launch {
+            val currentPlan = _adminWorkoutPlan.value ?: return@launch
+            val newDay = WorkoutDay(
+                id = currentPlan.days.size,
+                dayName = dayName,
+                exercises = emptyList(),
+                muscleGroups = listOf()
+            )
+            val updatedPlan = currentPlan.copy(days = currentPlan.days + newDay)
+            workoutUseCase.saveAdminWorkoutPlan(updatedPlan)
+            _adminWorkoutPlan.value = updatedPlan
+        }
+    }
+
+    fun removeDayFromAdminPlan(dayIndex: Int) {
+        viewModelScope.launch {
+            val currentPlan = _adminWorkoutPlan.value ?: return@launch
+            val updatedDays = currentPlan.days.toMutableList().apply { removeAt(dayIndex) }
+            val updatedPlan = currentPlan.copy(days = updatedDays)
+            workoutUseCase.saveAdminWorkoutPlan(updatedPlan)
+            _adminWorkoutPlan.value = updatedPlan
+        }
+    }
+
+    fun updateDayDate(dayIndex: Int, date: Long?) {
+        viewModelScope.launch {
+            val currentPlan = _adminWorkoutPlan.value ?: return@launch
+            val updatedDays = currentPlan.days.toMutableList().apply {
+                if (dayIndex in indices) {
+                    this[dayIndex] = this[dayIndex].copy(scheduledDate = date)
+                }
+            }
+            val updatedPlan = currentPlan.copy(days = updatedDays)
+            workoutUseCase.saveAdminWorkoutPlan(updatedPlan)
+            _adminWorkoutPlan.value = updatedPlan
+        }
+    }
+
+    fun addExerciseToDay(dayIndex: Int, exercise: com.example.fitness_plan.domain.model.Exercise) {
+        viewModelScope.launch {
+            val currentPlan = _adminWorkoutPlan.value ?: return@launch
+            val updatedDays = currentPlan.days.toMutableList().apply {
+                if (dayIndex in indices) {
+                    val day = this[dayIndex]
+                    this[dayIndex] = day.copy(exercises = day.exercises + exercise)
+                }
+            }
+            val updatedPlan = currentPlan.copy(days = updatedDays)
+            workoutUseCase.saveAdminWorkoutPlan(updatedPlan)
+            _adminWorkoutPlan.value = updatedPlan
         }
     }
 

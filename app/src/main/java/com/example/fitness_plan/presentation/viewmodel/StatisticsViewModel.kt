@@ -129,7 +129,7 @@ class StatisticsViewModel @Inject constructor(
     fun getFilteredExerciseStats(): List<ExerciseStats> {
         val days = TimeFilter.MONTH.days // Default to month
         val cutoffTime = System.currentTimeMillis() - (days * 24 * 60 * 60 * 1000L)
-        val exerciseName = _availableExercises.value.firstOrNull()?.name ?: ""
+        val exerciseName = _availableExercises.value.firstOrNull() ?: ""
 
         return _exerciseStats.value
             .filter { it.date >= cutoffTime && it.exerciseName == exerciseName }

@@ -11,6 +11,7 @@ import com.example.fitness_plan.domain.repository.CycleRepository
 import com.example.fitness_plan.domain.repository.UserRepository
 import com.example.fitness_plan.domain.repository.WeightRepository
 import com.example.fitness_plan.domain.usecase.AuthUseCase
+import com.example.fitness_plan.domain.usecase.WorkoutUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -29,7 +30,8 @@ class ProfileViewModel @Inject constructor(
     private val credentialsRepository: CredentialsRepository,
     private val cycleRepository: CycleRepository,
     private val weightRepository: WeightRepository,
-    private val authUseCase: AuthUseCase
+    private val authUseCase: AuthUseCase,
+    private val workoutUseCase: WorkoutUseCase
 ) : ViewModel() {
 
     val userProfile: StateFlow<UserProfile?> = userRepository.getUserProfile()
@@ -44,6 +46,9 @@ class ProfileViewModel @Inject constructor(
 
     private val _currentUsername = MutableStateFlow("")
     val currentUsername: StateFlow<String> = _currentUsername.asStateFlow()
+
+    private val _isAdmin = MutableStateFlow(false)
+    val isAdmin: StateFlow<Boolean> = _isAdmin.asStateFlow()
 
     private val _logoutTrigger = MutableStateFlow(false)
     val logoutTrigger: StateFlow<Boolean> = _logoutTrigger.asStateFlow()
@@ -68,6 +73,11 @@ class ProfileViewModel @Inject constructor(
     fun setCurrentUsername(username: String) {
         Log.d(TAG, "setCurrentUsername: username=$username")
         _currentUsername.value = username
+    }
+
+    fun setIsAdmin(isAdmin: Boolean) {
+        Log.d(TAG, "setIsAdmin: isAdmin=$isAdmin")
+        _isAdmin.value = isAdmin
     }
 
     fun saveUserProfile(profile: UserProfile) {
@@ -95,6 +105,7 @@ class ProfileViewModel @Inject constructor(
             Log.d(TAG, "logout: clearing credentials")
             authUseCase.logout()
             _currentUsername.value = ""
+            _isAdmin.value = false
             _logoutTrigger.value = true
         }
     }
@@ -106,6 +117,11 @@ class ProfileViewModel @Inject constructor(
     suspend fun verifyPassword(username: String, plainPassword: String): Boolean {
         Log.d(TAG, "verifyPassword: checking password for user=$username")
         return credentialsRepository.verifyPassword(username, plainPassword)
+    }
+
+    suspend fun verifyAdminPassword(username: String, plainPassword: String): Boolean {
+        Log.d(TAG, "verifyAdminPassword: checking admin password for user=$username")
+        return credentialsRepository.verifyAdminPassword(username, plainPassword)
     }
 
     suspend fun getCredentials(): Credentials? {
@@ -138,5 +154,11 @@ class ProfileViewModel @Inject constructor(
 
     fun getWeightHistory(): kotlinx.coroutines.flow.Flow<List<WeightEntry>> {
         return weightRepository.getWeightHistory(_currentUsername.value)
+    }
+
+    fun saveWorkoutDates(dates: List<Long>) {
+        viewModelScope.launch {
+            workoutUseCase.updateWorkoutSchedule(_currentUsername.value, dates)
+        }
     }
 }

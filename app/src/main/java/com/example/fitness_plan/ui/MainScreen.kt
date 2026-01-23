@@ -7,6 +7,8 @@ import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.navigation.NavDestination.Companion.hierarchy
@@ -29,15 +31,19 @@ sealed class Screen(val route: String, val label: String, val icon: ImageVector)
 
 private val items = listOf(Screen.Home, Screen.Profile, Screen.Statistics)
 
+// Navigation items are now fixed for regular users
+
 
 
 @Composable
 fun MainScreen(
     mainNavController: NavHostController,
     profileViewModel: ProfileViewModel? = null,
-    workoutViewModel: WorkoutViewModel? = null
+    workoutViewModel: WorkoutViewModel? = null,
+    onExerciseClick: ((Exercise) -> Unit)? = null
 ) {
     val bottomNavController = rememberNavController()
+    val isAdmin by (profileViewModel ?: hiltViewModel()).isAdmin.collectAsState()
 
     Scaffold(
         bottomBar = {
@@ -71,9 +77,9 @@ fun MainScreen(
                 .padding(innerPadding)
                 .windowInsetsPadding(WindowInsets.systemBars.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal))
         ) {
-            composable(Screen.Home.route) {
-                HomeScreen()
-            }
+             composable(Screen.Home.route) {
+                 HomeScreen()
+             }
             composable(Screen.Profile.route) {
                 ProfileScreen(
                     viewModel = profileViewModel ?: hiltViewModel(),

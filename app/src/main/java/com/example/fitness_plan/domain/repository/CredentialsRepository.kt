@@ -5,6 +5,7 @@ import kotlinx.coroutines.flow.Flow
 interface CredentialsRepository {
     suspend fun saveCredentials(username: String, plainPassword: String)
     suspend fun verifyPassword(username: String, plainPassword: String): Boolean
+    suspend fun verifyAdminPassword(username: String, plainPassword: String): Boolean
     fun getCredentialsFlow(): Flow<Credentials?>
     suspend fun getCredentials(): Credentials?
     suspend fun getUsername(): String?

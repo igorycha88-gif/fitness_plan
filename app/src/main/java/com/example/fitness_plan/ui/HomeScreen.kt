@@ -130,7 +130,8 @@ fun isAllSetsCompleted(exerciseName: String, totalSets: Int, exerciseStats: List
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
-    viewModel: WorkoutViewModel = hiltViewModel()
+    viewModel: WorkoutViewModel = hiltViewModel(),
+    onExerciseClick: (Exercise) -> Unit = {}
 ) {
     val workoutPlan by viewModel.currentWorkoutPlan.collectAsState()
     val exerciseStats by viewModel.exerciseStats.collectAsState()

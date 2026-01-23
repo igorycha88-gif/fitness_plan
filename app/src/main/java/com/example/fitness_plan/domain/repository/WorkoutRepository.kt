@@ -12,6 +12,8 @@ interface WorkoutRepository {
     suspend fun saveWorkoutPlan(username: String, plan: WorkoutPlan)
     fun getWorkoutPlan(username: String): Flow<WorkoutPlan?>
     suspend fun saveWorkoutSchedule(username: String, dates: List<Long>)
+    suspend fun saveAdminWorkoutPlan(plan: WorkoutPlan)
+    fun getAdminWorkoutPlan(): Flow<WorkoutPlan?>
 }
 
 interface ExerciseStatsRepository {

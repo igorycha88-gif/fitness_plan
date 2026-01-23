@@ -18,15 +18,18 @@ import com.example.fitness_plan.presentation.viewmodel.WorkoutViewModel
 import com.example.fitness_plan.ui.theme.SuccessGreen
 import kotlinx.coroutines.delay
 import java.net.URLDecoder
+import androidx.compose.material3.MenuAnchorType
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ExerciseDetailScreen(
     exerciseName: String,
     onBackClick: () -> Unit,
-    workoutViewModel: WorkoutViewModel
+    workoutViewModel: WorkoutViewModel,
+    isAdmin: Boolean = false
 ) {
     val currentWorkoutPlan by workoutViewModel.currentWorkoutPlan.collectAsState()
+    val adminWorkoutPlan by workoutViewModel.adminWorkoutPlan.collectAsState()
     val exerciseStats by workoutViewModel.exerciseStats.collectAsState()
 
     var exercise by remember { mutableStateOf<Exercise?>(null) }
@@ -41,13 +44,19 @@ fun ExerciseDetailScreen(
         }
     }
 
-    LaunchedEffect(decodedName) {
-        workoutViewModel.initializeWorkout()
+    LaunchedEffect(decodedName, isAdmin) {
+        if (isAdmin) {
+            workoutViewModel.refreshAdminWorkoutPlan()
+        } else {
+            workoutViewModel.initializeWorkout()
+        }
     }
 
-    LaunchedEffect(decodedName, currentWorkoutPlan) {
-        if (currentWorkoutPlan != null) {
-            exercise = findExerciseByName(currentWorkoutPlan!!, decodedName)
+    LaunchedEffect(decodedName, currentWorkoutPlan, adminWorkoutPlan, isAdmin) {
+        val workoutPlan = if (isAdmin) adminWorkoutPlan else currentWorkoutPlan
+
+        if (workoutPlan != null) {
+            exercise = findExerciseByName(workoutPlan, decodedName)
             selectedExercise = exercise
             alternatives = exercise?.alternatives ?: emptyList()
         } else {
@@ -203,7 +212,7 @@ fun ExerciseDetailScreen(
                             readOnly = true,
                             label = { Text("Упражнение") },
                             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
-                            modifier = Modifier.menuAnchor(type = MenuAnchorType.Primary, enabled = true).fillMaxWidth()
+                            modifier = Modifier.menuAnchor(type = MenuAnchorType.PrimaryNotEditable).fillMaxWidth()
                         )
 
                         ExposedDropdownMenu(

@@ -49,6 +49,13 @@ android {
         // Ссылаемся на переменную, определенную в корневом build.gradle.kts
         kotlinCompilerExtensionVersion = rootProject.extra["composeCompilerVersion"] as String
     }
+    // 👇 ИСПОЛЬЗУЙТЕ testOptions ВМЕСТО testOptions
+    testOptions {
+        unitTests {
+            isIncludeAndroidResources = true
+            isReturnDefaultValues = true
+        }
+    }
     // 👆 КОНЕЦ ИСПРАВЛЕННОГО БЛОКА
 }
 
@@ -71,21 +78,29 @@ dependencies {
     kapt("com.google.dagger:hilt-android-compiler:2.51")
     implementation("androidx.hilt:hilt-navigation-compose:1.2.0")
     implementation("androidx.hilt:hilt-work:1.2.0")
-    kapt("androidx.hilt:hilt-compiler:1.2.0")
+    kapt("com.google.dagger:hilt-android-compiler:2.51")
     implementation("androidx.work:work-runtime-ktx:2.9.0")
-    // Unit Testing Dependencies
+     // Unit Testing Dependencies
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.mockito:mockito-core:5.8.0")
     testImplementation("org.mockito.kotlin:mockito-kotlin:5.1.0")
     testImplementation("androidx.arch.core:core-testing:2.2.0")
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.7.3")
     testImplementation("org.jetbrains.kotlin:kotlin-test:1.9.10")
+    testImplementation("io.mockk:mockk:1.13.5")
+    testImplementation("com.google.truth:truth:1.1.3")
+    testImplementation("com.google.dagger:hilt-android-testing:2.51")
+    testImplementation("androidx.navigation:navigation-testing:2.8.0")
 
     // Instrumentation Testing
     androidTestImplementation("androidx.test.ext:junit:1.1.5")
     androidTestImplementation("androidx.test.espresso:espresso-core:3.5.1")
     androidTestImplementation(platform("androidx.compose:compose-bom:2023.08.00"))
     androidTestImplementation("androidx.compose.ui:ui-test-junit4")
+    androidTestImplementation("io.mockk:mockk-android:1.13.5")
+    androidTestImplementation("com.google.truth:truth:1.1.3")
+    androidTestImplementation("com.google.dagger:hilt-android-testing:2.51")
+    androidTestImplementation("androidx.navigation:navigation-compose:2.8.0")
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
 
