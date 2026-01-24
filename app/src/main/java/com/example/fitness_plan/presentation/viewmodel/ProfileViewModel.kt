@@ -3,21 +3,27 @@ package com.example.fitness_plan.presentation.viewmodel
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.fitness_plan.domain.model.EquipmentType
+import com.example.fitness_plan.domain.model.ExerciseLibrary
+import com.example.fitness_plan.domain.model.ExerciseType
+import com.example.fitness_plan.domain.model.MuscleGroup
 import com.example.fitness_plan.domain.model.UserProfile
 import com.example.fitness_plan.domain.model.WeightEntry
-import com.example.fitness_plan.domain.repository.CredentialsRepository
 import com.example.fitness_plan.domain.repository.Credentials
 import com.example.fitness_plan.domain.repository.CycleRepository
 import com.example.fitness_plan.domain.repository.UserRepository
 import com.example.fitness_plan.domain.repository.WeightRepository
 import com.example.fitness_plan.domain.usecase.AuthUseCase
+import com.example.fitness_plan.domain.usecase.ExerciseLibraryUseCase
+import com.example.fitness_plan.domain.usecase.ReferenceDataUseCase
 import com.example.fitness_plan.domain.usecase.WorkoutUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -27,11 +33,13 @@ private const val TAG = "ProfileViewModel"
 @HiltViewModel
 class ProfileViewModel @Inject constructor(
     private val userRepository: UserRepository,
-    private val credentialsRepository: CredentialsRepository,
+    private val credentialsRepository: com.example.fitness_plan.domain.repository.ICredentialsRepository,
     private val cycleRepository: CycleRepository,
     private val weightRepository: WeightRepository,
     private val authUseCase: AuthUseCase,
-    private val workoutUseCase: WorkoutUseCase
+    private val workoutUseCase: WorkoutUseCase,
+    private val exerciseLibraryUseCase: ExerciseLibraryUseCase,
+    private val referenceDataUseCase: ReferenceDataUseCase
 ) : ViewModel() {
 
     val userProfile: StateFlow<UserProfile?> = userRepository.getUserProfile()
@@ -119,11 +127,6 @@ class ProfileViewModel @Inject constructor(
         return credentialsRepository.verifyPassword(username, plainPassword)
     }
 
-    suspend fun verifyAdminPassword(username: String, plainPassword: String): Boolean {
-        Log.d(TAG, "verifyAdminPassword: checking admin password for user=$username")
-        return credentialsRepository.verifyAdminPassword(username, plainPassword)
-    }
-
     suspend fun getCredentials(): Credentials? {
         return credentialsRepository.getCredentials()
     }
@@ -160,5 +163,24 @@ class ProfileViewModel @Inject constructor(
         viewModelScope.launch {
             workoutUseCase.updateWorkoutSchedule(_currentUsername.value, dates)
         }
+    }
+
+    fun toggleFavoriteExercise(exerciseName: String) {
+        viewModelScope.launch {
+            val currentProfile = userRepository.getUserProfile().first()
+            val updatedFavorites = if (exerciseName in (currentProfile?.favoriteExercises ?: emptySet())) {
+                (currentProfile?.favoriteExercises ?: emptySet()) - exerciseName
+            } else {
+                (currentProfile?.favoriteExercises ?: emptySet()) + exerciseName
+            }
+            val updatedProfile = currentProfile?.copy(favoriteExercises = updatedFavorites)
+            if (updatedProfile != null) {
+                userRepository.saveUserProfile(updatedProfile)
+            }
+        }
+    }
+
+    fun getFavoriteExercises(): kotlinx.coroutines.flow.Flow<kotlin.collections.Set<String>> {
+        return userRepository.getUserProfile().map { it?.favoriteExercises ?: emptySet() }
     }
 }

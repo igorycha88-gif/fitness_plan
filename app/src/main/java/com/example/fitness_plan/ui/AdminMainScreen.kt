@@ -86,6 +86,10 @@ fun AdminMainScreen(
                     onExerciseClick = onExerciseClick
                 )
             }
+            composable("admin_login") {
+                val vm = androidx.hilt.navigation.compose.hiltViewModel<com.example.fitness_plan.presentation.viewmodel.AdminLoginViewModel>()
+                AdminLoginScreen(navController = bottomNavController, viewModel = vm)
+            }
             composable(AdminScreen.Profile.route) {
                 val vm = profileViewModel ?: androidx.hilt.navigation.compose.hiltViewModel()
                 AdminProfileScreen(

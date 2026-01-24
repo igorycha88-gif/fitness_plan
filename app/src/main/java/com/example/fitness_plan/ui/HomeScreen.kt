@@ -369,7 +369,8 @@ fun AdaptivePlanDetailsScreen(
                     Card(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(vertical = 4.dp),
+                            .padding(vertical = 4.dp)
+                            .clickable { onExerciseClick(exercise) },
                         colors = CardDefaults.cardColors(
                             containerColor = if (showCheckmark)
                                 SuccessGreen.copy(alpha = 0.08f)

@@ -8,4 +8,6 @@ interface UserRepository {
     suspend fun getUserProfileForUsername(username: String): UserProfile?
     suspend fun saveUserProfile(profile: UserProfile)
     suspend fun clearUserProfile()
+    suspend fun toggleFavoriteExercise(exerciseName: String)
+    fun getFavoriteExercises(): Flow<Set<String>>
 }

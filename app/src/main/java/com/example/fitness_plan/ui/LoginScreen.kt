@@ -36,6 +36,7 @@ import kotlinx.coroutines.launch
 fun LoginScreen(
     onLoginSuccess: () -> Unit,
     onRegisterClick: () -> Unit = {},
+    onAdminLoginClick: () -> Unit = {},
     viewModel: ProfileViewModel = hiltViewModel()
 ) {
     var username by remember { mutableStateOf("") }
@@ -43,7 +44,6 @@ fun LoginScreen(
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var isLoading by remember { mutableStateOf(false) }
     var navigateTrigger by remember { mutableStateOf(false) }
-    var isAdminLogin by remember { mutableStateOf(false) }
 
     val keyboardController = LocalSoftwareKeyboardController.current
     val coroutineScope = rememberCoroutineScope()
@@ -227,24 +227,6 @@ fun LoginScreen(
                 }
              }
 
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Checkbox(
-                    checked = isAdminLogin,
-                    onCheckedChange = { isAdminLogin = it },
-                    enabled = !isLoading
-                )
-                Text(
-                    text = "Войти как администратор",
-                    style = MaterialTheme.typography.bodyMedium,
-                    modifier = Modifier.clickable(enabled = !isLoading) { isAdminLogin = !isAdminLogin }
-                )
-            }
-
             Spacer(modifier = Modifier.height(16.dp))
 
             Button(
@@ -268,15 +250,10 @@ fun LoginScreen(
                                 isLoading = false
                             }
                             else -> {
-                                val isValid = if (isAdminLogin) {
-                                    viewModel.verifyAdminPassword(username, password)
-                                } else {
-                                    viewModel.verifyPassword(username, password)
-                                }
+                                val isValid = viewModel.verifyPassword(username, password)
 
                                 if (isValid) {
                                     viewModel.setCurrentUsername(username)
-                                    viewModel.setIsAdmin(isAdminLogin)
                                     navigateTrigger = true
                                     isLoading = false
                                 } else {
@@ -350,6 +327,21 @@ fun LoginScreen(
                         color = MaterialTheme.colorScheme.primary
                     )
                 }
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            TextButton(
+                onClick = onAdminLoginClick,
+                enabled = !isLoading
+            ) {
+                Text(
+                    text = "Войти как администратор",
+                    style = MaterialTheme.typography.bodyMedium.copy(
+                        fontWeight = FontWeight.SemiBold
+                    ),
+                    color = MaterialTheme.colorScheme.primary
+                )
             }
 
             Spacer(modifier = Modifier.weight(1f))

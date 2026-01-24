@@ -5,6 +5,7 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.example.fitness_plan.domain.model.UserProfile
 import com.example.fitness_plan.domain.repository.UserRepository as DomainUserRepository
@@ -25,6 +26,7 @@ class UserRepository(private val context: Context) : DomainUserRepository {
             preferences[WEIGHT_KEY] = userProfile.weight.toString()
             preferences[HEIGHT_KEY] = userProfile.height.toString()
             preferences[GENDER_KEY] = userProfile.gender
+            preferences[FAVORITE_EXERCISES_KEY] = userProfile.favoriteExercises
         }
     }
 
@@ -36,7 +38,8 @@ class UserRepository(private val context: Context) : DomainUserRepository {
         val weightStr = preferences[WEIGHT_KEY]
         val heightStr = preferences[HEIGHT_KEY]
         val gender = preferences[GENDER_KEY]
-
+        val favoriteExercises = preferences[FAVORITE_EXERCISES_KEY] ?: emptySet()
+ 
         if (goal != null && level != null && frequency != null && weightStr != null && heightStr != null && gender != null) {
             UserProfile(
                 username = username ?: "",
@@ -45,7 +48,8 @@ class UserRepository(private val context: Context) : DomainUserRepository {
                 frequency = frequency,
                 weight = weightStr.toDouble(),
                 height = heightStr.toDouble(),
-                gender = gender
+                gender = gender,
+                favoriteExercises = favoriteExercises
             )
         } else {
             null
@@ -62,6 +66,22 @@ class UserRepository(private val context: Context) : DomainUserRepository {
         }
     }
 
+    override suspend fun toggleFavoriteExercise(exerciseName: String) {
+        val profile = getUserProfile().first() ?: return
+        val updatedFavorites = if (exerciseName in profile.favoriteExercises) {
+            profile.favoriteExercises - exerciseName
+        } else {
+            profile.favoriteExercises + exerciseName
+        }
+        saveUserProfile(profile.copy(favoriteExercises = updatedFavorites))
+    }
+
+    override fun getFavoriteExercises(): Flow<Set<String>> {
+        return context.dataStore.data.map { preferences ->
+            preferences[FAVORITE_EXERCISES_KEY] ?: emptySet()
+        }
+    }
+
     companion object {
         private val USERNAME_KEY = stringPreferencesKey("username")
         private val GOAL_KEY = stringPreferencesKey("goal")
@@ -70,6 +90,7 @@ class UserRepository(private val context: Context) : DomainUserRepository {
         private val WEIGHT_KEY = stringPreferencesKey("weight")
         private val HEIGHT_KEY = stringPreferencesKey("height")
         private val GENDER_KEY = stringPreferencesKey("gender")
+        private val FAVORITE_EXERCISES_KEY = stringSetPreferencesKey("favorite_exercises")
     }
 }
 

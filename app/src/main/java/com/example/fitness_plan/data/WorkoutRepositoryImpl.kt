@@ -5,6 +5,7 @@ import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.*
 import androidx.datastore.preferences.preferencesDataStore
+import com.example.fitness_plan.domain.calculator.WeightCalculator
 import com.example.fitness_plan.domain.model.Exercise
 import com.example.fitness_plan.domain.model.WorkoutDay
 import com.example.fitness_plan.domain.model.WorkoutPlan
@@ -27,7 +28,8 @@ private val Context.workoutDataStore: DataStore<Preferences> by preferencesDataS
 class WorkoutRepositoryImpl @Inject constructor(
     private val context: Context,
     private val exerciseCompletionRepository: ExerciseCompletionRepository,
-    private val workoutScheduleRepository: WorkoutScheduleRepository
+    private val workoutScheduleRepository: WorkoutScheduleRepository,
+    private val weightCalculator: WeightCalculator
 ) : WorkoutRepository {
 
     private val gson = Gson()
@@ -258,8 +260,27 @@ class WorkoutRepositoryImpl @Inject constructor(
         reps: String,
         description: String? = null,
         recommendedWeight: Float? = null,
-        recommendedRepsPerSet: String? = null
+        recommendedRepsPerSet: String? = null,
+        profile: com.example.fitness_plan.domain.model.UserProfile? = null
     ): Exercise {
+        val finalRecommendedWeight = if (recommendedWeight == null && profile != null && profile.weight > 0) {
+            weightCalculator.calculateBaseWeight(
+                bodyWeight = profile.weight.toFloat(),
+                level = profile.level,
+                goal = profile.goal,
+                gender = profile.gender,
+                exerciseType = weightCalculator.determineExerciseType(name)
+            )
+        } else {
+            recommendedWeight
+        }
+        
+        val finalRecommendedReps = if (recommendedRepsPerSet == null && profile != null) {
+            weightCalculator.getRecommendedRepsString(profile.level)
+        } else {
+            recommendedRepsPerSet
+        }
+        
         return Exercise(
             id = id,
             name = name,
@@ -270,8 +291,8 @@ class WorkoutRepositoryImpl @Inject constructor(
             isCompleted = false,
             alternatives = emptyList(),
             description = description,
-            recommendedWeight = recommendedWeight,
-            recommendedRepsPerSet = recommendedRepsPerSet
+            recommendedWeight = finalRecommendedWeight,
+            recommendedRepsPerSet = finalRecommendedReps
         )
     }
 
@@ -361,25 +382,25 @@ class WorkoutRepositoryImpl @Inject constructor(
             level = profile.level,
             days = listOf(
                 WorkoutDay(0, "День 1", listOf(
-                    createExerciseWithAlternatives("1", "Приседания со штангой", 4, "8-10"),
-                    createExerciseWithAlternatives("2", "Жим лёжа", 4, "8-10"),
-                    createExerciseWithAlternatives("3", "Тяга штанги в наклоне", 4, "8-10"),
-                    createExerciseWithAlternatives("4", "Бицепс", 3, "10-12"),
-                    createExerciseWithAlternatives("5", "Пресс", 4, "15-20")
+                    createExerciseWithAlternatives("1", "Приседания со штангой", 4, "8-10", profile = profile),
+                    createExerciseWithAlternatives("2", "Жим лёжа", 4, "8-10", profile = profile),
+                    createExerciseWithAlternatives("3", "Тяга штанги в наклоне", 4, "8-10", profile = profile),
+                    createExerciseWithAlternatives("4", "Бицепс", 3, "10-12", profile = profile),
+                    createExerciseWithAlternatives("5", "Пресс", 4, "15-20", profile = profile)
                 ), listOf("Ноги", "Грудь", "Спина", "Руки", "Пресс")),
                 WorkoutDay(1, "День 2", listOf(
-                    createExerciseWithAlternatives("6", "Становая тяга", 4, "6-8"),
-                    createExerciseWithAlternatives("7", "Жим гантелей сидя", 4, "10-12"),
-                    createExerciseWithAlternatives("8", "Подтягивания", 4, "макс"),
-                    createExerciseWithAlternatives("9", "Трицепс", 3, "10-12"),
-                    createExerciseWithAlternatives("10", "Пресс", 4, "15-20")
+                    createExerciseWithAlternatives("6", "Становая тяга", 4, "6-8", profile = profile),
+                    createExerciseWithAlternatives("7", "Жим гантелей сидя", 4, "10-12", profile = profile),
+                    createExerciseWithAlternatives("8", "Подтягивания", 4, "макс", profile = profile),
+                    createExerciseWithAlternatives("9", "Трицепс", 3, "10-12", profile = profile),
+                    createExerciseWithAlternatives("10", "Пресс", 4, "15-20", profile = profile)
                 ), listOf("Спина", "Плечи", "Руки", "Пресс")),
                 WorkoutDay(2, "День 3", listOf(
-                    createExerciseWithAlternatives("11", "Выпады с гантелями", 3, "12-15"),
-                    createExerciseWithAlternatives("12", "Отжимания", 4, "15-20"),
-                    createExerciseWithAlternatives("13", "Тяга верхнего блока", 4, "10-12"),
-                    createExerciseWithAlternatives("14", "Бицепс", 3, "10-12"),
-                    createExerciseWithAlternatives("15", "Пресс", 4, "15-20")
+                    createExerciseWithAlternatives("11", "Выпады с гантелями", 3, "12-15", profile = profile),
+                    createExerciseWithAlternatives("12", "Отжимания", 4, "15-20", profile = profile),
+                    createExerciseWithAlternatives("13", "Тяга верхнего блока", 4, "10-12", profile = profile),
+                    createExerciseWithAlternatives("14", "Бицепс", 3, "10-12", profile = profile),
+                    createExerciseWithAlternatives("15", "Пресс", 4, "15-20", profile = profile)
                 ), listOf("Ноги", "Грудь", "Спина", "Руки", "Пресс"))
             )
         )
@@ -395,22 +416,22 @@ class WorkoutRepositoryImpl @Inject constructor(
             level = profile.level,
             days = listOf(
                 WorkoutDay(0, "День 1", listOf(
-                    createExerciseWithAlternatives("1", "Приседания", 4, "8-10"),
-                    createExerciseWithAlternatives("2", "Жим лёжа", 4, "8-10"),
-                    createExerciseWithAlternatives("3", "Тяга штанги в наклоне", 4, "8-10"),
-                    createExerciseWithAlternatives("4", "Пресс", 3, "12-15")
+                    createExerciseWithAlternatives("1", "Приседания", 4, "8-10", profile = profile),
+                    createExerciseWithAlternatives("2", "Жим лёжа", 4, "8-10", profile = profile),
+                    createExerciseWithAlternatives("3", "Тяга штанги в наклоне", 4, "8-10", profile = profile),
+                    createExerciseWithAlternatives("4", "Пресс", 3, "12-15", profile = profile)
                 ), listOf("Ноги", "Грудь", "Спина", "Пресс")),
                 WorkoutDay(1, "День 2", listOf(
-                    createExerciseWithAlternatives("5", "Становая тяга", 4, "6-8"),
-                    createExerciseWithAlternatives("6", "Жим гантелей сидя", 4, "10-12"),
-                    createExerciseWithAlternatives("7", "Подтягивания", 4, "макс"),
-                    createExerciseWithAlternatives("8", "Пресс", 3, "12-15")
+                    createExerciseWithAlternatives("5", "Становая тяга", 4, "6-8", profile = profile),
+                    createExerciseWithAlternatives("6", "Жим гантелей сидя", 4, "10-12", profile = profile),
+                    createExerciseWithAlternatives("7", "Подтягивания", 4, "макс", profile = profile),
+                    createExerciseWithAlternatives("8", "Пресс", 3, "12-15", profile = profile)
                 ), listOf("Спина", "Плечи", "Пресс")),
                 WorkoutDay(2, "День 3", listOf(
-                    createExerciseWithAlternatives("9", "Выпады", 4, "10-12"),
-                    createExerciseWithAlternatives("10", "Отжимания", 4, "10-15"),
-                    createExerciseWithAlternatives("11", "Тяга верхнего блока", 4, "10-12"),
-                    createExerciseWithAlternatives("12", "Пресс", 3, "12-15")
+                    createExerciseWithAlternatives("9", "Выпады", 4, "10-12", profile = profile),
+                    createExerciseWithAlternatives("10", "Отжимания", 4, "10-15", profile = profile),
+                    createExerciseWithAlternatives("11", "Тяга верхнего блока", 4, "10-12", profile = profile),
+                    createExerciseWithAlternatives("12", "Пресс", 3, "12-15", profile = profile)
                 ), listOf("Ноги", "Грудь", "Спина", "Пресс"))
             )
         )
@@ -426,25 +447,25 @@ class WorkoutRepositoryImpl @Inject constructor(
             level = profile.level,
             days = listOf(
                 WorkoutDay(0, "День 1", listOf(
-                    createExerciseWithAlternatives("1", "Приседания со штангой", 5, "6-8"),
-                    createExerciseWithAlternatives("2", "Жим лёжа", 5, "6-8"),
-                    createExerciseWithAlternatives("3", "Тяга штанги в наклоне", 5, "6-8"),
-                    createExerciseWithAlternatives("4", "Бицепс", 4, "8-10"),
-                    createExerciseWithAlternatives("5", "Пресс", 4, "10-15")
+                    createExerciseWithAlternatives("1", "Приседания со штангой", 5, "6-8", profile = profile),
+                    createExerciseWithAlternatives("2", "Жим лёжа", 5, "6-8", profile = profile),
+                    createExerciseWithAlternatives("3", "Тяга штанги в наклоне", 5, "6-8", profile = profile),
+                    createExerciseWithAlternatives("4", "Бицепс", 4, "8-10", profile = profile),
+                    createExerciseWithAlternatives("5", "Пресс", 4, "10-15", profile = profile)
                 ), listOf("Ноги", "Грудь", "Спина", "Руки", "Пресс")),
                 WorkoutDay(1, "День 2", listOf(
-                    createExerciseWithAlternatives("6", "Становая тяга", 5, "5-6"),
-                    createExerciseWithAlternatives("7", "Жим гантелей сидя", 5, "8-10"),
-                    createExerciseWithAlternatives("8", "Подтягивания", 5, "макс"),
-                    createExerciseWithAlternatives("9", "Трицепс", 4, "8-10"),
-                    createExerciseWithAlternatives("10", "Пресс", 4, "10-15")
+                    createExerciseWithAlternatives("6", "Становая тяга", 5, "5-6", profile = profile),
+                    createExerciseWithAlternatives("7", "Жим гантелей сидя", 5, "8-10", profile = profile),
+                    createExerciseWithAlternatives("8", "Подтягивания", 5, "макс", profile = profile),
+                    createExerciseWithAlternatives("9", "Трицепс", 4, "8-10", profile = profile),
+                    createExerciseWithAlternatives("10", "Пресс", 4, "10-15", profile = profile)
                 ), listOf("Спина", "Плечи", "Руки", "Пресс")),
                 WorkoutDay(2, "День 3", listOf(
-                    createExerciseWithAlternatives("11", "Выпады с гантелями", 4, "10-12"),
-                    createExerciseWithAlternatives("12", "Жим на наклонной скамье", 5, "8-10"),
-                    createExerciseWithAlternatives("13", "Тяга верхнего блока", 5, "8-10"),
-                    createExerciseWithAlternatives("14", "Бицепс", 4, "8-10"),
-                    createExerciseWithAlternatives("15", "Пресс", 4, "10-15")
+                    createExerciseWithAlternatives("11", "Выпады с гантелями", 4, "10-12", profile = profile),
+                    createExerciseWithAlternatives("12", "Жим на наклонной скамье", 5, "8-10", profile = profile),
+                    createExerciseWithAlternatives("13", "Тяга верхнего блока", 5, "8-10", profile = profile),
+                    createExerciseWithAlternatives("14", "Бицепс", 4, "8-10", profile = profile),
+                    createExerciseWithAlternatives("15", "Пресс", 4, "10-15", profile = profile)
                 ), listOf("Ноги", "Грудь", "Спина", "Руки", "Пресс"))
             )
         )
@@ -460,28 +481,28 @@ class WorkoutRepositoryImpl @Inject constructor(
             level = profile.level,
             days = listOf(
                 WorkoutDay(0, "День 1", listOf(
-                    createExerciseWithAlternatives("1", "Приседания со штангой", 6, "4-6"),
-                    createExerciseWithAlternatives("2", "Жим лёжа", 6, "4-6"),
-                    createExerciseWithAlternatives("3", "Тяга штанги в наклоне", 6, "4-6"),
-                    createExerciseWithAlternatives("4", "Бицепс", 4, "8-10"),
-                    createExerciseWithAlternatives("5", "Трицепс", 4, "8-10"),
-                    createExerciseWithAlternatives("6", "Пресс", 4, "10-15")
+                    createExerciseWithAlternatives("1", "Приседания со штангой", 6, "4-6", profile = profile),
+                    createExerciseWithAlternatives("2", "Жим лёжа", 6, "4-6", profile = profile),
+                    createExerciseWithAlternatives("3", "Тяга штанги в наклоне", 6, "4-6", profile = profile),
+                    createExerciseWithAlternatives("4", "Бицепс", 4, "8-10", profile = profile),
+                    createExerciseWithAlternatives("5", "Трицепс", 4, "8-10", profile = profile),
+                    createExerciseWithAlternatives("6", "Пресс", 4, "10-15", profile = profile)
                 ), listOf("Ноги", "Грудь", "Спина", "Руки", "Пресс")),
                 WorkoutDay(1, "День 2", listOf(
-                    createExerciseWithAlternatives("7", "Становая тяга", 6, "3-5"),
-                    createExerciseWithAlternatives("8", "Жим гантелей сидя", 6, "6-8"),
-                    createExerciseWithAlternatives("9", "Подтягивания", 6, "макс"),
-                    createExerciseWithAlternatives("10", "Бицепс", 4, "8-10"),
-                    createExerciseWithAlternatives("11", "Трицепс", 4, "8-10"),
-                    createExerciseWithAlternatives("12", "Пресс", 4, "10-15")
+                    createExerciseWithAlternatives("7", "Становая тяга", 6, "3-5", profile = profile),
+                    createExerciseWithAlternatives("8", "Жим гантелей сидя", 6, "6-8", profile = profile),
+                    createExerciseWithAlternatives("9", "Подтягивания", 6, "макс", profile = profile),
+                    createExerciseWithAlternatives("10", "Бицепс", 4, "8-10", profile = profile),
+                    createExerciseWithAlternatives("11", "Трицепс", 4, "8-10", profile = profile),
+                    createExerciseWithAlternatives("12", "Пресс", 4, "10-15", profile = profile)
                 ), listOf("Спина", "Плечи", "Руки", "Пресс")),
                 WorkoutDay(2, "День 3", listOf(
-                    createExerciseWithAlternatives("13", "Выпады с гантелями", 5, "8-10"),
-                    createExerciseWithAlternatives("14", "Жим на наклонной скамье", 6, "6-8"),
-                    createExerciseWithAlternatives("15", "Тяга верхнего блока", 6, "8-10"),
-                    createExerciseWithAlternatives("16", "Бицепс", 4, "8-10"),
-                    createExerciseWithAlternatives("17", "Трицепс", 4, "8-10"),
-                    createExerciseWithAlternatives("18", "Пресс", 4, "10-15")
+                    createExerciseWithAlternatives("13", "Выпады с гантелями", 5, "8-10", profile = profile),
+                    createExerciseWithAlternatives("14", "Жим на наклонной скамье", 6, "6-8", profile = profile),
+                    createExerciseWithAlternatives("15", "Тяга верхнего блока", 6, "8-10", profile = profile),
+                    createExerciseWithAlternatives("16", "Бицепс", 4, "8-10", profile = profile),
+                    createExerciseWithAlternatives("17", "Трицепс", 4, "8-10", profile = profile),
+                    createExerciseWithAlternatives("18", "Пресс", 4, "10-15", profile = profile)
                 ), listOf("Ноги", "Грудь", "Спина", "Руки", "Пресс"))
             )
         )
@@ -497,22 +518,22 @@ class WorkoutRepositoryImpl @Inject constructor(
             level = profile.level,
             days = listOf(
                 WorkoutDay(0, "День 1", listOf(
-                    createExerciseWithAlternatives("1", "Приседания", 4, "10-12"),
-                    createExerciseWithAlternatives("2", "Жим лёжа", 4, "10-12"),
-                    createExerciseWithAlternatives("3", "Тяга штанги в наклоне", 4, "10-12"),
-                    createExerciseWithAlternatives("4", "Пресс", 3, "15-20")
+                    createExerciseWithAlternatives("1", "Приседания", 4, "10-12", profile = profile),
+                    createExerciseWithAlternatives("2", "Жим лёжа", 4, "10-12", profile = profile),
+                    createExerciseWithAlternatives("3", "Тяга штанги в наклоне", 4, "10-12", profile = profile),
+                    createExerciseWithAlternatives("4", "Пресс", 3, "15-20", profile = profile)
                 ), listOf("Ноги", "Грудь", "Спина", "Пресс")),
                 WorkoutDay(1, "День 2", listOf(
-                    createExerciseWithAlternatives("5", "Становая тяга", 4, "8-10"),
-                    createExerciseWithAlternatives("6", "Жим гантелей сидя", 4, "10-12"),
-                    createExerciseWithAlternatives("7", "Подтягивания", 4, "макс"),
-                    createExerciseWithAlternatives("8", "Пресс", 3, "15-20")
+                    createExerciseWithAlternatives("5", "Становая тяга", 4, "8-10", profile = profile),
+                    createExerciseWithAlternatives("6", "Жим гантелей сидя", 4, "10-12", profile = profile),
+                    createExerciseWithAlternatives("7", "Подтягивания", 4, "макс", profile = profile),
+                    createExerciseWithAlternatives("8", "Пресс", 3, "15-20", profile = profile)
                 ), listOf("Спина", "Плечи", "Пресс")),
                 WorkoutDay(2, "День 3", listOf(
-                    createExerciseWithAlternatives("9", "Выпады", 4, "12-15"),
-                    createExerciseWithAlternatives("10", "Отжимания", 4, "15-20"),
-                    createExerciseWithAlternatives("11", "Тяга верхнего блока", 4, "10-12"),
-                    createExerciseWithAlternatives("12", "Пресс", 3, "15-20")
+                    createExerciseWithAlternatives("9", "Выпады", 4, "12-15", profile = profile),
+                    createExerciseWithAlternatives("10", "Отжимания", 4, "15-20", profile = profile),
+                    createExerciseWithAlternatives("11", "Тяга верхнего блока", 4, "10-12", profile = profile),
+                    createExerciseWithAlternatives("12", "Пресс", 3, "15-20", profile = profile)
                 ), listOf("Ноги", "Грудь", "Спина", "Пресс"))
             )
         )

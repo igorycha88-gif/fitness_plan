@@ -19,3 +19,11 @@
 # If you keep the line number information, uncomment this to
 # hide the original source file name.
 #-renamesourcefileattribute SourceFile
+
+# Admin module keep rules
+-keep class com.example.fitness_plan.domain.admin.** { *; }
+-keep class com.example.fitness_plan.data.admin.** { *; }
+-keep class com.example.fitness_plan.domain.usecase.AdminUseCase { *; }
+-keep class com.example.fitness_plan.presentation.viewmodel.AdminLoginViewModel { *; }
+-keep class com.example.fitness_plan.ui.AdminLoginScreen { *; }
+-keep class com.example.fitness_plan.ui.AdminMainScreen { *; }

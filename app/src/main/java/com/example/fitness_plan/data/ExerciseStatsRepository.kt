@@ -62,6 +62,14 @@ class ExerciseStatsRepository @Inject constructor(
         }
     }
 
+    override suspend fun getLastNExerciseStats(username: String, exerciseName: String, count: Int): List<ExerciseStats> {
+        val allStats = getStatsList(username)
+        return allStats
+            .filter { it.exerciseName == exerciseName }
+            .sortedByDescending { it.date }
+            .take(count)
+    }
+
     private suspend fun getStatsList(username: String): List<ExerciseStats> {
         return getExerciseStats(username).first()
     }

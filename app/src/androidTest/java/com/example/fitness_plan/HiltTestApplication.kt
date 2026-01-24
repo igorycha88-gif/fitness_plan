@@ -7,9 +7,4 @@ import dagger.hilt.android.HiltAndroidApp
 
 @HiltAndroidApp
 class HiltTestApplication : Application() {
-
-    override fun getDefaultWorkerConfiguration(): Configuration {
-        return super.getDefaultWorkerConfiguration()
-            .setWorkerFactory(HiltWorkerFactory.getInstance(this))
-    }
 }

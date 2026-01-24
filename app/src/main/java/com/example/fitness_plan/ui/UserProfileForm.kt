@@ -93,7 +93,12 @@ fun UserProfileForm(
                     IconButton(onClick = onBackClick) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Назад")
                     }
-                }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    titleContentColor = MaterialTheme.colorScheme.onPrimary,
+                    navigationIconContentColor = MaterialTheme.colorScheme.onPrimary
+                )
             )
         }
     ) { paddingValues ->
@@ -102,36 +107,34 @@ fun UserProfileForm(
                 .fillMaxSize()
                 .padding(paddingValues)
                 .padding(16.dp)
-                .windowInsetsPadding(WindowInsets.systemBars)
                 .verticalScroll(scrollState),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = "Назад"
-                    )
-                }
-            }
-
-            Text(
-                text = "Расскажи о себе",
-                style = MaterialTheme.typography.headlineMedium,
-                modifier = Modifier.padding(bottom = 24.dp)
-            )
+            Spacer(modifier = Modifier.height(8.dp))
 
             var expandedGoal by remember { mutableStateOf(false) }
             ExposedDropdownMenuBox(
                 expanded = expandedGoal,
                 onExpandedChange = { expandedGoal = !expandedGoal }
             ) {
-                OutlinedTextField(
-                    value = goal ?: "",
-                    onValueChange = {},
-                    readOnly = true,
-                    label = { Text("Цель тренировок") },
-                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedGoal) },
-                    modifier = Modifier.menuAnchor()
-                )
+            OutlinedTextField(
+                value = goal ?: "",
+                onValueChange = {},
+                readOnly = true,
+                label = { Text("Цель тренировок") },
+                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedGoal) },
+                modifier = Modifier.fillMaxWidth().menuAnchor(),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = MaterialTheme.colorScheme.primary,
+                    unfocusedBorderColor = MaterialTheme.colorScheme.outline,
+                    focusedLabelColor = MaterialTheme.colorScheme.primary,
+                    unfocusedLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                    cursorColor = MaterialTheme.colorScheme.primary,
+                    focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                    unfocusedTextColor = MaterialTheme.colorScheme.onSurface
+                ),
+                shape = RoundedCornerShape(12.dp)
+            )
                 ExposedDropdownMenu(
                     expanded = expandedGoal,
                     onDismissRequest = { expandedGoal = false }
@@ -160,7 +163,17 @@ fun UserProfileForm(
                     readOnly = true,
                     label = { Text("Уровень подготовки") },
                     trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedLevel) },
-                    modifier = Modifier.menuAnchor()
+                    modifier = Modifier.fillMaxWidth().menuAnchor(),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = MaterialTheme.colorScheme.primary,
+                        unfocusedBorderColor = MaterialTheme.colorScheme.outline,
+                        focusedLabelColor = MaterialTheme.colorScheme.primary,
+                        unfocusedLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                        cursorColor = MaterialTheme.colorScheme.primary,
+                        focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                        unfocusedTextColor = MaterialTheme.colorScheme.onSurface
+                    ),
+                    shape = RoundedCornerShape(12.dp)
                 )
                 ExposedDropdownMenu(
                     expanded = expandedLevel,
@@ -190,7 +203,17 @@ fun UserProfileForm(
                     readOnly = true,
                     label = { Text("Частота тренировок") },
                     trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedFrequency) },
-                    modifier = Modifier.menuAnchor()
+                    modifier = Modifier.fillMaxWidth().menuAnchor(),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = MaterialTheme.colorScheme.primary,
+                        unfocusedBorderColor = MaterialTheme.colorScheme.outline,
+                        focusedLabelColor = MaterialTheme.colorScheme.primary,
+                        unfocusedLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                        cursorColor = MaterialTheme.colorScheme.primary,
+                        focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                        unfocusedTextColor = MaterialTheme.colorScheme.onSurface
+                    ),
+                    shape = RoundedCornerShape(12.dp)
                 )
                 ExposedDropdownMenu(
                     expanded = expandedFrequency,
@@ -219,9 +242,18 @@ fun UserProfileForm(
                     focusedBorderColor = MaterialTheme.colorScheme.primary,
                     unfocusedBorderColor = MaterialTheme.colorScheme.outline,
                     focusedLabelColor = MaterialTheme.colorScheme.primary,
-                    cursorColor = MaterialTheme.colorScheme.primary
+                    unfocusedLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                    cursorColor = MaterialTheme.colorScheme.primary,
+                    focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                    unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+                    errorBorderColor = MaterialTheme.colorScheme.error,
+                    errorLabelColor = MaterialTheme.colorScheme.error
                 ),
-                shape = RoundedCornerShape(12.dp)
+                shape = RoundedCornerShape(12.dp),
+                keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                    keyboardType = androidx.compose.ui.text.input.KeyboardType.Number
+                ),
+                singleLine = true
             )
             Spacer(modifier = Modifier.height(16.dp))
 
@@ -235,9 +267,18 @@ fun UserProfileForm(
                     focusedBorderColor = MaterialTheme.colorScheme.primary,
                     unfocusedBorderColor = MaterialTheme.colorScheme.outline,
                     focusedLabelColor = MaterialTheme.colorScheme.primary,
-                    cursorColor = MaterialTheme.colorScheme.primary
+                    unfocusedLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                    cursorColor = MaterialTheme.colorScheme.primary,
+                    focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                    unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+                    errorBorderColor = MaterialTheme.colorScheme.error,
+                    errorLabelColor = MaterialTheme.colorScheme.error
                 ),
-                shape = RoundedCornerShape(12.dp)
+                shape = RoundedCornerShape(12.dp),
+                keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                    keyboardType = androidx.compose.ui.text.input.KeyboardType.Number
+                ),
+                singleLine = true
             )
             Spacer(modifier = Modifier.height(16.dp))
 
@@ -252,7 +293,17 @@ fun UserProfileForm(
                     readOnly = true,
                     label = { Text("Пол") },
                     trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedGender) },
-                    modifier = Modifier.menuAnchor()
+                    modifier = Modifier.fillMaxWidth().menuAnchor(),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = MaterialTheme.colorScheme.primary,
+                        unfocusedBorderColor = MaterialTheme.colorScheme.outline,
+                        focusedLabelColor = MaterialTheme.colorScheme.primary,
+                        unfocusedLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                        cursorColor = MaterialTheme.colorScheme.primary,
+                        focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                        unfocusedTextColor = MaterialTheme.colorScheme.onSurface
+                    ),
+                    shape = RoundedCornerShape(12.dp)
                 )
                 ExposedDropdownMenu(
                     expanded = expandedGender,
@@ -288,56 +339,63 @@ fun UserProfileForm(
                     .height(56.dp),
                 shape = RoundedCornerShape(16.dp),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.primary
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant
                 )
             ) {
                 Text(
                     "Сохранить профиль",
-                    style = MaterialTheme.typography.titleMedium
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onPrimary
                 )
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
         }
 
         if (showSlowWeightLossDialog) {
-        AlertDialog(
-            onDismissRequest = { showSlowWeightLossDialog = false },
-            title = { Text("Внимание!") },
-            text = { Text("Похудение на режиме \"не спеша\". Ты точно этого хотел?") },
-            confirmButton = {
-                TextButton(onClick = {
-                    showSlowWeightLossDialog = false
-                    showScheduleDialog = true
-                }) {
-                    Text("Да, продолжить")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showSlowWeightLossDialog = false }) {
-                    Text("Нет, изменить")
-                }
-            }
-        )
+            AlertDialog(
+                onDismissRequest = { showSlowWeightLossDialog = false },
+                title = { Text("Внимание!") },
+                text = { Text("Похудение на режиме \"не спеша\". Ты точно этого хотел?") },
+                confirmButton = {
+                    TextButton(onClick = {
+                        showSlowWeightLossDialog = false
+                        showScheduleDialog = true
+                    }) {
+                        Text("Да, продолжить")
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showSlowWeightLossDialog = false }) {
+                        Text("Нет, изменить")
+                    }
+                },
+                containerColor = MaterialTheme.colorScheme.surface
+            )
         }
 
         if (showScheduleDialog) {
-        WorkoutScheduleDialog(
-            frequency = frequency ?: "",
-            onDismiss = { showScheduleDialog = false },
-            onConfirm = { dates ->
-                val profile = UserProfile(
-                    username = username,
-                    goal = goal!!,
-                    level = level!!,
-                    frequency = frequency!!,
-                    weight = weightDouble!!,
-                    height = heightDouble!!,
-                    gender = gender!!
-                )
-                viewModel.saveUserProfile(profile)
-                viewModel.saveWorkoutDates(dates)
-                showScheduleDialog = false
-                onProfileSaved()
-            }
-        )
+            WorkoutScheduleDialog(
+                frequency = frequency ?: "",
+                onDismiss = { showScheduleDialog = false },
+                onConfirm = { dates ->
+                    val profile = UserProfile(
+                        username = username,
+                        goal = goal!!,
+                        level = level!!,
+                        frequency = frequency!!,
+                        weight = weightDouble!!,
+                        height = heightDouble!!,
+                        gender = gender!!
+                    )
+                    viewModel.saveUserProfile(profile)
+                    viewModel.saveWorkoutDates(dates)
+                    showScheduleDialog = false
+                    onProfileSaved()
+                }
+            )
+        }
     }
 }
 
@@ -381,19 +439,24 @@ fun WorkoutScheduleDialog(
             Column {
                 Text(
                     "Выберите дату начала тренировок. Даты будут рассчитаны автоматически.",
-                    style = MaterialTheme.typography.bodyMedium
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurface
                 )
                 Spacer(modifier = Modifier.height(16.dp))
 
                 OutlinedButton(
                     onClick = { showStartDatePicker = true },
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp)
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        contentColor = MaterialTheme.colorScheme.primary
+                    )
                 ) {
                     Icon(Icons.Filled.DateRange, contentDescription = null)
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        if (startDate != null) formatDate(startDate!!) else "Выберите дату начала"
+                        if (startDate != null) formatDate(startDate!!) else "Выберите дату начала",
+                        style = MaterialTheme.typography.bodyMedium
                     )
                 }
             }
@@ -410,7 +473,8 @@ fun WorkoutScheduleDialog(
             TextButton(onClick = onDismiss) {
                 Text("Отмена")
             }
-        }
+        },
+        containerColor = MaterialTheme.colorScheme.surface
     )
 
     if (showStartDatePicker) {

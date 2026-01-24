@@ -8,7 +8,7 @@ import com.example.fitness_plan.domain.model.CycleHistoryEntry
 import com.example.fitness_plan.domain.model.ExerciseStats
 import com.example.fitness_plan.domain.model.UserProfile
 import com.example.fitness_plan.domain.model.WeightEntry
-import com.example.fitness_plan.domain.repository.CredentialsRepository
+import com.example.fitness_plan.domain.repository.ICredentialsRepository
 import com.example.fitness_plan.domain.repository.CycleRepository
 import com.example.fitness_plan.domain.repository.ExerciseStatsRepository
 import com.example.fitness_plan.domain.repository.UserRepository
@@ -34,7 +34,7 @@ enum class TimeFilter(val days: Int, val label: String) {
 @HiltViewModel
 class StatisticsViewModel @Inject constructor(
     private val userRepository: UserRepository,
-    private val credentialsRepository: CredentialsRepository,
+    private val credentialsRepository: ICredentialsRepository,
     private val cycleRepository: CycleRepository,
     private val weightRepository: WeightRepository,
     private val exerciseStatsRepository: ExerciseStatsRepository

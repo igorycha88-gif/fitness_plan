@@ -35,7 +35,7 @@ data class WorkoutDay(
         get() = exercises.count { it.isCompleted }
 }
 
-data class Exercise(
+ data class Exercise(
     val id: String = "",
     val name: String,
     val sets: Int,
@@ -46,7 +46,12 @@ data class Exercise(
     val alternatives: List<Exercise> = emptyList(),
     val description: String? = null,
     val recommendedWeight: Float? = null,
-    val recommendedRepsPerSet: String? = null
+    val recommendedRepsPerSet: String? = null,
+    val equipment: List<EquipmentType> = emptyList(),
+    val muscleGroups: List<MuscleGroup> = emptyList(),
+    val exerciseType: ExerciseType = ExerciseType.STRENGTH,
+    val stepByStepInstructions: String? = null,
+    val animationUrl: String? = null
 )
 
 data class ExerciseWithStats(

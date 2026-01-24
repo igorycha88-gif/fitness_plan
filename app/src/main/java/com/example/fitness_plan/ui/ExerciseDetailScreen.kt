@@ -74,6 +74,17 @@ fun ExerciseDetailScreen(
     val currentExerciseName = selectedExercise?.name ?: decodedName
     val totalSets = selectedExercise?.sets ?: 3
 
+    val recommendedReps = selectedExercise?.recommendedRepsPerSet?.split(",")?.mapNotNull { it.toIntOrNull() }
+        ?: listOf(12, 13, 14)
+    var adaptiveWeight by remember { mutableStateOf<Float?>(null) }
+
+    LaunchedEffect(currentExerciseName, recommendedReps) {
+        adaptiveWeight = workoutViewModel.getAdaptiveWeightForExercise(
+            currentExerciseName,
+            recommendedReps
+        )
+    }
+
     val completedSets = remember(currentExerciseName, exerciseStats) {
         exerciseStats
             .filter { it.exerciseName == currentExerciseName && it.weight > 0 && it.reps > 0 }
@@ -325,18 +336,55 @@ fun ExerciseDetailScreen(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
+                    val baseRecommendedWeight = selectedExercise?.recommendedWeight
+                    val recommendedReps = selectedExercise?.recommendedRepsPerSet
+                    
+                    val finalRecommendedWeight = adaptiveWeight ?: baseRecommendedWeight
+                    
+                    val weightPlaceholder = if (weight.isEmpty() && finalRecommendedWeight != null) {
+                        val prefix = if (adaptiveWeight != null) "Адаптивно (история)" else "Рекомендуется"
+                        "$prefix: ${String.format("%.1f", finalRecommendedWeight)} кг"
+                    } else {
+                        null
+                    }
+                    
                     OutlinedTextField(
                         value = weight,
                         onValueChange = { weight = it },
                         label = { Text("Вес (кг)") },
+                        placeholder = if (weightPlaceholder != null) {
+                            { 
+                                Text(
+                                    weightPlaceholder,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                                ) 
+                            }
+                        } else null,
                         modifier = Modifier.weight(1f),
                         singleLine = true
                     )
 
+                    val currentSetReps = recommendedReps?.split(",")?.getOrNull(currentSetNumber - 1)
+                    val repsPlaceholder = if (reps.isEmpty() && recommendedReps != null && currentSetReps != null) {
+                        "Рекомендуется: $currentSetReps"
+                    } else {
+                        null
+                    }
+                    
                     OutlinedTextField(
                         value = reps,
                         onValueChange = { reps = it },
                         label = { Text("Повторения") },
+                        placeholder = if (repsPlaceholder != null) {
+                            { 
+                                Text(
+                                    repsPlaceholder,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                                ) 
+                            }
+                        } else null,
                         modifier = Modifier.weight(1f),
                         singleLine = true
                     )

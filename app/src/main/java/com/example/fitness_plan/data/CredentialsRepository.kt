@@ -3,7 +3,7 @@ package com.example.fitness_plan.data
 import android.content.SharedPreferences
 import android.util.Log
 import com.example.fitness_plan.domain.repository.Credentials
-import com.example.fitness_plan.domain.repository.CredentialsRepository as DomainCredentialsRepository
+import com.example.fitness_plan.domain.repository.ICredentialsRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -16,7 +16,7 @@ private const val TAG = "CredentialsRepository"
 class CredentialsRepository @Inject constructor(
     private val encryptedPrefs: SharedPreferences,
     private val passwordHasher: PasswordHasher
-) : DomainCredentialsRepository {
+) : ICredentialsRepository {
 
     private val _credentialsFlow = MutableStateFlow<Credentials?>(null)
 
@@ -212,47 +212,7 @@ class CredentialsRepository @Inject constructor(
         }
     }
  
-    override suspend fun verifyAdminPassword(username: String, plainPassword: String): Boolean {
-        try {
-            val adminUsername = encryptedPrefs.getString(KEY_ADMIN_USERNAME, null)
-            val adminHashedPassword = encryptedPrefs.getString(KEY_ADMIN_HASHED_PASSWORD, null)
-
-            Log.d(TAG, "verifyAdminPassword: checking user=$username, stored=$adminUsername")
-
-            if (adminUsername == null || adminHashedPassword == null) {
-                Log.e(TAG, "verifyAdminPassword: no admin credentials found")
-                return false
-            }
-
-            if (adminUsername != username) {
-                Log.e(TAG, "verifyAdminPassword: username mismatch")
-                return false
-            }
-
-            val isValid = passwordHasher.verifyPassword(plainPassword, adminHashedPassword)
-            Log.d(TAG, "verifyAdminPassword: result=$isValid for user=$username")
-
-            if (isValid && passwordHasher.needsRehash(adminHashedPassword)) {
-                val hashedPassword = passwordHasher.hashPassword(plainPassword)
-                encryptedPrefs.edit().putString(KEY_ADMIN_HASHED_PASSWORD, hashedPassword).apply()
-                Log.d(TAG, "verifyAdminPassword: rehashed admin password")
-            }
-
-            return isValid
-        } catch (e: Exception) {
-            Log.e(TAG, "verifyAdminPassword: failed", e)
-            return false
-        }
-    }
-
-    suspend fun getAdminUsername(): String? {
-        return try {
-            encryptedPrefs.getString(KEY_ADMIN_USERNAME, null)
-        } catch (e: Exception) {
-            Log.e(TAG, "getAdminUsername: failed", e)
-            null
-        }
-    }
+    // Admin credentials methods removed to align with unified domain API.
 
     companion object {
         private const val KEY_USERNAME = "credentials_username"

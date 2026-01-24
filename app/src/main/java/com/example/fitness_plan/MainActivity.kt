@@ -76,7 +76,16 @@ class MainActivity : ComponentActivity() {
                                 onRegisterClick = {
                                     navController.navigate("register_screen")
                                 },
+                                onAdminLoginClick = {
+                                    navController.navigate("admin_login")
+                                },
                                 viewModel = profileViewModel
+                            )
+                        }
+
+                        composable("admin_login") {
+                            com.example.fitness_plan.ui.AdminLoginScreen(
+                                navController = navController
                             )
                         }
 

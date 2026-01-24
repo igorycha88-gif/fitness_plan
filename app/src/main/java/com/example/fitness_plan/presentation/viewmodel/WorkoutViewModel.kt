@@ -14,6 +14,7 @@ import com.example.fitness_plan.domain.repository.ExerciseStatsRepository
 import com.example.fitness_plan.domain.repository.UserRepository
 import com.example.fitness_plan.domain.usecase.CycleUseCase
 import com.example.fitness_plan.domain.usecase.WorkoutUseCase
+import com.example.fitness_plan.domain.calculator.WeightCalculator
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -31,7 +32,8 @@ class WorkoutViewModel @Inject constructor(
     private val cycleRepository: CycleRepository,
     private val exerciseStatsRepository: ExerciseStatsRepository,
     private val cycleUseCase: CycleUseCase,
-    private val workoutUseCase: WorkoutUseCase
+    private val workoutUseCase: WorkoutUseCase,
+    private val weightCalculator: WeightCalculator
 ) : ViewModel() {
 
     private val _currentWorkoutPlan = MutableStateFlow<WorkoutPlan?>(null)
@@ -302,5 +304,25 @@ class WorkoutViewModel @Inject constructor(
     fun setCurrentUsername(username: String) {
         _currentUsername.value = username
         initializeWorkout()
+    }
+
+    suspend fun getAdaptiveWeightForExercise(
+        exerciseName: String,
+        baseReps: List<Int>
+    ): Float? {
+        val username = _currentUsername.value
+        if (username.isEmpty()) return null
+
+        val exerciseHistory = exerciseStatsRepository.getLastNExerciseStats(
+            username,
+            exerciseName,
+            2
+        )
+
+        return weightCalculator.calculateAdaptiveWeight(
+            exerciseName,
+            exerciseHistory,
+            baseReps
+        )
     }
 }

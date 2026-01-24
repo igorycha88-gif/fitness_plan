@@ -1,13 +1,14 @@
 package com.example.fitness_plan.domain.model
 
-data class UserProfile(
+ data class UserProfile(
     val username: String = "",
     val goal: String,
     val level: String,
     val frequency: String,
     val weight: Double,
     val height: Double,
-    val gender: String
+    val gender: String,
+    val favoriteExercises: Set<String> = emptySet()
 ) {
     companion object {
         const val GOAL_WEIGHT_LOSS = "Похудение"

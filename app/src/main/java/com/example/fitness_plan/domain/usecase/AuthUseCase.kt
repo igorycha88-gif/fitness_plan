@@ -2,14 +2,13 @@ package com.example.fitness_plan.domain.usecase
 
 import android.util.Log
 import com.example.fitness_plan.domain.model.UserProfile
-import com.example.fitness_plan.domain.repository.CredentialsRepository
 import com.example.fitness_plan.domain.repository.UserRepository
 import javax.inject.Inject
 
 private const val TAG = "AuthUseCase"
 
 class AuthUseCase @Inject constructor(
-    private val credentialsRepository: CredentialsRepository,
+    private val credentialsRepository: com.example.fitness_plan.domain.repository.ICredentialsRepository,
     private val userRepository: UserRepository
 ) {
     sealed class AuthResult {

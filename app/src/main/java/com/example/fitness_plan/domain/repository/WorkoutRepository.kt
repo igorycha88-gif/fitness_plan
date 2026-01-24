@@ -20,6 +20,7 @@ interface ExerciseStatsRepository {
     fun getExerciseStats(username: String): Flow<List<ExerciseStats>>
     suspend fun saveExerciseStats(username: String, stats: ExerciseStats)
     suspend fun clearExerciseStats(username: String)
+    suspend fun getLastNExerciseStats(username: String, exerciseName: String, count: Int = 2): List<ExerciseStats>
 }
 
 interface ExerciseCompletionRepository {
