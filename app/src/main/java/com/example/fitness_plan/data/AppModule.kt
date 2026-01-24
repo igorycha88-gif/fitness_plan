@@ -94,6 +94,15 @@ object AppModule {
 
     @Provides
     @Singleton
+    fun provideExerciseLibraryUseCase(
+        @ApplicationContext context: android.content.Context,
+        exerciseLibraryRepository: com.example.fitness_plan.domain.repository.ExerciseLibraryRepository
+    ): com.example.fitness_plan.domain.usecase.ExerciseLibraryUseCase {
+        return com.example.fitness_plan.domain.usecase.ExerciseLibraryUseCase(exerciseLibraryRepository)
+    }
+
+    @Provides
+    @Singleton
     fun provideCycleRepository(@ApplicationContext context: android.content.Context): CycleRepository {
         return CycleRepository(context)
     }

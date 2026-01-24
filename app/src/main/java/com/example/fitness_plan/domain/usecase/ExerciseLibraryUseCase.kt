@@ -1,9 +1,11 @@
 package com.example.fitness_plan.domain.usecase
 
 import com.example.fitness_plan.domain.repository.ExerciseLibraryRepository
+import com.example.fitness_plan.domain.model.EquipmentType
 import com.example.fitness_plan.domain.model.ExerciseLibrary
+import com.example.fitness_plan.domain.model.ExerciseType
+import com.example.fitness_plan.domain.model.MuscleGroup
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.first
 import javax.inject.Inject
 
 class ExerciseLibraryUseCase @Inject constructor(
@@ -13,15 +15,15 @@ class ExerciseLibraryUseCase @Inject constructor(
         return exerciseLibraryRepository.getAllExercises()
     }
 
-    fun getExercisesByType(type: com.example.fitness_plan.domain.model.ExerciseType): Flow<List<ExerciseLibrary>> {
+    fun getExercisesByType(type: ExerciseType): Flow<List<ExerciseLibrary>> {
         return exerciseLibraryRepository.getExercisesByType(type)
     }
 
-    fun getExercisesByEquipment(equipment: List<com.example.fitness_plan.domain.model.EquipmentType>): Flow<List<ExerciseLibrary>> {
+    fun getExercisesByEquipment(equipment: List<EquipmentType>): Flow<List<ExerciseLibrary>> {
         return exerciseLibraryRepository.getExercisesByEquipment(equipment)
     }
 
-    fun getExercisesByMuscleGroups(muscleGroups: List<com.example.fitness_plan.domain.model.MuscleGroup>): Flow<List<ExerciseLibrary>> {
+    fun getExercisesByMuscleGroups(muscleGroups: List<MuscleGroup>): Flow<List<ExerciseLibrary>> {
         return exerciseLibraryRepository.getExercisesByMuscleGroups(muscleGroups)
     }
 
@@ -39,23 +41,5 @@ class ExerciseLibraryUseCase @Inject constructor(
 
     suspend fun getExerciseById(id: String): ExerciseLibrary? {
         return exerciseLibraryRepository.getExerciseById(id)
-    }
-
-    suspend fun getFilteredExercises(
-        typeFilter: com.example.fitness_plan.domain.model.ExerciseType? = null,
-        equipmentFilter: List<com.example.fitness_plan.domain.model.EquipmentType> = emptyList(),
-        muscleFilter: List<com.example.fitness_plan.domain.model.MuscleGroup> = emptyList(),
-        searchQuery: String = ""
-    ): List<ExerciseLibrary> {
-        val allExercises = exerciseLibraryRepository.getAllExercises().first()
-
-        return allExercises.filter { exercise ->
-            val matchesType = typeFilter == null || exercise.exerciseType == typeFilter
-            val matchesEquipment = equipmentFilter.isEmpty() || exercise.equipment.any { equip -> equipmentFilter.contains(equip) }
-            val matchesMuscle = muscleFilter.isEmpty() || exercise.muscleGroups.any { muscle -> muscleFilter.contains(muscle) }
-            val matchesSearch = searchQuery.isBlank() || exercise.name.lowercase().contains(searchQuery.lowercase()) || exercise.description.lowercase().contains(searchQuery.lowercase())
-
-            matchesType && matchesEquipment && matchesMuscle && matchesSearch
-        }
     }
 }

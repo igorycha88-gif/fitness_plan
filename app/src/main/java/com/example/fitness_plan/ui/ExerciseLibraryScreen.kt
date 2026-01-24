@@ -3,41 +3,61 @@ package com.example.fitness_plan.ui
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
+import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.example.fitness_plan.domain.model.EquipmentType
 import com.example.fitness_plan.domain.model.ExerciseType
+import com.example.fitness_plan.domain.model.MuscleGroup
 import com.example.fitness_plan.domain.model.ExerciseLibrary
 import com.example.fitness_plan.presentation.viewmodel.ExerciseLibraryViewModel
+import com.example.fitness_plan.presentation.viewmodel.ProfileViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ExerciseLibraryScreen(
     viewModel: ExerciseLibraryViewModel = hiltViewModel(),
+    profileViewModel: ProfileViewModel? = null,
     onExerciseClick: (ExerciseLibrary) -> Unit = {},
-    isAdmin: Boolean = false
+    onToggleFavorite: (String) -> Unit = {}
 ) {
     var searchQuery by remember { mutableStateOf("") }
     var selectedType by remember { mutableStateOf<ExerciseType?>(null) }
+    var selectedEquipment by remember { mutableStateOf<List<EquipmentType>>(emptyList()) }
+    var selectedMuscles by remember { mutableStateOf<List<MuscleGroup>>(emptyList()) }
+    var showEquipmentDropdown by remember { mutableStateOf(false) }
+    var showMusclesDropdown by remember { mutableStateOf(false) }
+
     val exercises by viewModel.exercises.collectAsStateWithLifecycle(initialValue = emptyList())
-    
-    val filteredExercises by remember(searchQuery, selectedType) {
+    val favoriteExercises by profileViewModel?.getFavoriteExercises()
+        ?.collectAsStateWithLifecycle(initialValue = emptySet()) ?: remember { mutableStateOf(emptySet()) }
+
+    LaunchedEffect(favoriteExercises) {
+        viewModel.setFavoriteExercises(favoriteExercises)
+    }
+
+    val filteredExercises by remember(searchQuery, selectedType, selectedEquipment, selectedMuscles, favoriteExercises) {
         derivedStateOf {
-            exercises.filter { exercise ->
-                val matchesSearch = searchQuery.isBlank() || exercise.name.lowercase().contains(searchQuery.lowercase())
-                val matchesType = selectedType == null || exercise.exerciseType == selectedType
-                matchesSearch && matchesType
-            }
+            viewModel.getFilteredAndSortedExercises(
+                searchQuery = searchQuery,
+                typeFilter = selectedType,
+                equipmentFilter = selectedEquipment,
+                muscleFilter = selectedMuscles,
+                favorites = favoriteExercises
+            )
         }
     }
 
@@ -68,16 +88,9 @@ fun ExerciseLibraryScreen(
         )
 
         Spacer(modifier = Modifier.height(16.dp))
-        
-        Text(
-            text = "Упражнения",
-            style = MaterialTheme.typography.headlineMedium
-        )
-        
-        Spacer(modifier = Modifier.height(8.dp))
-        
+
         Row(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.horizontalScroll(rememberScrollState()),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             FilterChip(
@@ -85,7 +98,7 @@ fun ExerciseLibraryScreen(
                 onClick = {
                     selectedType = if (selectedType == null) ExerciseType.STRENGTH else null
                 },
-                label = { Text(selectedType?.displayName ?: "Тип упражнения") },
+                label = { Text(selectedType?.displayName ?: "Тип") },
                 colors = FilterChipDefaults.filterChipColors(
                     selectedContainerColor = MaterialTheme.colorScheme.primary,
                     selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
@@ -93,11 +106,97 @@ fun ExerciseLibraryScreen(
                     containerColor = MaterialTheme.colorScheme.surfaceVariant
                 )
             )
+
+            ExposedDropdownMenuBox(
+                expanded = showEquipmentDropdown,
+                onExpandedChange = { showEquipmentDropdown = it }
+            ) {
+                FilterChip(
+                    selected = selectedEquipment.isNotEmpty(),
+                    onClick = { showEquipmentDropdown = true },
+                    label = { Text("Оборудование") },
+                    colors = FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = MaterialTheme.colorScheme.primary,
+                        selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
+                        selectedLeadingIconColor = MaterialTheme.colorScheme.onPrimary,
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant
+                    )
+                )
+                ExposedDropdownMenu(
+                    expanded = showEquipmentDropdown,
+                    onDismissRequest = { showEquipmentDropdown = false }
+                ) {
+                    EquipmentType.values().forEach { equipment ->
+                        DropdownMenuItem(
+                            text = {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Checkbox(
+                                        checked = selectedEquipment.contains(equipment),
+                                        onCheckedChange = {
+                                            selectedEquipment = if (selectedEquipment.contains(equipment)) {
+                                                selectedEquipment - equipment
+                                            } else {
+                                                selectedEquipment + equipment
+                                            }
+                                        }
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(equipment.displayName)
+                                }
+                            },
+                            onClick = { }
+                        )
+                    }
+                }
+            }
+
+            ExposedDropdownMenuBox(
+                expanded = showMusclesDropdown,
+                onExpandedChange = { showMusclesDropdown = it }
+            ) {
+                FilterChip(
+                    selected = selectedMuscles.isNotEmpty(),
+                    onClick = { showMusclesDropdown = true },
+                    label = { Text("Мышцы") },
+                    colors = FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = MaterialTheme.colorScheme.primary,
+                        selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
+                        selectedLeadingIconColor = MaterialTheme.colorScheme.onPrimary,
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant
+                    )
+                )
+                ExposedDropdownMenu(
+                    expanded = showMusclesDropdown,
+                    onDismissRequest = { showMusclesDropdown = false }
+                ) {
+                    MuscleGroup.values().forEach { muscle ->
+                        DropdownMenuItem(
+                            text = {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Checkbox(
+                                        checked = selectedMuscles.contains(muscle),
+                                        onCheckedChange = {
+                                            selectedMuscles = if (selectedMuscles.contains(muscle)) {
+                                                selectedMuscles - muscle
+                                            } else {
+                                                selectedMuscles + muscle
+                                            }
+                                        }
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(muscle.displayName)
+                                }
+                            },
+                            onClick = { }
+                        )
+                    }
+                }
+            }
         }
-        
+
         Spacer(modifier = Modifier.height(16.dp))
-        
-        if (filteredExercises.isEmpty()) {
+
+        if (filteredExercises.value.isEmpty()) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -115,11 +214,12 @@ fun ExerciseLibraryScreen(
                 modifier = Modifier.weight(1f),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                items(filteredExercises) { exercise ->
+                items(filteredExercises.value) { exercise ->
                     ExerciseCard(
                         exercise = exercise,
                         onClick = { onExerciseClick(exercise) },
-                        isAdmin = isAdmin
+                        isFavorite = favoriteExercises.contains(exercise.name),
+                        onToggleFavorite = { onToggleFavorite(exercise.name) }
                     )
                 }
             }
@@ -132,7 +232,7 @@ fun ExerciseCard(
     exercise: ExerciseLibrary,
     onClick: () -> Unit,
     isFavorite: Boolean = false,
-    isAdmin: Boolean = false
+    onToggleFavorite: () -> Unit = {}
 ) {
     Card(
         modifier = Modifier
@@ -143,53 +243,33 @@ fun ExerciseCard(
             containerColor = MaterialTheme.colorScheme.surface
         )
     ) {
-        Column(
-            modifier = Modifier.padding(16.dp)
+        Row(
+            modifier = Modifier.padding(16.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = exercise.name,
-                        style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                    
-                    Spacer(modifier = Modifier.height(4.dp))
-                    
-                    Text(
-                        text = exercise.description,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    
-                    Spacer(modifier = Modifier.height(8.dp))
-                    
-                    exercise.equipment.take(3).forEach { equip ->
-                        FilterChip(
-                            label = { Text(equip.displayName) },
-                            selected = false,
-                            onClick = {},
-                            colors = FilterChipDefaults.filterChipColors(
-                                containerColor = MaterialTheme.colorScheme.surfaceVariant
-                            )
-                        )
-                    }
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = exercise.name,
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
 
-                    exercise.muscleGroups.take(3).forEach { muscle ->
-                        FilterChip(
-                            label = { Text(muscle.displayName) },
-                            selected = false,
-                            onClick = {},
-                            colors = FilterChipDefaults.filterChipColors(
-                                containerColor = MaterialTheme.colorScheme.surfaceVariant
-                            )
-                        )
-                    }
-                }
+                Spacer(modifier = Modifier.height(4.dp))
+
+                Text(
+                    text = exercise.muscleGroups.joinToString(", ") { it.displayName },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
+            IconButton(onClick = onToggleFavorite) {
+                Icon(
+                    imageVector = if (isFavorite) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
+                    contentDescription = if (isFavorite) "Убрать из избранного" else "Добавить в избранное",
+                    tint = if (isFavorite) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
         }
     }

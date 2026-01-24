@@ -6,19 +6,16 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material3.*
-import androidx.compose.material.icons.Icons.Filled
-import androidx.compose.material.icons.Icons.Outlined
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.example.fitness_plan.domain.model.EquipmentType
 import com.example.fitness_plan.domain.model.ExerciseLibrary
-import com.example.fitness_plan.domain.model.ExerciseType
-import com.example.fitness_plan.domain.model.MuscleGroup
 import com.example.fitness_plan.presentation.viewmodel.ExerciseLibraryViewModel
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.fitness_plan.presentation.viewmodel.ProfileViewModel
@@ -78,6 +75,36 @@ fun ExerciseLibraryDetailScreen(
                     .padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
+                if (exercise.animationUrl != null) {
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(300.dp),
+                        shape = RoundedCornerShape(16.dp)
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.FavoriteBorder,
+                                contentDescription = "Изображение упражнения",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(64.dp)
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = "Изображение упражнения",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
+
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(16.dp),
@@ -156,11 +183,7 @@ fun ExerciseLibraryDetailScreen(
                     Button(
                         onClick = {
                             (exercise as ExerciseLibrary).name.let { name ->
-                                if (isFavorite) {
-                                    profileViewModel?.toggleFavoriteExercise(name)
-                                } else {
-                                    profileViewModel?.toggleFavoriteExercise(name)
-                                }
+                                profileViewModel?.toggleFavoriteExercise(name)
                             }
                         },
                         modifier = Modifier.weight(1f),
