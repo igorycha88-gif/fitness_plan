@@ -6,6 +6,7 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.*
 import androidx.datastore.preferences.preferencesDataStore
 import com.example.fitness_plan.domain.calculator.WeightCalculator
+import com.example.fitness_plan.domain.calculator.WorkoutDateCalculator
 import com.example.fitness_plan.domain.model.Exercise
 import com.example.fitness_plan.domain.model.WorkoutDay
 import com.example.fitness_plan.domain.model.WorkoutPlan
@@ -30,6 +31,7 @@ class WorkoutRepositoryImpl @Inject constructor(
     private val exerciseCompletionRepository: ExerciseCompletionRepository,
     private val workoutScheduleRepository: WorkoutScheduleRepository,
     private val weightCalculator: WeightCalculator,
+    private val workoutDateCalculator: WorkoutDateCalculator,
     private val exerciseLibraryRepository: com.example.fitness_plan.domain.repository.ExerciseLibraryRepository
 ) : WorkoutRepository {
 
@@ -158,53 +160,7 @@ class WorkoutRepositoryImpl @Inject constructor(
     }
 
     override suspend fun generateCycleDates(startDate: Long, frequency: String): List<Long> {
-        val dates = mutableListOf<Long>()
-        val calendar = Calendar.getInstance()
-        calendar.timeInMillis = startDate
-        calendar.set(Calendar.HOUR_OF_DAY, 0)
-        calendar.set(Calendar.MINUTE, 0)
-        calendar.set(Calendar.SECOND, 0)
-        calendar.set(Calendar.MILLISECOND, 0)
-
-        val totalCount = 10
-
-        when (frequency) {
-            "1 раз в неделю" -> {
-                for (i in 0 until totalCount) {
-                    dates.add(calendar.timeInMillis)
-                    calendar.add(Calendar.WEEK_OF_YEAR, 1)
-                }
-            }
-            "3 раза в неделю" -> {
-                for (i in 0 until totalCount) {
-                    dates.add(calendar.timeInMillis)
-                    val dayOfWeek = calendar.get(Calendar.DAY_OF_WEEK)
-                    when (dayOfWeek) {
-                        Calendar.MONDAY -> calendar.add(Calendar.DAY_OF_YEAR, 2)
-                        Calendar.WEDNESDAY -> calendar.add(Calendar.DAY_OF_YEAR, 2)
-                        Calendar.FRIDAY -> calendar.add(Calendar.DAY_OF_YEAR, 3)
-                        else -> calendar.add(Calendar.DAY_OF_YEAR, 1)
-                    }
-                }
-            }
-            "5 раз в неделю" -> {
-                for (i in 0 until totalCount) {
-                    dates.add(calendar.timeInMillis)
-                    calendar.add(Calendar.DAY_OF_YEAR, 1)
-                    if (calendar.get(Calendar.DAY_OF_WEEK) == Calendar.SATURDAY) {
-                        calendar.add(Calendar.DAY_OF_YEAR, 2)
-                    }
-                }
-            }
-            else -> {
-                for (i in 0 until totalCount) {
-                    dates.add(calendar.timeInMillis)
-                    calendar.add(Calendar.DAY_OF_YEAR, 1)
-                }
-            }
-        }
-
-        return dates
+        return workoutDateCalculator.generateDates(startDate, frequency, 10)
     }
 
     override suspend fun getWorkoutPlanWithDates(plan: WorkoutPlan, dates: List<Long>): WorkoutPlan {

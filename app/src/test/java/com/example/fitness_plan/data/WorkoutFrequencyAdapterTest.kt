@@ -27,6 +27,7 @@ class WorkoutFrequencyAdapterTest {
         mockWorkoutScheduleRepository = mockk(relaxed = true)
         mockWeightCalculator = mockk(relaxed = true)
         val mockExerciseLibraryRepository = mockk<com.example.fitness_plan.domain.repository.ExerciseLibraryRepository>(relaxed = true)
+        val workoutDateCalculator = com.example.fitness_plan.domain.calculator.WorkoutDateCalculator()
 
         every { mockWeightCalculator.calculateBaseWeight(any(), any(), any(), any(), any()) } returns 20.0f
         every { mockWeightCalculator.getRecommendedRepsString(any()) } returns "10-12"
@@ -38,6 +39,7 @@ class WorkoutFrequencyAdapterTest {
             exerciseCompletionRepository = mockExerciseCompletionRepository,
             workoutScheduleRepository = mockWorkoutScheduleRepository,
             weightCalculator = mockWeightCalculator,
+            workoutDateCalculator = workoutDateCalculator,
             exerciseLibraryRepository = mockExerciseLibraryRepository
         )
     }
@@ -119,6 +121,28 @@ class WorkoutFrequencyAdapterTest {
     }
 
     @Test
+    fun `generateCycleDates with 1 per week should follow Wednesday pattern after first date`() = runTest {
+        val calendar = java.util.Calendar.getInstance()
+        calendar.set(2025, java.util.Calendar.JANUARY, 20, 0, 0, 0)
+        calendar.set(java.util.Calendar.MILLISECOND, 0)
+        val startDate = calendar.timeInMillis
+
+        val result = workoutRepositoryImpl.generateCycleDates(startDate, "1 раз в неделю")
+
+        assertThat(result).hasSize(10)
+
+        val cal1 = java.util.Calendar.getInstance()
+        cal1.timeInMillis = result[0]
+        assertThat(cal1.get(java.util.Calendar.DAY_OF_MONTH)).isEqualTo(20)
+
+        for (i in 1 until result.size) {
+            val cal = java.util.Calendar.getInstance()
+            cal.timeInMillis = result[i]
+            assertThat(cal.get(java.util.Calendar.DAY_OF_WEEK)).isEqualTo(java.util.Calendar.WEDNESDAY)
+        }
+    }
+
+    @Test
     fun `generateCycleDates with 3 per week should generate 10 dates`() = runTest {
         val startDate = System.currentTimeMillis()
         val result = workoutRepositoryImpl.generateCycleDates(startDate, "3 раза в неделю")
@@ -127,11 +151,72 @@ class WorkoutFrequencyAdapterTest {
     }
 
     @Test
+    fun `generateCycleDates with 3 per week should follow Monday Wednesday Friday pattern`() = runTest {
+        val calendar = java.util.Calendar.getInstance()
+        calendar.set(2025, java.util.Calendar.JANUARY, 13, 0, 0, 0)
+        calendar.set(java.util.Calendar.MILLISECOND, 0)
+        val startDate = calendar.timeInMillis
+
+        val result = workoutRepositoryImpl.generateCycleDates(startDate, "3 раза в неделю")
+
+        assertThat(result).hasSize(10)
+
+        for (i in 0 until result.size step 3) {
+            val cal = java.util.Calendar.getInstance()
+            cal.timeInMillis = result[i]
+            assertThat(cal.get(java.util.Calendar.DAY_OF_WEEK)).isEqualTo(java.util.Calendar.MONDAY)
+        }
+
+        for (i in 1 until result.size step 3) {
+            val cal = java.util.Calendar.getInstance()
+            cal.timeInMillis = result[i]
+            assertThat(cal.get(java.util.Calendar.DAY_OF_WEEK)).isEqualTo(java.util.Calendar.WEDNESDAY)
+        }
+
+        for (i in 2 until result.size step 3) {
+            val cal = java.util.Calendar.getInstance()
+            cal.timeInMillis = result[i]
+            assertThat(cal.get(java.util.Calendar.DAY_OF_WEEK)).isEqualTo(java.util.Calendar.FRIDAY)
+        }
+    }
+
+    @Test
     fun `generateCycleDates with 5 per week should generate 10 dates`() = runTest {
         val startDate = System.currentTimeMillis()
         val result = workoutRepositoryImpl.generateCycleDates(startDate, "5 раз в неделю")
 
         assertThat(result).hasSize(10)
+    }
+
+    @Test
+    fun `generateCycleDates with 5 per week should follow Monday to Friday pattern`() = runTest {
+        val calendar = java.util.Calendar.getInstance()
+        calendar.set(2025, java.util.Calendar.JANUARY, 15, 0, 0, 0)
+        calendar.set(java.util.Calendar.MILLISECOND, 0)
+        val startDate = calendar.timeInMillis
+
+        val result = workoutRepositoryImpl.generateCycleDates(startDate, "5 раз в неделю")
+
+        assertThat(result).hasSize(10)
+
+        val expectedDays = listOf(
+            java.util.Calendar.MONDAY,
+            java.util.Calendar.TUESDAY,
+            java.util.Calendar.WEDNESDAY,
+            java.util.Calendar.THURSDAY,
+            java.util.Calendar.FRIDAY,
+            java.util.Calendar.MONDAY,
+            java.util.Calendar.TUESDAY,
+            java.util.Calendar.WEDNESDAY,
+            java.util.Calendar.THURSDAY,
+            java.util.Calendar.FRIDAY
+        )
+
+        result.forEachIndexed { index, date ->
+            val cal = java.util.Calendar.getInstance()
+            cal.timeInMillis = date
+            assertThat(cal.get(java.util.Calendar.DAY_OF_WEEK)).isEqualTo(expectedDays[index])
+        }
     }
 
     @Test

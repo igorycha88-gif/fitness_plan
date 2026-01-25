@@ -3,6 +3,7 @@ package com.example.fitness_plan.data
 import android.content.Context
 import android.content.SharedPreferences
 import com.example.fitness_plan.domain.calculator.WeightCalculator
+import com.example.fitness_plan.domain.calculator.WorkoutDateCalculator
 import com.example.fitness_plan.domain.repository.ICredentialsRepository
 import com.example.fitness_plan.domain.admin.AdminCredentialsRepository as AdminCredentialsDomainRepository
 import com.example.fitness_plan.domain.usecase.AdminUseCase
@@ -105,9 +106,10 @@ object AppModule {
         exerciseCompletionRepository: ExerciseCompletionRepository,
         workoutScheduleRepository: WorkoutScheduleRepository,
         weightCalculator: WeightCalculator,
+        workoutDateCalculator: WorkoutDateCalculator,
         exerciseLibraryRepository: ExerciseLibraryRepository
     ): WorkoutRepository {
-        return WorkoutRepositoryImpl(context, exerciseCompletionRepository, workoutScheduleRepository, weightCalculator, exerciseLibraryRepository)
+        return WorkoutRepositoryImpl(context, exerciseCompletionRepository, workoutScheduleRepository, weightCalculator, workoutDateCalculator, exerciseLibraryRepository)
     }
 
     @Provides
@@ -164,6 +166,12 @@ object AppModule {
     @Singleton
     fun provideWeightCalculator(): WeightCalculator {
         return WeightCalculator()
+    }
+
+    @Provides
+    @Singleton
+    fun provideWorkoutDateCalculator(): WorkoutDateCalculator {
+        return WorkoutDateCalculator()
     }
 
     @Provides

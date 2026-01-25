@@ -22,6 +22,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.WindowInsetsSides
+import com.example.fitness_plan.domain.calculator.WorkoutDateCalculator
 import com.example.fitness_plan.domain.model.UserProfile
 import com.example.fitness_plan.presentation.viewmodel.ProfileViewModel
 import java.text.SimpleDateFormat
@@ -414,6 +415,7 @@ fun WorkoutScheduleDialog(
     onDismiss: () -> Unit,
     onConfirm: (List<Long>) -> Unit
 ) {
+    val dateCalculator = remember { WorkoutDateCalculator() }
     val trainingCount = when (frequency) {
         "1 раз в неделю" -> 4
         "3 раза в неделю" -> 12
@@ -423,10 +425,11 @@ fun WorkoutScheduleDialog(
 
     var showStartDatePicker by remember { mutableStateOf(false) }
     var startDate by remember { mutableStateOf<Long?>(null) }
+    var dateError by remember { mutableStateOf<String?>(null) }
 
     val dates = remember(startDate, frequency) {
         if (startDate != null) {
-            calculateWorkoutDates(startDate!!, frequency, trainingCount)
+            dateCalculator.generateDates(startDate!!, frequency, trainingCount)
         } else {
             emptyList()
         }
@@ -459,6 +462,15 @@ fun WorkoutScheduleDialog(
                         style = MaterialTheme.typography.bodyMedium
                     )
                 }
+
+                if (dateError != null) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        dateError!!,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
             }
         },
         confirmButton = {
@@ -478,8 +490,16 @@ fun WorkoutScheduleDialog(
     )
 
     if (showStartDatePicker) {
+        val minDate = dateCalculator.getMinStartDate()
+        val maxDate = dateCalculator.getMaxStartDate()
         val datePickerState = rememberDatePickerState(
-            initialSelectedDateMillis = startDate ?: System.currentTimeMillis()
+            initialSelectedDateMillis = startDate ?: minDate,
+            selectableDates = object : SelectableDates {
+                override fun isSelectableDate(utcTimeMillis: Long): Boolean {
+                    val dayStart = dateCalculator.validateStartDate(utcTimeMillis)
+                    return dayStart.isValid
+                }
+            }
         )
 
         DatePickerDialog(
@@ -487,7 +507,13 @@ fun WorkoutScheduleDialog(
             confirmButton = {
                 TextButton(onClick = {
                     datePickerState.selectedDateMillis?.let { date ->
-                        startDate = date
+                        val validation = dateCalculator.validateStartDate(date)
+                        if (validation.isValid) {
+                            startDate = date
+                            dateError = null
+                        } else {
+                            dateError = validation.errorMessage
+                        }
                     }
                     showStartDatePicker = false
                 }) {
@@ -503,50 +529,4 @@ fun WorkoutScheduleDialog(
             DatePicker(state = datePickerState)
         }
     }
-}
-
-fun calculateWorkoutDates(startDate: Long, frequency: String, totalCount: Int): List<Long> {
-    val dates = mutableListOf<Long>()
-    val calendar = Calendar.getInstance()
-    calendar.timeInMillis = startDate
-
-    when (frequency) {
-        "1 раз в неделю" -> {
-            for (i in 0 until totalCount) {
-                dates.add(calendar.timeInMillis)
-                calendar.add(Calendar.WEEK_OF_YEAR, 1)
-            }
-        }
-        "3 раза в неделю" -> {
-            var count = 0
-            while (dates.size < totalCount) {
-                dates.add(calendar.timeInMillis)
-                count++
-                if (count == 3) {
-                    calendar.add(Calendar.WEEK_OF_YEAR, 1)
-                    calendar.set(Calendar.DAY_OF_WEEK, Calendar.getInstance().apply {
-                        timeInMillis = startDate
-                    }.get(Calendar.DAY_OF_WEEK))
-                    count = 0
-                } else {
-                    calendar.add(Calendar.DAY_OF_YEAR, 2)
-                }
-            }
-        }
-        "5 раз в неделю" -> {
-            var weekStart = calendar.clone() as Calendar
-            while (dates.size < totalCount) {
-                for (dayOffset in 0 until 5) {
-                    if (dates.size >= totalCount) break
-                    val dayCalendar = weekStart.clone() as Calendar
-                    dayCalendar.add(Calendar.DAY_OF_YEAR, dayOffset)
-                    dates.add(dayCalendar.timeInMillis)
-                }
-                calendar.add(Calendar.WEEK_OF_YEAR, 1)
-                weekStart = calendar.clone() as Calendar
-            }
-        }
-    }
-
-    return dates
 }
