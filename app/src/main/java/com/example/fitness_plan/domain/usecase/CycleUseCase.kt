@@ -35,7 +35,7 @@ class CycleUseCase @Inject constructor(
         val currentCycle = cycleRepository.getCurrentCycleSync(username)
         val now = System.currentTimeMillis()
 
-        Log.d(TAG, "completedDate=$completedDate, currentCycle=${currentCycle?.cycleNumber}")
+        Log.d(TAG, "completedDate=$completedDate, currentCycle=${currentCycle?.cycleNumber}, totalDays=${currentCycle?.totalDays}")
 
         val cycle = when {
             completedDate != null -> {
@@ -46,6 +46,13 @@ class CycleUseCase @Inject constructor(
             }
             currentCycle == null -> {
                 Log.d(TAG, "Starting new cycle")
+                cycleRepository.startNewCycle(username, now)
+            }
+            currentCycle.totalDays != Cycle.DAYS_IN_CYCLE -> {
+                Log.d(TAG, "Migrating old ${currentCycle.totalDays}-day cycle to new ${Cycle.DAYS_IN_CYCLE}-day cycle")
+                cycleRepository.markCycleCompleted(username, now)
+                cycleRepository.resetCycle(username)
+                exerciseCompletionRepository.clearCompletion(username)
                 cycleRepository.startNewCycle(username, now)
             }
             else -> {
@@ -65,12 +72,43 @@ class CycleUseCase @Inject constructor(
 
     private suspend fun loadWorkoutPlan(profile: UserProfile, cycle: Cycle?): WorkoutPlan {
         val basePlan = workoutRepository.getWorkoutPlanForUser(profile)
-        val plan30 = workoutRepository.get30DayWorkoutPlan(basePlan)
-        val dates = workoutRepository.generate30DayDates(
+        val planCycle = workoutRepository.getCycleWorkoutPlan(basePlan, profile.frequency)
+        val dates = workoutRepository.generateCycleDates(
             cycle?.startDate ?: System.currentTimeMillis(),
             profile.frequency
         )
-        return workoutRepository.getWorkoutPlanWithDates(plan30, dates)
+        val finalPlan = workoutRepository.getWorkoutPlanWithDates(planCycle, dates)
+
+        val cycleNumber = cycle?.cycleNumber ?: 1
+        return applyWeightProgression(finalPlan, cycleNumber)
+    }
+
+    private fun applyWeightProgression(plan: WorkoutPlan, cycleNumber: Int): WorkoutPlan {
+        val cycleGroup = (cycleNumber - 1) / 3
+        val weightIncrement = cycleGroup * 2.0f
+        
+        val updatedDays = plan.days.map { day ->
+            val updatedExercises = day.exercises.map { exercise ->
+                exercise.copy(
+                    recommendedWeight = exercise.recommendedWeight?.let { weight -> weight + weightIncrement }
+                )
+            }
+            day.copy(exercises = updatedExercises)
+        }
+        
+        return plan.copy(days = updatedDays)
+    }
+
+    suspend fun getCompletedCyclesCount(username: String): Int {
+        val history = cycleRepository.getCycleHistory(username).first()
+        return history.size
+    }
+
+    suspend fun getFullCycleGroups(username: String): Int {
+        val completedCount = getCompletedCyclesCount(username)
+        val currentCycle = cycleRepository.getCurrentCycleSync(username)
+        val currentCycleNumber = currentCycle?.cycleNumber ?: 0
+        return (currentCycleNumber - 1) / 3
     }
 
     fun getCurrentCycle(username: String): Flow<Cycle?> {

@@ -6,8 +6,8 @@ import kotlinx.coroutines.flow.Flow
 
 interface WorkoutRepository {
     suspend fun getWorkoutPlanForUser(profile: com.example.fitness_plan.domain.model.UserProfile): WorkoutPlan
-    suspend fun get30DayWorkoutPlan(basePlan: WorkoutPlan): WorkoutPlan
-    suspend fun generate30DayDates(startDate: Long, frequency: String): List<Long>
+    suspend fun getCycleWorkoutPlan(basePlan: WorkoutPlan, frequency: String): WorkoutPlan
+    suspend fun generateCycleDates(startDate: Long, frequency: String): List<Long>
     suspend fun getWorkoutPlanWithDates(plan: WorkoutPlan, dates: List<Long>): WorkoutPlan
     suspend fun saveWorkoutPlan(username: String, plan: WorkoutPlan)
     fun getWorkoutPlan(username: String): Flow<WorkoutPlan?>
