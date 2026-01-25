@@ -57,7 +57,7 @@ class WorkoutPlanExerciseDistributionTest {
 
         val result = workoutRepositoryImpl.getWorkoutPlanForUser(profile)
 
-        assertThat(result.days).hasSize(12)
+        assertThat(result.days).hasSize(10)
         result.days.forEachIndexed { index, day ->
             assertThat(day.exercises.size).isAtLeast(5)
             assertThat(day.exercises.size).isAtMost(8)
@@ -79,7 +79,7 @@ class WorkoutPlanExerciseDistributionTest {
 
         val result = workoutRepositoryImpl.getWorkoutPlanForUser(profile)
 
-        assertThat(result.days).hasSize(4)
+        assertThat(result.days).hasSize(10)
         result.days.forEach { day ->
             assertThat(day.exercises.size).isAtLeast(5)
             assertThat(day.exercises.size).isAtMost(8)
@@ -100,7 +100,7 @@ class WorkoutPlanExerciseDistributionTest {
 
         val result = workoutRepositoryImpl.getWorkoutPlanForUser(profile)
 
-        assertThat(result.days).hasSize(12)
+        assertThat(result.days).hasSize(10)
         result.days.forEach { day ->
             assertThat(day.exercises.size).isAtLeast(5)
             assertThat(day.exercises.size).isAtMost(8)
@@ -122,7 +122,7 @@ class WorkoutPlanExerciseDistributionTest {
 
         val result = workoutRepositoryImpl.getWorkoutPlanForUser(profile)
 
-        assertThat(result.days).hasSize(12)
+        assertThat(result.days).hasSize(10)
         result.days.forEach { day ->
             assertThat(day.exercises.size).isAtLeast(5)
             assertThat(day.exercises.size).isAtMost(8)
@@ -144,7 +144,7 @@ class WorkoutPlanExerciseDistributionTest {
 
         val result = workoutRepositoryImpl.getWorkoutPlanForUser(profile)
 
-        assertThat(result.days).hasSize(12)
+        assertThat(result.days).hasSize(10)
         result.days.forEach { day ->
             assertThat(day.exercises.size).isAtLeast(5)
             assertThat(day.exercises.size).isAtMost(8)
@@ -166,7 +166,7 @@ class WorkoutPlanExerciseDistributionTest {
 
         val result = workoutRepositoryImpl.getWorkoutPlanForUser(profile)
 
-        assertThat(result.days).hasSize(12)
+        assertThat(result.days).hasSize(10)
         result.days.forEach { day ->
             assertThat(day.exercises.size).isAtLeast(5)
             assertThat(day.exercises.size).isAtMost(8)
@@ -188,7 +188,7 @@ class WorkoutPlanExerciseDistributionTest {
 
         val result = workoutRepositoryImpl.getWorkoutPlanForUser(profile)
 
-        assertThat(result.days).hasSize(12)
+        assertThat(result.days).hasSize(10)
         result.days.forEach { day ->
             assertThat(day.exercises.size).isAtLeast(5)
             assertThat(day.exercises.size).isAtMost(8)
@@ -210,7 +210,7 @@ class WorkoutPlanExerciseDistributionTest {
 
         val result = workoutRepositoryImpl.getWorkoutPlanForUser(profile)
 
-        assertThat(result.days).hasSize(20)
+        assertThat(result.days).hasSize(10)
 
         val legsDays = result.days.filter { it.dayName.contains("Ноги") }
         val chestDays = result.days.filter { it.dayName.contains("Грудь") }
@@ -218,11 +218,11 @@ class WorkoutPlanExerciseDistributionTest {
         val shouldersDays = result.days.filter { it.dayName.contains("Плечи") }
         val armsDays = result.days.filter { it.dayName.contains("Руки") }
 
-        assertThat(legsDays.size).isEqualTo(4)
-        assertThat(chestDays.size).isEqualTo(4)
-        assertThat(backDays.size).isEqualTo(4)
-        assertThat(shouldersDays.size).isEqualTo(4)
-        assertThat(armsDays.size).isEqualTo(4)
+        assertThat(legsDays.size).isEqualTo(2)
+        assertThat(chestDays.size).isEqualTo(2)
+        assertThat(backDays.size).isEqualTo(2)
+        assertThat(shouldersDays.size).isEqualTo(2)
+        assertThat(armsDays.size).isEqualTo(2)
 
         legsDays.forEach { day ->
             assertThat(day.exercises.size).isAtLeast(1)

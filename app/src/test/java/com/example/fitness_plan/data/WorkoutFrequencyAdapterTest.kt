@@ -61,8 +61,8 @@ class WorkoutFrequencyAdapterTest {
 
         val result = workoutRepositoryImpl.getCycleWorkoutPlan(basePlan, "1 раз в неделю")
 
-        assertThat(result.name).isEqualTo("4-дневный план")
-        assertThat(result.days).hasSize(4)
+        assertThat(result.name).isEqualTo("10-дневный план")
+        assertThat(result.days).hasSize(10)
     }
 
     @Test
@@ -82,8 +82,8 @@ class WorkoutFrequencyAdapterTest {
 
         val result = workoutRepositoryImpl.getCycleWorkoutPlan(basePlan, "3 раза в неделю")
 
-        assertThat(result.name).isEqualTo("12-дневный план")
-        assertThat(result.days).hasSize(12)
+        assertThat(result.name).isEqualTo("10-дневный план")
+        assertThat(result.days).hasSize(10)
     }
 
     @Test
@@ -103,36 +103,36 @@ class WorkoutFrequencyAdapterTest {
 
         val result = workoutRepositoryImpl.getCycleWorkoutPlan(basePlan, "5 раз в неделю")
 
-        assertThat(result.name).isEqualTo("20-дневный план")
-        assertThat(result.days).hasSize(20)
+        assertThat(result.name).isEqualTo("10-дневный план")
+        assertThat(result.days).hasSize(10)
     }
 
     @Test
-    fun `generateCycleDates with 1 per week should generate 4 dates`() = runTest {
+    fun `generateCycleDates with 1 per week should generate 10 dates`() = runTest {
         val startDate = System.currentTimeMillis()
         val result = workoutRepositoryImpl.generateCycleDates(startDate, "1 раз в неделю")
 
-        assertThat(result).hasSize(4)
+        assertThat(result).hasSize(10)
     }
 
     @Test
-    fun `generateCycleDates with 3 per week should generate 12 dates`() = runTest {
+    fun `generateCycleDates with 3 per week should generate 10 dates`() = runTest {
         val startDate = System.currentTimeMillis()
         val result = workoutRepositoryImpl.generateCycleDates(startDate, "3 раза в неделю")
 
-        assertThat(result).hasSize(12)
+        assertThat(result).hasSize(10)
     }
 
     @Test
-    fun `generateCycleDates with 5 per week should generate 20 dates`() = runTest {
+    fun `generateCycleDates with 5 per week should generate 10 dates`() = runTest {
         val startDate = System.currentTimeMillis()
         val result = workoutRepositoryImpl.generateCycleDates(startDate, "5 раз в неделю")
 
-        assertThat(result).hasSize(20)
+        assertThat(result).hasSize(10)
     }
 
     @Test
-    fun `createWeightLossBeginnerPlan with 1 per week should create 4 days with 5-8 exercises`() = runTest {
+    fun `createWeightLossBeginnerPlan with 1 per week should create 10 days with 5-8 exercises`() = runTest {
         val profile = UserProfile(
             username = "testuser",
             goal = "Похудение",
@@ -145,7 +145,7 @@ class WorkoutFrequencyAdapterTest {
 
         val result = workoutRepositoryImpl.getWorkoutPlanForUser(profile)
 
-        assertThat(result.days).hasSize(4)
+        assertThat(result.days).hasSize(10)
         result.days.forEach { day ->
             assertThat(day.exercises.size).isAtLeast(5)
             assertThat(day.exercises.size).isAtMost(8)
@@ -154,7 +154,7 @@ class WorkoutFrequencyAdapterTest {
     }
 
     @Test
-    fun `createWeightLossBeginnerPlan with 3 per week should create 12 days with full body`() = runTest {
+    fun `createWeightLossBeginnerPlan with 3 per week should create 10 days with full body`() = runTest {
         val profile = UserProfile(
             username = "testuser",
             goal = "Похудение",
@@ -167,7 +167,7 @@ class WorkoutFrequencyAdapterTest {
 
         val result = workoutRepositoryImpl.getWorkoutPlanForUser(profile)
 
-        assertThat(result.days).hasSize(12)
+        assertThat(result.days).hasSize(10)
         result.days.forEach { day ->
             assertThat(day.exercises.size).isAtLeast(5)
             assertThat(day.exercises.size).isAtMost(8)
@@ -176,7 +176,7 @@ class WorkoutFrequencyAdapterTest {
     }
 
     @Test
-    fun `createWeightLossBeginnerPlan with 5 per week should create 20 days with split`() = runTest {
+    fun `createWeightLossBeginnerPlan with 5 per week should create 10 days with split`() = runTest {
         val profile = UserProfile(
             username = "testuser",
             goal = "Похудение",
@@ -189,7 +189,7 @@ class WorkoutFrequencyAdapterTest {
 
         val result = workoutRepositoryImpl.getWorkoutPlanForUser(profile)
 
-        assertThat(result.days).hasSize(20)
+        assertThat(result.days).hasSize(10)
         result.days.forEach { day ->
             assertThat(day.exercises.size).isAtLeast(1)
             assertThat(containsAnyOf(day.dayName, listOf("Ноги", "Грудь", "Спина", "Плечи", "Руки"))).isTrue()
@@ -222,12 +222,12 @@ class WorkoutFrequencyAdapterTest {
 
         val result = workoutRepositoryImpl.getWorkoutPlanForUser(profile)
 
-        assertThat(result.days).hasSize(12)
+        assertThat(result.days).hasSize(10)
         val dayNames = result.days.map { it.dayName }
 
         val fullBodyDays = dayNames.count { it.contains("Full Body") }
 
-        assertThat(fullBodyDays).isEqualTo(12)
+        assertThat(fullBodyDays).isEqualTo(10)
         result.days.forEach { day ->
             assertThat(day.exercises.size).isAtLeast(5)
             assertThat(day.exercises.size).isAtMost(8)
@@ -248,7 +248,7 @@ class WorkoutFrequencyAdapterTest {
 
         val result = workoutRepositoryImpl.getWorkoutPlanForUser(profile)
 
-        assertThat(result.days).hasSize(20)
+        assertThat(result.days).hasSize(10)
         val dayNames = result.days.map { it.dayName }
 
         val legsDays = dayNames.count { it.contains("Ноги") }
@@ -257,7 +257,7 @@ class WorkoutFrequencyAdapterTest {
         val shouldersDays = dayNames.count { it.contains("Плечи") }
         val armsDays = dayNames.count { it.contains("Руки") }
 
-        assertThat(legsDays + chestDays + backDays + shouldersDays + armsDays).isEqualTo(20)
+        assertThat(legsDays + chestDays + backDays + shouldersDays + armsDays).isEqualTo(10)
         result.days.forEach { day ->
             assertThat(day.exercises.size).isAtLeast(1)
         }
@@ -299,20 +299,20 @@ class WorkoutFrequencyAdapterTest {
         val result3 = workoutRepositoryImpl.getWorkoutPlanForUser(profile3)
         val result5 = workoutRepositoryImpl.getWorkoutPlanForUser(profile5)
 
-        assertThat(result1.days).hasSize(4)
+        assertThat(result1.days).hasSize(10)
         result1.days.forEach { day ->
             assertThat(day.exercises.size).isAtLeast(5)
             assertThat(day.exercises.size).isAtMost(8)
         }
 
-        assertThat(result3.days).hasSize(12)
+        assertThat(result3.days).hasSize(10)
         result3.days.forEach { day ->
             assertThat(day.exercises.size).isAtLeast(5)
             assertThat(day.exercises.size).isAtMost(8)
             assertThat(day.dayName).contains("Full Body")
         }
 
-        assertThat(result5.days).hasSize(20)
+        assertThat(result5.days).hasSize(10)
         result5.days.forEach { day ->
             assertThat(day.exercises.size).isAtLeast(1)
         }

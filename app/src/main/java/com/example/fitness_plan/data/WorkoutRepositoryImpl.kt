@@ -67,12 +67,7 @@ class WorkoutRepositoryImpl @Inject constructor(
     }
 
     override suspend fun getCycleWorkoutPlan(basePlan: WorkoutPlan, frequency: String): WorkoutPlan {
-        val totalDays = when (frequency) {
-            "1 раз в неделю" -> 4
-            "3 раза в неделю" -> 12
-            "5 раз в неделю" -> 20
-            else -> 10
-        }
+        val totalDays = 10
 
         val days = mutableListOf<WorkoutDay>()
         val exerciseNames = basePlan.days.flatMap { day -> day.exercises.map { it.name } }.distinct()
@@ -95,12 +90,7 @@ class WorkoutRepositoryImpl @Inject constructor(
             dayCounter++
         }
 
-        val planName = when (frequency) {
-            "1 раз в неделю" -> "4-дневный план"
-            "3 раза в неделю" -> "12-дневный план"
-            "5 раз в неделю" -> "20-дневный план"
-            else -> "10-дневный план"
-        }
+        val planName = "10-дневный план"
 
         return basePlan.copy(
             name = planName,
@@ -117,12 +107,7 @@ class WorkoutRepositoryImpl @Inject constructor(
         calendar.set(Calendar.SECOND, 0)
         calendar.set(Calendar.MILLISECOND, 0)
 
-        val totalCount = when (frequency) {
-            "1 раз в неделю" -> 4
-            "3 раза в неделю" -> 12
-            "5 раз в неделю" -> 20
-            else -> 10
-        }
+        val totalCount = 10
 
         when (frequency) {
             "1 раз в неделю" -> {
@@ -351,12 +336,7 @@ class WorkoutRepositoryImpl @Inject constructor(
             createExerciseWithAlternatives("9", "Велотренажёр", 1, "15 мин", "Умеренный темп", null, null)
         )
 
-        val daysCount = when (frequency) {
-            "1 раз в неделю" -> 4
-            "3 раза в неделю" -> 12
-            "5 раз в неделю" -> 20
-            else -> 10
-        }
+        val daysCount = 10
 
         val days = when (frequency) {
             "1 раз в неделю" -> createFullBodyDays(baseExercises, daysCount)
@@ -418,12 +398,7 @@ class WorkoutRepositoryImpl @Inject constructor(
             createExerciseWithAlternatives("15", "Бег", 1, "20 мин", profile = profile)
         )
 
-        val daysCount = when (frequency) {
-            "1 раз в неделю" -> 4
-            "3 раза в неделю" -> 12
-            "5 раз в неделю" -> 20
-            else -> 10
-        }
+        val daysCount = 10
 
         val days = when (frequency) {
             "1 раз в неделю" -> createFullBodyDays(baseExercises, daysCount)
@@ -482,12 +457,7 @@ class WorkoutRepositoryImpl @Inject constructor(
             createExerciseWithAlternatives("12", "Скручивания", 3, "12-15", profile = profile)
         )
 
-        val daysCount = when (frequency) {
-            "1 раз в неделю" -> 4
-            "3 раза в неделю" -> 12
-            "5 раз в неделю" -> 20
-            else -> 10
-        }
+        val daysCount = 10
 
         val days = when (frequency) {
             "1 раз в неделю" -> createFullBodyDays(baseExercises, daysCount)
@@ -549,12 +519,7 @@ class WorkoutRepositoryImpl @Inject constructor(
             createExerciseWithAlternatives("15", "Планка", 4, "45-60 сек", profile = profile)
         )
 
-        val daysCount = when (frequency) {
-            "1 раз в неделю" -> 4
-            "3 раза в неделю" -> 12
-            "5 раз в неделю" -> 20
-            else -> 10
-        }
+        val daysCount = 10
 
         val days = when (frequency) {
             "1 раз в неделю" -> createFullBodyDays(baseExercises, daysCount)
@@ -616,12 +581,7 @@ class WorkoutRepositoryImpl @Inject constructor(
             createExerciseWithAlternatives("15", "Планка", 4, "60 сек", profile = profile)
         )
 
-        val daysCount = when (frequency) {
-            "1 раз в неделю" -> 4
-            "3 раза в неделю" -> 12
-            "5 раз в неделю" -> 20
-            else -> 10
-        }
+        val daysCount = 10
 
         val days = when (frequency) {
             "1 раз в неделю" -> createFullBodyDays(baseExercises, daysCount)
@@ -681,12 +641,7 @@ class WorkoutRepositoryImpl @Inject constructor(
             createExerciseWithAlternatives("13", "Планка", 3, "45-60 сек", profile = profile)
         )
 
-        val daysCount = when (frequency) {
-            "1 раз в неделю" -> 4
-            "3 раза в неделю" -> 12
-            "5 раз в неделю" -> 20
-            else -> 10
-        }
+        val daysCount = 10
 
         val days = when (frequency) {
             "1 раз в неделю" -> createFullBodyDays(baseExercises, daysCount)
