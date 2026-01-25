@@ -96,13 +96,14 @@ fun MainScreen(
              composable(Screen.Statistics.route) {
                  StatisticsScreen()
              }
-              composable(Screen.ExerciseLibrary.route) {
-                  val exerciseLibraryViewModel = hiltViewModel<com.example.fitness_plan.presentation.viewmodel.ExerciseLibraryViewModel>()
-                  ExerciseLibraryScreen(
-                      viewModel = exerciseLibraryViewModel,
-                      onExerciseClick = onExerciseLibraryClick ?: {}
-                  )
-              }
+               composable(Screen.ExerciseLibrary.route) {
+                   val exerciseLibraryViewModel = hiltViewModel<com.example.fitness_plan.presentation.viewmodel.ExerciseLibraryViewModel>()
+                   ExerciseLibraryScreen(
+                       viewModel = exerciseLibraryViewModel,
+                       profileViewModel = profileViewModel,
+                       onExerciseClick = onExerciseLibraryClick ?: {}
+                   )
+               }
         }
     }
 }

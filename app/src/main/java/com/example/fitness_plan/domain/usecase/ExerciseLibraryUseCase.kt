@@ -42,4 +42,8 @@ class ExerciseLibraryUseCase @Inject constructor(
     suspend fun getExerciseById(id: String): ExerciseLibrary? {
         return exerciseLibraryRepository.getExerciseById(id)
     }
+
+    suspend fun initializeDefaultExercises() {
+        exerciseLibraryRepository.initializeDefaultExercises()
+    }
 }

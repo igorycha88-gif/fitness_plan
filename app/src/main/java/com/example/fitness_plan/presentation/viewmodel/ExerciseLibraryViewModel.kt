@@ -28,6 +28,7 @@ class ExerciseLibraryViewModel @Inject constructor(
 
     fun initialize() {
         viewModelScope.launch {
+            exerciseLibraryUseCase.initializeDefaultExercises()
             exerciseLibraryUseCase.getAllExercises().collect { exercises ->
                 _exercises.value = exercises
             }
@@ -92,9 +93,9 @@ class ExerciseLibraryViewModel @Inject constructor(
             MuscleGroup.CALVES
         )
 
-        val minGroup = muscleGroups.minOfOrNull { group ->
+        val minIndex = muscleGroups.minOfOrNull<MuscleGroup, Int> { group ->
             priorityOrder.indexOf(group)
         }
-        return minGroup?.let { priorityOrder.indexOf(it) } ?: Int.MAX_VALUE
+        return minIndex ?: Int.MAX_VALUE
     }
 }
