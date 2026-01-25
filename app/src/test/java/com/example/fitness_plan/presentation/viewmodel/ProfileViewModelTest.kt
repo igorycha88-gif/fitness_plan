@@ -42,6 +42,8 @@ class ProfileViewModelTest {
     private lateinit var mockWeightRepository: DomainWeightRepository
     private lateinit var mockAuthUseCase: AuthUseCase
     private lateinit var mockWorkoutUseCase: WorkoutUseCase
+    private lateinit var mockExerciseLibraryUseCase: com.example.fitness_plan.domain.usecase.ExerciseLibraryUseCase
+    private lateinit var mockReferenceDataUseCase: com.example.fitness_plan.domain.usecase.ReferenceDataUseCase
 
     private val testDispatcher = UnconfinedTestDispatcher()
 
@@ -55,6 +57,8 @@ class ProfileViewModelTest {
         mockWeightRepository = mockk<DomainWeightRepository>(relaxed = true)
         mockAuthUseCase = mockk<AuthUseCase>(relaxed = true)
         mockWorkoutUseCase = mockk<WorkoutUseCase>(relaxed = true)
+        mockExerciseLibraryUseCase = mockk<com.example.fitness_plan.domain.usecase.ExerciseLibraryUseCase>(relaxed = true)
+        mockReferenceDataUseCase = mockk<com.example.fitness_plan.domain.usecase.ReferenceDataUseCase>(relaxed = true)
 
         viewModel = ProfileViewModel(
             mockUserRepository,
@@ -62,7 +66,9 @@ class ProfileViewModelTest {
             mockCycleRepository,
             mockWeightRepository,
             mockAuthUseCase,
-            mockWorkoutUseCase
+            mockWorkoutUseCase,
+            mockExerciseLibraryUseCase,
+            mockReferenceDataUseCase
         )
     }
 

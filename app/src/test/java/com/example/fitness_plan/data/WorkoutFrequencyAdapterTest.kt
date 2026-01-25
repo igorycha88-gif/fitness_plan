@@ -132,7 +132,7 @@ class WorkoutFrequencyAdapterTest {
     }
 
     @Test
-    fun `createWeightLossBeginnerPlan with 1 per week should create 4 days with 6-8 exercises`() = runTest {
+    fun `createWeightLossBeginnerPlan with 1 per week should create 4 days with 5-8 exercises`() = runTest {
         val profile = UserProfile(
             username = "testuser",
             goal = "Похудение",
@@ -147,13 +147,14 @@ class WorkoutFrequencyAdapterTest {
 
         assertThat(result.days).hasSize(4)
         result.days.forEach { day ->
-            assertThat(day.exercises.size).isAtLeast(1)
+            assertThat(day.exercises.size).isAtLeast(5)
+            assertThat(day.exercises.size).isAtMost(8)
             assertThat(day.dayName).contains("Full Body")
         }
     }
 
     @Test
-    fun `createWeightLossBeginnerPlan with 3 per week should create 12 days with split`() = runTest {
+    fun `createWeightLossBeginnerPlan with 3 per week should create 12 days with full body`() = runTest {
         val profile = UserProfile(
             username = "testuser",
             goal = "Похудение",
@@ -168,8 +169,9 @@ class WorkoutFrequencyAdapterTest {
 
         assertThat(result.days).hasSize(12)
         result.days.forEach { day ->
-            assertThat(day.exercises.size).isAtLeast(1)
-            assertThat(containsAnyOf(day.dayName, listOf("Ноги", "Верх тела", "Полный"))).isTrue()
+            assertThat(day.exercises.size).isAtLeast(5)
+            assertThat(day.exercises.size).isAtMost(8)
+            assertThat(day.dayName).contains("Full Body")
         }
     }
 
@@ -192,10 +194,22 @@ class WorkoutFrequencyAdapterTest {
             assertThat(day.exercises.size).isAtLeast(1)
             assertThat(containsAnyOf(day.dayName, listOf("Ноги", "Грудь", "Спина", "Плечи", "Руки"))).isTrue()
         }
+
+        val legsDays = result.days.filter { it.dayName.contains("Ноги") }
+        val chestDays = result.days.filter { it.dayName.contains("Грудь") }
+        val backDays = result.days.filter { it.dayName.contains("Спина") }
+        val shouldersDays = result.days.filter { it.dayName.contains("Плечи") }
+        val armsDays = result.days.filter { it.dayName.contains("Руки") }
+
+        assertThat(legsDays.size).isGreaterThan(0)
+        assertThat(chestDays.size).isGreaterThan(0)
+        assertThat(backDays.size).isGreaterThan(0)
+        assertThat(shouldersDays.size).isGreaterThan(0)
+        assertThat(armsDays.size).isGreaterThan(0)
     }
 
     @Test
-    fun `createMuscleGainBeginnerPlan with 3 per week should follow split pattern`() = runTest {
+    fun `createMuscleGainBeginnerPlan with 3 per week should create full body days`() = runTest {
         val profile = UserProfile(
             username = "testuser",
             goal = "Наращивание мышечной массы",
@@ -210,14 +224,14 @@ class WorkoutFrequencyAdapterTest {
 
         assertThat(result.days).hasSize(12)
         val dayNames = result.days.map { it.dayName }
-        
-        val legsDays = dayNames.count { it.contains("Ноги") }
-        val upperDays = dayNames.count { it.contains("Верх тела") }
-        val fullDays = dayNames.count { it.contains("Полный") }
 
-        assertThat(legsDays).isGreaterThan(0)
-        assertThat(upperDays).isGreaterThan(0)
-        assertThat(fullDays).isGreaterThan(0)
+        val fullBodyDays = dayNames.count { it.contains("Full Body") }
+
+        assertThat(fullBodyDays).isEqualTo(12)
+        result.days.forEach { day ->
+            assertThat(day.exercises.size).isAtLeast(5)
+            assertThat(day.exercises.size).isAtMost(8)
+        }
     }
 
     @Test
@@ -244,6 +258,9 @@ class WorkoutFrequencyAdapterTest {
         val armsDays = dayNames.count { it.contains("Руки") }
 
         assertThat(legsDays + chestDays + backDays + shouldersDays + armsDays).isEqualTo(20)
+        result.days.forEach { day ->
+            assertThat(day.exercises.size).isAtLeast(1)
+        }
     }
 
     @Test
@@ -283,8 +300,22 @@ class WorkoutFrequencyAdapterTest {
         val result5 = workoutRepositoryImpl.getWorkoutPlanForUser(profile5)
 
         assertThat(result1.days).hasSize(4)
+        result1.days.forEach { day ->
+            assertThat(day.exercises.size).isAtLeast(5)
+            assertThat(day.exercises.size).isAtMost(8)
+        }
+
         assertThat(result3.days).hasSize(12)
+        result3.days.forEach { day ->
+            assertThat(day.exercises.size).isAtLeast(5)
+            assertThat(day.exercises.size).isAtMost(8)
+            assertThat(day.dayName).contains("Full Body")
+        }
+
         assertThat(result5.days).hasSize(20)
+        result5.days.forEach { day ->
+            assertThat(day.exercises.size).isAtLeast(1)
+        }
     }
 
     private fun containsAnyOf(str: String, strings: List<String>): Boolean {

@@ -34,6 +34,7 @@ class WorkoutViewModelTest {
     private lateinit var mockCycleUseCase: CycleUseCase
     private lateinit var mockWorkoutUseCase: WorkoutUseCase
     private lateinit var mockExerciseCompletionRepository: ExerciseCompletionRepository
+    private lateinit var mockWeightCalculator: com.example.fitness_plan.domain.calculator.WeightCalculator
 
     private val testDispatcher = UnconfinedTestDispatcher()
 
@@ -47,13 +48,15 @@ class WorkoutViewModelTest {
         mockCycleUseCase = mockk(relaxed = true)
         mockWorkoutUseCase = mockk(relaxed = true)
         mockExerciseCompletionRepository = mockk(relaxed = true)
+        mockWeightCalculator = mockk<com.example.fitness_plan.domain.calculator.WeightCalculator>(relaxed = true)
 
         viewModel = WorkoutViewModel(
             mockUserRepository,
             mockCycleRepository,
             mockExerciseStatsRepository,
             mockCycleUseCase,
-            mockWorkoutUseCase
+            mockWorkoutUseCase,
+            mockWeightCalculator
         )
     }
 

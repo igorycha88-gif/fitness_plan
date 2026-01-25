@@ -360,7 +360,7 @@ class WorkoutRepositoryImpl @Inject constructor(
 
         val days = when (frequency) {
             "1 раз в неделю" -> createFullBodyDays(baseExercises, daysCount)
-            "3 раза в неделю" -> createSplit3xDays(baseExercises, daysCount)
+            "3 раза в неделю" -> createFullBodyDays(baseExercises, daysCount)
             "5 раз в неделю" -> createSplit5xDays(baseExercises, daysCount)
             else -> {
                 val workouts = listOf(
@@ -427,7 +427,7 @@ class WorkoutRepositoryImpl @Inject constructor(
 
         val days = when (frequency) {
             "1 раз в неделю" -> createFullBodyDays(baseExercises, daysCount)
-            "3 раза в неделю" -> createSplit3xDays(baseExercises, daysCount)
+            "3 раза в неделю" -> createFullBodyDays(baseExercises, daysCount)
             "5 раз в неделю" -> createSplit5xDays(baseExercises, daysCount)
             else -> {
                 val workouts = listOf(
@@ -491,7 +491,7 @@ class WorkoutRepositoryImpl @Inject constructor(
 
         val days = when (frequency) {
             "1 раз в неделю" -> createFullBodyDays(baseExercises, daysCount)
-            "3 раза в неделю" -> createSplit3xDays(baseExercises, daysCount)
+            "3 раза в неделю" -> createFullBodyDays(baseExercises, daysCount)
             "5 раз в неделю" -> createSplit5xDays(baseExercises, daysCount)
             else -> {
                 val workouts = listOf(
@@ -558,7 +558,7 @@ class WorkoutRepositoryImpl @Inject constructor(
 
         val days = when (frequency) {
             "1 раз в неделю" -> createFullBodyDays(baseExercises, daysCount)
-            "3 раза в неделю" -> createSplit3xDays(baseExercises, daysCount)
+            "3 раза в неделю" -> createFullBodyDays(baseExercises, daysCount)
             "5 раз в неделю" -> createSplit5xDays(baseExercises, daysCount)
             else -> {
                 val workouts = listOf(
@@ -625,7 +625,7 @@ class WorkoutRepositoryImpl @Inject constructor(
 
         val days = when (frequency) {
             "1 раз в неделю" -> createFullBodyDays(baseExercises, daysCount)
-            "3 раза в неделю" -> createSplit3xDays(baseExercises, daysCount)
+            "3 раза в неделю" -> createFullBodyDays(baseExercises, daysCount)
             "5 раз в неделю" -> createSplit5xDays(baseExercises, daysCount)
             else -> {
                 val workouts = listOf(
@@ -690,7 +690,7 @@ class WorkoutRepositoryImpl @Inject constructor(
 
         val days = when (frequency) {
             "1 раз в неделю" -> createFullBodyDays(baseExercises, daysCount)
-            "3 раза в неделю" -> createSplit3xDays(baseExercises, daysCount)
+            "3 раза в неделю" -> createFullBodyDays(baseExercises, daysCount)
             "5 раз в неделю" -> createSplit5xDays(baseExercises, daysCount)
             else -> {
                 val workouts = listOf(
@@ -735,10 +735,10 @@ class WorkoutRepositoryImpl @Inject constructor(
     ): List<WorkoutDay> {
         val days = mutableListOf<WorkoutDay>()
 
-        for (i in 0 until totalCount) {
-            val exercisesCount = minOf(baseExercises.size, 8)
-            val exerciseIndices = (0 until exercisesCount).toList()
+        val exercisesCount = Math.max(minOf(baseExercises.size, 8), 5)
+        val exerciseIndices = (0 until exercisesCount).toList()
 
+        for (i in 0 until totalCount) {
             val exercises = exerciseIndices.map { idx ->
                 baseExercises[idx].copy(id = "${i}_${baseExercises[idx].id}")
             }
@@ -800,24 +800,22 @@ class WorkoutRepositoryImpl @Inject constructor(
         totalCount: Int
     ): List<WorkoutDay> {
         val days = mutableListOf<WorkoutDay>()
+        val dayNames = listOf("Ноги", "Грудь", "Спина", "Плечи", "Руки")
 
-        val legsExercises = if (baseExercises.size > 0) listOf(0) else emptyList()
-        val chestExercises = if (baseExercises.size > 1) listOf(1) else emptyList()
-        val backExercises = if (baseExercises.size > 2) listOf(2) else emptyList()
-        val shouldersExercises = if (baseExercises.size > 3) listOf(3) else emptyList()
-        val armsExercises = if (baseExercises.size > 4) listOf(4) else emptyList()
+        val exercisesPerDay = Math.ceil(baseExercises.size.toDouble() / 5).toInt().coerceAtLeast(1)
 
-        val splitCycle = listOf(
-            Pair(legsExercises, "Ноги"),
-            Pair(chestExercises, "Грудь"),
-            Pair(backExercises, "Спина"),
-            Pair(shouldersExercises, "Плечи"),
-            Pair(armsExercises, "Руки")
-        )
+        val splitCycles = mutableListOf<Pair<List<Int>, String>>()
+
+        for (dayIndex in 0 until 5) {
+            val startIndex = dayIndex * exercisesPerDay
+            val endIndex = Math.min(startIndex + exercisesPerDay, baseExercises.size)
+            val exerciseIndices = (startIndex until endIndex).toList()
+            splitCycles.add(Pair(exerciseIndices, dayNames[dayIndex]))
+        }
 
         for (i in 0 until totalCount) {
             val cycleIndex = i % 5
-            val (exerciseIndices, dayName) = splitCycle[cycleIndex]
+            val (exerciseIndices, dayName) = splitCycles[cycleIndex]
 
             val exercises = exerciseIndices.filter { it < baseExercises.size }.map { idx ->
                 baseExercises[idx].copy(id = "${i}_${baseExercises[idx].id}")
