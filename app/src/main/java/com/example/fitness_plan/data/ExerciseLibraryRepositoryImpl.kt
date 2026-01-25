@@ -96,6 +96,10 @@ class ExerciseLibraryRepositoryImpl @Inject constructor(
         return getAllExercises().first().find { it.id == id }
     }
 
+    override suspend fun getAllExercisesAsList(): List<ExerciseLibrary> {
+        return getAllExercises().first()
+    }
+
     override suspend fun initializeDefaultExercises() {
         val currentExercises = getAllExercises().first()
         if (currentExercises.isNotEmpty()) return

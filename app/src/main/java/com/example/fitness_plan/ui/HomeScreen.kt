@@ -697,11 +697,24 @@ fun ExerciseRow(
                     )
                 }
                 Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = exercise.name,
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = if (showCheckmark) SuccessGreen else MaterialTheme.colorScheme.onSurface
-                )
+                Column {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = exercise.name,
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = if (showCheckmark) SuccessGreen else MaterialTheme.colorScheme.onSurface
+                        )
+                        if (exercise.isFavoriteSubstitution) {
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Icon(
+                                imageVector = Icons.Filled.Favorite,
+                                contentDescription = "Избранное упражнение",
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+                    }
+                }
             }
             Column(horizontalAlignment = Alignment.End) {
                 Text(

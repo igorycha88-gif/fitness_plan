@@ -36,23 +36,24 @@ data class WorkoutDay(
 }
 
  data class Exercise(
-    val id: String = "",
-    val name: String,
-    val sets: Int,
-    val reps: String,
-    val weight: Float? = null,
-    val imageRes: String? = null,
-    val isCompleted: Boolean = false,
-    val alternatives: List<Exercise> = emptyList(),
-    val description: String? = null,
-    val recommendedWeight: Float? = null,
-    val recommendedRepsPerSet: String? = null,
-    val equipment: List<EquipmentType> = emptyList(),
-    val muscleGroups: List<MuscleGroup> = emptyList(),
-    val exerciseType: ExerciseType = ExerciseType.STRENGTH,
-    val stepByStepInstructions: String? = null,
-    val animationUrl: String? = null
-)
+     val id: String = "",
+     val name: String,
+     val sets: Int,
+     val reps: String,
+     val weight: Float? = null,
+     val imageRes: String? = null,
+     val isCompleted: Boolean = false,
+     val alternatives: List<Exercise> = emptyList(),
+     val description: String? = null,
+     val recommendedWeight: Float? = null,
+     val recommendedRepsPerSet: String? = null,
+     val equipment: List<EquipmentType> = emptyList(),
+     val muscleGroups: List<MuscleGroup> = emptyList(),
+     val exerciseType: ExerciseType = ExerciseType.STRENGTH,
+     val stepByStepInstructions: String? = null,
+     val animationUrl: String? = null,
+     val isFavoriteSubstitution: Boolean = false
+ )
 
 data class ExerciseWithStats(
     val exercise: Exercise,

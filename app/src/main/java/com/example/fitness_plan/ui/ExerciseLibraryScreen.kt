@@ -52,7 +52,9 @@ fun ExerciseLibraryScreen(
                     exercise = exercise,
                     onClick = { onExerciseClick(exercise) },
                     isFavorite = favoriteExercises.contains(exercise.name),
-                    onToggleFavorite = { onToggleFavorite(exercise.name) }
+                    onToggleFavorite = { 
+                        profileViewModel?.toggleFavoriteExercise(exercise.name)
+                    }
                 )
             }
         }

@@ -29,13 +29,70 @@ class WorkoutRepositoryImpl @Inject constructor(
     private val context: Context,
     private val exerciseCompletionRepository: ExerciseCompletionRepository,
     private val workoutScheduleRepository: WorkoutScheduleRepository,
-    private val weightCalculator: WeightCalculator
+    private val weightCalculator: WeightCalculator,
+    private val exerciseLibraryRepository: com.example.fitness_plan.domain.repository.ExerciseLibraryRepository
 ) : WorkoutRepository {
 
     private val gson = Gson()
 
+    private suspend fun findFavoriteExercise(
+        favoriteExercises: Set<String>,
+        exerciseLibrary: List<com.example.fitness_plan.domain.model.ExerciseLibrary>,
+        targetMuscleGroups: List<String>
+    ): com.example.fitness_plan.domain.model.ExerciseLibrary? {
+        return exerciseLibrary.find { exercise ->
+            exercise.name in favoriteExercises &&
+            targetMuscleGroups == exercise.muscleGroups.map { it.displayName }
+        }
+    }
+
+    private suspend fun applyFavoriteExercisesToDay(
+        day: WorkoutDay,
+        favoriteExercises: Set<String>,
+        exerciseLibrary: List<com.example.fitness_plan.domain.model.ExerciseLibrary>
+    ): WorkoutDay {
+        val updatedExercises = day.exercises.mapIndexed { index, exercise ->
+            val substitutionIndex = day.exercises.size / 2
+            if (index < substitutionIndex) {
+                val exerciseMuscleGroups = getMuscleGroupsForExercise(exercise.name)
+                val favoriteExercise = findFavoriteExercise(favoriteExercises, exerciseLibrary, exerciseMuscleGroups)
+                
+                if (favoriteExercise != null && favoriteExercise.name != exercise.name) {
+                    exercise.copy(
+                        name = favoriteExercise.name,
+                        description = favoriteExercise.description,
+                        muscleGroups = favoriteExercise.muscleGroups,
+                        equipment = favoriteExercise.equipment,
+                        exerciseType = favoriteExercise.exerciseType,
+                        stepByStepInstructions = favoriteExercise.stepByStepInstructions,
+                        animationUrl = favoriteExercise.animationUrl,
+                        isFavoriteSubstitution = true
+                    )
+                } else {
+                    exercise
+                }
+            } else {
+                exercise
+            }
+        }
+        return day.copy(exercises = updatedExercises)
+    }
+
+    private suspend fun applyFavoriteExercises(
+        plan: WorkoutPlan,
+        favoriteExercises: Set<String>
+    ): WorkoutPlan {
+        if (favoriteExercises.isEmpty()) return plan
+        
+        val exerciseLibrary = exerciseLibraryRepository.getAllExercisesAsList()
+        val updatedDays = plan.days.map { day ->
+            applyFavoriteExercisesToDay(day, favoriteExercises, exerciseLibrary)
+        }
+        return plan.copy(days = updatedDays)
+    }
+
     override suspend fun getWorkoutPlanForUser(profile: com.example.fitness_plan.domain.model.UserProfile): WorkoutPlan {
-        Log.d(TAG, "getWorkoutPlanForUser: goal=${profile.goal}, level=${profile.level}, frequency=${profile.frequency}")
+        Log.d(TAG, "getWorkoutPlanForUser: goal=${profile.goal}, level=${profile.level}, frequency=${profile.frequency}, favorites=${profile.favoriteExercises.size}")
         val plan = when {
             profile.goal == "Похудение" && profile.level == "Новичок" -> {
                 Log.d(TAG, "Creating weight loss beginner plan")
@@ -62,8 +119,10 @@ class WorkoutRepositoryImpl @Inject constructor(
                 createMaintenancePlan(profile, profile.frequency)
             }
         }
-        Log.d(TAG, "Plan created: ${plan.name}, days=${plan.days.size}")
-        return plan
+        
+        val planWithFavorites = applyFavoriteExercises(plan, profile.favoriteExercises)
+        Log.d(TAG, "Plan created: ${planWithFavorites.name}, days=${planWithFavorites.days.size}")
+        return planWithFavorites
     }
 
     override suspend fun getCycleWorkoutPlan(basePlan: WorkoutPlan, frequency: String): WorkoutPlan {

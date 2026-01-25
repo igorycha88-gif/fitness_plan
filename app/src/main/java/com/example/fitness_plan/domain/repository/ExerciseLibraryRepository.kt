@@ -16,4 +16,5 @@ interface ExerciseLibraryRepository {
     suspend fun deleteExercise(exerciseId: String)
     suspend fun getExerciseById(id: String): ExerciseLibrary?
     suspend fun initializeDefaultExercises()
+    suspend fun getAllExercisesAsList(): List<ExerciseLibrary>
 }

@@ -104,9 +104,10 @@ object AppModule {
         @ApplicationContext context: Context,
         exerciseCompletionRepository: ExerciseCompletionRepository,
         workoutScheduleRepository: WorkoutScheduleRepository,
-        weightCalculator: WeightCalculator
+        weightCalculator: WeightCalculator,
+        exerciseLibraryRepository: ExerciseLibraryRepository
     ): WorkoutRepository {
-        return WorkoutRepositoryImpl(context, exerciseCompletionRepository, workoutScheduleRepository, weightCalculator)
+        return WorkoutRepositoryImpl(context, exerciseCompletionRepository, workoutScheduleRepository, weightCalculator, exerciseLibraryRepository)
     }
 
     @Provides

@@ -26,16 +26,19 @@ class WorkoutFrequencyAdapterTest {
         mockExerciseCompletionRepository = mockk(relaxed = true)
         mockWorkoutScheduleRepository = mockk(relaxed = true)
         mockWeightCalculator = mockk(relaxed = true)
+        val mockExerciseLibraryRepository = mockk<com.example.fitness_plan.domain.repository.ExerciseLibraryRepository>(relaxed = true)
 
         every { mockWeightCalculator.calculateBaseWeight(any(), any(), any(), any(), any()) } returns 20.0f
         every { mockWeightCalculator.getRecommendedRepsString(any()) } returns "10-12"
         every { mockWeightCalculator.determineExerciseType(any()) } returns ExerciseType.COMPOUND
+        coEvery { mockExerciseLibraryRepository.getAllExercisesAsList() } returns emptyList()
 
         workoutRepositoryImpl = WorkoutRepositoryImpl(
             context = mockContext,
             exerciseCompletionRepository = mockExerciseCompletionRepository,
             workoutScheduleRepository = mockWorkoutScheduleRepository,
-            weightCalculator = mockWeightCalculator
+            weightCalculator = mockWeightCalculator,
+            exerciseLibraryRepository = mockExerciseLibraryRepository
         )
     }
 
