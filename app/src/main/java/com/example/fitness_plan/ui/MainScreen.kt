@@ -30,7 +30,6 @@ sealed class Screen(val route: String, val label: String, val icon: ImageVector)
     object Statistics : Screen("statistics", "Статистика", Icons.AutoMirrored.Filled.List)
     object CycleHistory : Screen("cycle_history", "История циклов", Icons.Default.Home)
     object ExerciseLibrary : Screen("exercise_library", "Упражнения", Icons.Default.Favorite)
-    object ExerciseGuide : Screen("exercise_guide/{exerciseId}", "Упражнение", Icons.Default.Favorite)
 }
 
     private val items = listOf(Screen.Home, Screen.Profile, Screen.Statistics, Screen.ExerciseLibrary)
@@ -105,21 +104,6 @@ fun MainScreen(
                         onExerciseClick = onExerciseLibraryClick ?: {}
                     )
                 }
-               composable(
-                   route = Screen.ExerciseGuide.route,
-                   arguments = listOf(
-                       androidx.navigation.navArgument("exerciseId") { type = androidx.navigation.NavType.StringType }
-                   )
-               ) { backStackEntry ->
-                   val exerciseId = backStackEntry.arguments?.getString("exerciseId") ?: ""
-                   ExerciseGuideScreen(
-                       exerciseId = exerciseId,
-                       onBackClick = {
-                           bottomNavController.popBackStack()
-                       },
-                       profileViewModel = profileViewModel
-                   )
-               }
         }
     }
 }

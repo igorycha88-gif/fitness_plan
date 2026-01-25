@@ -18,6 +18,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.example.fitness_plan.ui.AdminMainScreen
 import com.example.fitness_plan.ui.ExerciseDetailScreen
+import com.example.fitness_plan.ui.ExerciseGuideScreen
 import com.example.fitness_plan.ui.LoginScreen
 import com.example.fitness_plan.ui.MainScreen
 import com.example.fitness_plan.presentation.viewmodel.ProfileViewModel
@@ -153,6 +154,20 @@ class MainActivity : ComponentActivity() {
                                 onExerciseLibraryClick = { exercise ->
                                     navController.navigate("exercise_guide/${exercise.id}")
                                 }
+                            )
+                        }
+
+                        composable(
+                            route = "exercise_guide/{exerciseId}",
+                            arguments = listOf(
+                                androidx.navigation.navArgument("exerciseId") { type = androidx.navigation.NavType.StringType }
+                            )
+                        ) { backStackEntry ->
+                            val exerciseId = backStackEntry.arguments?.getString("exerciseId") ?: ""
+                            ExerciseGuideScreen(
+                                exerciseId = exerciseId,
+                                onBackClick = { navController.popBackStack() },
+                                profileViewModel = profileViewModel
                             )
                         }
                     }

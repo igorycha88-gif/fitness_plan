@@ -61,8 +61,6 @@ class ProfileViewModel @Inject constructor(
     private val _logoutTrigger = MutableStateFlow(false)
     val logoutTrigger: StateFlow<Boolean> = _logoutTrigger.asStateFlow()
 
-    private val exerciseLibraryUseCase: com.example.fitness_plan.domain.usecase.ExerciseLibraryUseCase? = null
-
     init {
         checkUserSession()
     }
@@ -71,35 +69,20 @@ class ProfileViewModel @Inject constructor(
         viewModelScope.launch {
             val credentials = credentialsRepository.getCredentials()
             if (credentials != null) {
-                LaunchedEffect(Unit) {
-                    val userProfile = getUserProfile().first()
-                    userProfile?.let { profile ->
-                        exerciseLibraryUseCase?.initializeExercises(profile.goal, profile.level)
-                    }
-                }
-            } else {
-                LaunchedEffect(Unit) {
-                    _isProfileChecked.value = true
-                }
-            }
-        }
-    }
+                Log.d(TAG, "checkUserSession: found credentials for user=${credentials.username}")
+                _currentUsername.value = credentials.username
 
-    fun initializeExerciseLibrary(userGoal: String, userLevel: String) {
-        viewModelScope.launch {
-            exerciseLibraryUseCase?.initializeExercises(userGoal, userLevel)
+                exerciseLibraryUseCase.initializeDefaultExercises()
+            } else {
+                Log.d(TAG, "checkUserSession: no credentials found")
+            }
+            _isProfileChecked.value = true
         }
     }
 
     fun initializeExerciseLibrary() {
         viewModelScope.launch {
-            val userProfile = getUserProfile().first() ?: return
-            val userGoal = userProfile.goal
-            val userLevel = userProfile.level
-
-            Log.d(TAG, "initializeExerciseLibrary: userGoal=$userGoal, userLevel=$userLevel")
-
-            exerciseLibraryUseCase.initializeExercises(userGoal, userLevel)
+            exerciseLibraryUseCase.initializeDefaultExercises()
         }
     }
 
