@@ -36,6 +36,7 @@ import androidx.compose.material3.rememberDatePickerState
 
 enum class AdminScreen(val route: String, val label: String, val icon: ImageVector) {
     Home("admin_home", "Главная", Icons.Default.Home),
+    Exercises("admin_exercises", "Упражнения", Icons.Default.Favorite),
     Profile("admin_profile", "Профиль", Icons.Default.AccountCircle)
 }
 
@@ -73,7 +74,7 @@ fun AdminMainScreen(
                 }
             }
         }
-    ) { paddingValues ->
+        ) { paddingValues ->
         NavHost(
             navController = bottomNavController,
             startDestination = AdminScreen.Home.route,
@@ -84,6 +85,17 @@ fun AdminMainScreen(
                 AdminHomeScreen(
                     workoutViewModel = vm,
                     onExerciseClick = onExerciseClick
+                )
+            }
+            composable(AdminScreen.Exercises.route) {
+                val vm = profileViewModel ?: androidx.hilt.navigation.compose.hiltViewModel()
+                val exerciseLibraryViewModel = androidx.hilt.navigation.compose.hiltViewModel<com.example.fitness_plan.presentation.viewmodel.ExerciseLibraryViewModel>()
+                ExerciseLibraryScreen(
+                    viewModel = exerciseLibraryViewModel,
+                    profileViewModel = vm,
+                    onExerciseClick = { exercise ->
+                        mainNavController.navigate("exercise_guide/${exercise.id}")
+                    }
                 )
             }
             composable("admin_login") {
