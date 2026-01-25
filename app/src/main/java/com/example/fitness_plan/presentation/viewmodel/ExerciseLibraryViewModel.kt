@@ -39,6 +39,10 @@ class ExerciseLibraryViewModel @Inject constructor(
         _favoriteExercises.value = favorites
     }
 
+    suspend fun getExerciseById(id: String): ExerciseLibrary? {
+        return exerciseLibraryUseCase.getExerciseById(id)
+    }
+
     fun getAllExercises(): Flow<List<ExerciseLibrary>> {
         return exerciseLibraryUseCase.getAllExercises()
     }

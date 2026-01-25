@@ -30,6 +30,7 @@ sealed class Screen(val route: String, val label: String, val icon: ImageVector)
     object Statistics : Screen("statistics", "Статистика", Icons.AutoMirrored.Filled.List)
     object CycleHistory : Screen("cycle_history", "История циклов", Icons.Default.Home)
     object ExerciseLibrary : Screen("exercise_library", "Упражнения", Icons.Default.Favorite)
+    object ExerciseGuide : Screen("exercise_guide/{exerciseId}", "Упражнение", Icons.Default.Favorite)
 }
 
     private val items = listOf(Screen.Home, Screen.Profile, Screen.Statistics, Screen.ExerciseLibrary)
@@ -49,31 +50,31 @@ fun MainScreen(
     val bottomNavController = rememberNavController()
     val isAdmin by (profileViewModel ?: hiltViewModel()).isAdmin.collectAsState()
 
-        Scaffold(
-            bottomBar = {
-                NavigationBar(
-                    modifier = Modifier.windowInsetsPadding(WindowInsets.navigationBars)
-                ) {
-                    val navBackStackEntry = bottomNavController.currentBackStackEntryAsState().value
-                    val currentDestination = navBackStackEntry?.destination
+    Scaffold(
+        bottomBar = {
+            NavigationBar(
+                modifier = Modifier.windowInsetsPadding(WindowInsets.navigationBars)
+            ) {
+                val navBackStackEntry = bottomNavController.currentBackStackEntryAsState().value
+                val currentDestination = navBackStackEntry?.destination
 
-                    items.forEach { screen ->
-                        NavigationBarItem(
-                            icon = { Icon(screen.icon, contentDescription = null) },
-                            label = { Text(screen.label) },
-                            selected = currentDestination?.hierarchy?.any { navDestination -> navDestination.route == screen.route } == true,
-                            onClick = {
-                                bottomNavController.navigate(screen.route) {
-                                    popUpTo(bottomNavController.graph.startDestinationId) { saveState = true }
-                                    launchSingleTop = true
-                                    restoreState = true
-                                }
+                items.forEach { screen ->
+                    NavigationBarItem(
+                        icon = { Icon(screen.icon, contentDescription = null) },
+                        label = { Text(screen.label) },
+                        selected = currentDestination?.hierarchy?.any { navDestination -> navDestination.route == screen.route } == true,
+                        onClick = {
+                            bottomNavController.navigate(screen.route) {
+                                popUpTo(bottomNavController.graph.startDestinationId) { saveState = true }
+                                launchSingleTop = true
+                                restoreState = true
                             }
-                        )
-                    }
+                        }
+                    )
                 }
             }
-        ) { innerPadding ->
+        }
+    ) { innerPadding ->
         NavHost(
             navController = bottomNavController,
             startDestination = Screen.Home.route,
@@ -97,11 +98,26 @@ fun MainScreen(
                  StatisticsScreen()
              }
                composable(Screen.ExerciseLibrary.route) {
-                   val exerciseLibraryViewModel = hiltViewModel<com.example.fitness_plan.presentation.viewmodel.ExerciseLibraryViewModel>()
-                   ExerciseLibraryScreen(
-                       viewModel = exerciseLibraryViewModel,
-                       profileViewModel = profileViewModel,
-                       onExerciseClick = onExerciseLibraryClick ?: {}
+                    val exerciseLibraryViewModel = hiltViewModel<com.example.fitness_plan.presentation.viewmodel.ExerciseLibraryViewModel>()
+                    ExerciseLibraryScreen(
+                        viewModel = exerciseLibraryViewModel,
+                        profileViewModel = profileViewModel,
+                        onExerciseClick = onExerciseLibraryClick ?: {}
+                    )
+                }
+               composable(
+                   route = Screen.ExerciseGuide.route,
+                   arguments = listOf(
+                       androidx.navigation.navArgument("exerciseId") { type = androidx.navigation.NavType.StringType }
+                   )
+               ) { backStackEntry ->
+                   val exerciseId = backStackEntry.arguments?.getString("exerciseId") ?: ""
+                   ExerciseGuideScreen(
+                       exerciseId = exerciseId,
+                       onBackClick = {
+                           bottomNavController.popBackStack()
+                       },
+                       profileViewModel = profileViewModel
                    )
                }
         }

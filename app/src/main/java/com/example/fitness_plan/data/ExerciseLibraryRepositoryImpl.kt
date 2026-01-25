@@ -116,7 +116,9 @@ class ExerciseLibraryRepositoryImpl @Inject constructor(
                 equipment = listOf(EquipmentType.BODYWEIGHT),
                 muscleGroups = listOf(MuscleGroup.QUADS, MuscleGroup.GLUTES, MuscleGroup.HAMSTRINGS, MuscleGroup.CALVES),
                 difficulty = "Начальный",
-                stepByStepInstructions = "1. Встаньте прямо, ноги на ширине плеч\n2. Спина прямая, грудь вперед\n3. Медленно опускайтесь, сгибая колени\n4. Опуститесь до параллели с полом\n5. Поднимитесь в исходное положение"
+                stepByStepInstructions = "1. Встаньте прямо, ноги на ширине плеч\n2. Спина прямая, грудь вперед\n3. Медленно опускайтесь, сгибая колени\n4. Опуститесь до параллели с полом\n5. Поднимитесь в исходное положение",
+                tipsAndAdvice = "• Держите пятки на полу\n• Не скругляйте спину\n• Колени не должны выходить за носки\n• Держите грудь в расправленном состоянии\n• Дышите: вдох при опускании, выдох при подъеме",
+                progressionAdvice = "1. Добавьте отягощение (гантели, штанга)\n2. Увеличьте глубину приседания\n3. Уменьшите отдых между подходами\n4. Попробуйте приседания на одной ноге\n5. Используйте темповые приседания"
             ),
             ExerciseLibrary(
                 id = "bench_press",
@@ -126,7 +128,9 @@ class ExerciseLibraryRepositoryImpl @Inject constructor(
                 equipment = listOf(EquipmentType.SPECIAL_BENCH),
                 muscleGroups = listOf(MuscleGroup.CHEST, MuscleGroup.TRICEPS, MuscleGroup.SHOULDERS),
                 difficulty = "Начальный",
-                stepByStepInstructions = "1. Лягте на скамью, стопы на полу\n2. Возьмите штангу хватом чуть шире плеч\n3. Опустите штангу к груди\n4. Выжмите штангу вверх"
+                stepByStepInstructions = "1. Лягте на скамью, стопы на полу\n2. Возьмите штангу хватом чуть шире плеч\n3. Опустите штангу к груди\n4. Выжмите штангу вверх",
+                tipsAndAdvice = "• Лопатки сведены вместе\n• Поясница с небольшим прогибом\n• Контролируйте движение вниз\n• Полностью выпрямите руки вверху\n• Не отрывайте поясницу от скамьи",
+                progressionAdvice = "1. Увеличивайте вес постепенно\n2. Изменяйте ширину хвата\n3. Попробуйте жим с паузой внизу\n4. Используйте цепи или резинки\n5. Перейдите на жим гантелей"
             ),
             ExerciseLibrary(
                 id = "deadlift",
@@ -136,7 +140,9 @@ class ExerciseLibraryRepositoryImpl @Inject constructor(
                 equipment = listOf(EquipmentType.WEIGHT_PLATES),
                 muscleGroups = listOf(MuscleGroup.LATS, MuscleGroup.GLUTES, MuscleGroup.HAMSTRINGS, MuscleGroup.FOREARMS),
                 difficulty = "Средний",
-                stepByStepInstructions = "1. Встаньте перед штангой, ноги на ширине плеч\n2. Наклонитесь, взявшись за штангу\n3. Спина прямая, поднимите штангу\n4. Вернитесь в исходное положение"
+                stepByStepInstructions = "1. Встаньте перед штангой, ноги на ширине плеч\n2. Наклонитесь, взявшись за штангу\n3. Спина прямая, поднимите штангу\n4. Вернитесь в исходное положение",
+                tipsAndAdvice = "• Спина должна быть прямой всё время\n• Пятки плотно прижаты к полу\n• Поднимайтесь за счёт ног, а не спины\n• Взгляд направлен вперёд\n• Не разгибайте спину в верхней точке",
+                progressionAdvice = "1. Увеличивайте вес постепенно\n2. Попробуйте сумо-становую\n3. Работайте над хватом\n4. Используйте лямки при необходимости\n5. Добавьте паузу в верхней точке"
             ),
             ExerciseLibrary(
                 id = "bent_over_row",
@@ -146,7 +152,9 @@ class ExerciseLibraryRepositoryImpl @Inject constructor(
                 equipment = listOf(EquipmentType.BODYWEIGHT),
                 muscleGroups = listOf(MuscleGroup.LATS, MuscleGroup.BICEPS, MuscleGroup.TRAPS, MuscleGroup.FOREARMS),
                 difficulty = "Начальный",
-                stepByStepInstructions = "1. Наклонитесь корпусом вперед\n2. Спина прямая, возьмите штангу\n3. Тяните штангу к нижней части груди\n4. Медленно опустите в исходное положение"
+                stepByStepInstructions = "1. Наклонитесь корпусом вперед\n2. Спина прямая, возьмите штангу\n3. Тяните штангу к нижней части груди\n4. Медленно опустите в исходное положение",
+                tipsAndAdvice = "• Держите спину прямой\n• Локти направлены в стороны\n• Сжимайте лопатки в верхней точке\n• Держите корпус стабильным\n• Не поднимайте голову вверх",
+                progressionAdvice = "1. Увеличьте рабочий вес\n2. Уменьшите паузу между подходами\n3. Используйте разнохват\n4. Попробуйте тягу гантели одной рукой\n5. Увеличьте количество повторений"
             ),
             ExerciseLibrary(
                 id = "overhead_press",

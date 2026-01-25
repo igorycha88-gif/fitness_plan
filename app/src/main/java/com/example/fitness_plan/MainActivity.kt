@@ -149,6 +149,9 @@ class MainActivity : ComponentActivity() {
                                 onExerciseClick = { exercise ->
                                     val encodedName = URLEncoder.encode(exercise.name, "UTF-8")
                                     navController.navigate("exercise_detail/$encodedName")
+                                },
+                                onExerciseLibraryClick = { exercise ->
+                                    navController.navigate("exercise_guide/${exercise.id}")
                                 }
                             )
                         }

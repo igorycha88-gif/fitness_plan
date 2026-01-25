@@ -9,5 +9,7 @@ data class ExerciseLibrary(
     val muscleGroups: List<MuscleGroup>,
     val difficulty: String,
     val stepByStepInstructions: String,
-    val animationUrl: String? = null
+    val animationUrl: String? = null,
+    val tipsAndAdvice: String? = null,
+    val progressionAdvice: String? = null
 )
