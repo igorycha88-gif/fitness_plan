@@ -15,6 +15,8 @@ import com.example.fitness_plan.domain.repository.UserRepository
 import com.example.fitness_plan.domain.usecase.CycleUseCase
 import com.example.fitness_plan.domain.usecase.WorkoutUseCase
 import com.example.fitness_plan.domain.usecase.WeightProgressionUseCase
+import com.example.fitness_plan.domain.usecase.ExerciseLibraryUseCase
+import com.example.fitness_plan.domain.model.ExerciseLibrary
 import com.example.fitness_plan.domain.calculator.WeightCalculator
 import com.example.fitness_plan.notification.NotificationHelper
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -37,7 +39,8 @@ class WorkoutViewModel @Inject constructor(
     private val exerciseStatsRepository: ExerciseStatsRepository,
     private val cycleUseCase: CycleUseCase,
     private val workoutUseCase: WorkoutUseCase,
-    private val weightCalculator: WeightCalculator
+    private val weightCalculator: WeightCalculator,
+    private val exerciseLibraryUseCase: ExerciseLibraryUseCase
 ) : ViewModel() {
 
     private val _currentWorkoutPlan = MutableStateFlow<WorkoutPlan?>(null)
@@ -63,6 +66,9 @@ class WorkoutViewModel @Inject constructor(
 
     private val _isLoading = MutableStateFlow(true)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
+
+    private val _alternativeExercises = MutableStateFlow<List<ExerciseLibrary>>(emptyList())
+    val alternativeExercises: StateFlow<List<ExerciseLibrary>> = _alternativeExercises.asStateFlow()
 
     private var _currentUsername = MutableStateFlow("")
 
@@ -338,5 +344,18 @@ class WorkoutViewModel @Inject constructor(
             exerciseHistory,
             baseReps
         )
+    }
+
+    suspend fun loadAlternativeExercises(
+        exerciseName: String,
+        muscleGroups: List<com.example.fitness_plan.domain.model.MuscleGroup>,
+        limit: Int = 3
+    ) {
+        val alternatives = exerciseLibraryUseCase.getAlternativeExercises(
+            exerciseName,
+            muscleGroups,
+            limit
+        )
+        _alternativeExercises.value = alternatives
     }
 }

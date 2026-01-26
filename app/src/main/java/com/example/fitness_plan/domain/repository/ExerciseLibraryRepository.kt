@@ -17,4 +17,9 @@ interface ExerciseLibraryRepository {
     suspend fun getExerciseById(id: String): ExerciseLibrary?
     suspend fun initializeDefaultExercises()
     suspend fun getAllExercisesAsList(): List<ExerciseLibrary>
+    suspend fun getAlternativeExercises(
+        currentExerciseName: String,
+        currentMuscleGroups: List<MuscleGroup>,
+        limit: Int = 3
+    ): List<ExerciseLibrary>
 }

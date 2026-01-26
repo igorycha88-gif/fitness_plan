@@ -31,10 +31,10 @@ fun ExerciseDetailScreen(
     val currentWorkoutPlan by workoutViewModel.currentWorkoutPlan.collectAsState()
     val adminWorkoutPlan by workoutViewModel.adminWorkoutPlan.collectAsState()
     val exerciseStats by workoutViewModel.exerciseStats.collectAsState()
+    val alternativeLibraryExercises by workoutViewModel.alternativeExercises.collectAsState()
 
     var exercise by remember { mutableStateOf<Exercise?>(null) }
     var selectedExercise by remember { mutableStateOf<Exercise?>(null) }
-    var alternatives by remember { mutableStateOf<List<Exercise>>(emptyList()) }
 
     val decodedName = remember(exerciseName) {
         try {
@@ -58,15 +58,10 @@ fun ExerciseDetailScreen(
         if (workoutPlan != null) {
             exercise = findExerciseByName(workoutPlan, decodedName)
             selectedExercise = exercise
-            alternatives = exercise?.alternatives ?: emptyList()
-        } else {
-            val basicExercise = findExerciseInAllAlternatives(decodedName)
-            if (basicExercise != null) {
-                exercise = basicExercise
-                selectedExercise = basicExercise
-                alternatives = basicExercise.alternatives
-            } else {
-                alternatives = emptyList()
+            exercise?.let { ex ->
+                if (ex.muscleGroups.isNotEmpty()) {
+                    workoutViewModel.loadAlternativeExercises(ex.name, ex.muscleGroups, 3)
+                }
             }
         }
     }
@@ -202,9 +197,10 @@ fun ExerciseDetailScreen(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                if (alternatives.isNotEmpty()) {
+                val hasAlternatives = alternativeLibraryExercises.isNotEmpty()
+                if (hasAlternatives || exercise != null) {
                     Text(
-                        text = "Выберите альтернативное упражнение",
+                        text = "Упражнение",
                         style = MaterialTheme.typography.titleMedium,
                         modifier = Modifier.fillMaxWidth()
                     )
@@ -234,11 +230,13 @@ fun ExerciseDetailScreen(
                                 text = {
                                     Column {
                                         Text(exercise?.name ?: "")
-                                        Text(
-                                            text = "Оригинальное упражнение",
-                                            style = MaterialTheme.typography.bodySmall,
-                                            color = MaterialTheme.colorScheme.primary
-                                        )
+                                        if (hasAlternatives) {
+                                            Text(
+                                                text = "Текущее упражнение",
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = MaterialTheme.colorScheme.primary
+                                            )
+                                        }
                                     }
                                 },
                                 onClick = {
@@ -247,25 +245,35 @@ fun ExerciseDetailScreen(
                                 }
                             )
 
-                            HorizontalDivider()
+                            if (hasAlternatives) {
+                                HorizontalDivider()
 
-                            alternatives.forEach { alt ->
-                                DropdownMenuItem(
-                                    text = {
-                                        Column {
-                                            Text(alt.name)
-                                            Text(
-                                                text = "${alt.sets} подходов, ${alt.reps} повторений",
-                                                style = MaterialTheme.typography.bodySmall,
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                alternativeLibraryExercises.forEach { alt ->
+                                    DropdownMenuItem(
+                                        text = {
+                                            Column {
+                                                Text(alt.name)
+                                                Text(
+                                                    text = alt.muscleGroups.joinToString(", ") { it.displayName },
+                                                    style = MaterialTheme.typography.bodySmall,
+                                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                )
+                                            }
+                                        },
+                                        onClick = {
+                                            selectedExercise = exercise?.copy(
+                                                name = alt.name,
+                                                description = alt.description,
+                                                muscleGroups = alt.muscleGroups,
+                                                equipment = alt.equipment,
+                                                exerciseType = alt.exerciseType,
+                                                stepByStepInstructions = alt.stepByStepInstructions,
+                                                animationUrl = alt.animationUrl
                                             )
+                                            expanded = false
                                         }
-                                    },
-                                    onClick = {
-                                        selectedExercise = alt
-                                        expanded = false
-                                    }
-                                )
+                                    )
+                                }
                             }
                         }
                     }
@@ -489,64 +497,4 @@ private fun findExerciseByName(plan: WorkoutPlan, name: String): Exercise? {
         }
     }
     return null
-}
-
-private fun findExerciseInAllAlternatives(name: String): Exercise? {
-    val allExercises = listOf(
-        createExerciseWithAlternatives("1", "Приседания", 3, "12-15"),
-        createExerciseWithAlternatives("2", "Жим лёжа", 3, "10-12"),
-        createExerciseWithAlternatives("3", "Тяга штанги в наклоне", 3, "10-12"),
-        createExerciseWithAlternatives("4", "Пресс", 3, "15-20"),
-        createExerciseWithAlternatives("5", "Выпады", 3, "12-15"),
-        createExerciseWithAlternatives("6", "Жим гантелей сидя", 3, "10-12"),
-        createExerciseWithAlternatives("7", "Подтягивания", 3, "макс"),
-        createExerciseWithAlternatives("8", "Становая тяга", 3, "8-10"),
-        createExerciseWithAlternatives("9", "Отжимания", 3, "10-15"),
-        createExerciseWithAlternatives("10", "Тяга верхнего блока", 3, "10-12")
-    )
-
-    return allExercises.find { it.name == name }
-}
-
-private fun createExerciseWithAlternatives(id: String, name: String, sets: Int, reps: String): Exercise {
-    val alternatives = when (name) {
-        "Приседания" -> listOf(
-            Exercise(id = "alt1_1", name = "Приседания с гантелями", sets = 3, reps = "12-15", isCompleted = false, alternatives = emptyList()),
-            Exercise(id = "alt1_2", name = "Гакк-приседания", sets = 3, reps = "10-12", isCompleted = false, alternatives = emptyList())
-        )
-        "Жим лёжа" -> listOf(
-            Exercise(id = "alt3_1", name = "Жим на наклонной скамье", sets = 3, reps = "10-12", isCompleted = false, alternatives = emptyList()),
-            Exercise(id = "alt3_2", name = "Жим гантелей лёжа", sets = 3, reps = "10-12", isCompleted = false, alternatives = emptyList())
-        )
-        "Тяга штанги в наклоне" -> listOf(
-            Exercise(id = "alt5_1", name = "Тяга гантели одной рукой", sets = 3, reps = "10-12", isCompleted = false, alternatives = emptyList()),
-            Exercise(id = "alt5_2", name = "Тяга верхнего блока", sets = 3, reps = "10-12", isCompleted = false, alternatives = emptyList())
-        )
-        "Жим гантелей сидя" -> listOf(
-            Exercise(id = "alt4_1", name = "Жим Арнольда", sets = 3, reps = "10-12", isCompleted = false, alternatives = emptyList()),
-            Exercise(id = "alt4_2", name = "Подъём гантелей через стороны", sets = 3, reps = "12-15", isCompleted = false, alternatives = emptyList())
-        )
-        "Тяга верхнего блока" -> listOf(
-            Exercise(id = "alt8_1", name = "Тяга верхнего блока", sets = 3, reps = "10-12", isCompleted = false, alternatives = emptyList()),
-            Exercise(id = "alt8_2", name = "Подтягивания с assistance", sets = 3, reps = "макс", isCompleted = false, alternatives = emptyList())
-        )
-        "Становая тяга" -> listOf(
-            Exercise(id = "alt7_1", name = "Румынская тяга", sets = 3, reps = "10-12", isCompleted = false, alternatives = emptyList()),
-            Exercise(id = "alt7_2", name = "Тяга с плинтов", sets = 3, reps = "6-8", isCompleted = false, alternatives = emptyList())
-        )
-        "Подтягивания" -> listOf(
-            Exercise(id = "alt6_1", name = "Тяга штанги в наклоне", sets = 3, reps = "10-12", isCompleted = false, alternatives = emptyList()),
-            Exercise(id = "alt6_2", name = "Подтягивания", sets = 3, reps = "макс", isCompleted = false, alternatives = emptyList())
-        )
-        "Отжимания" -> listOf(
-            Exercise(id = "alt9_1", name = "Отжимания на брусьях", sets = 3, reps = "10-15", isCompleted = false, alternatives = emptyList()),
-            Exercise(id = "alt9_2", name = "Жим лёжа", sets = 3, reps = "10-12", isCompleted = false, alternatives = emptyList())
-        )
-        "Выпады" -> listOf(
-            Exercise(id = "alt10_1", name = "Выпады с гантелями", sets = 3, reps = "12-15", isCompleted = false, alternatives = emptyList()),
-            Exercise(id = "alt10_2", name = "Сjump squat", sets = 3, reps = "15-20", isCompleted = false, alternatives = emptyList())
-        )
-        else -> emptyList()
-    }
-    return Exercise(id = id, name = name, sets = sets, reps = reps, isCompleted = false, alternatives = alternatives)
 }

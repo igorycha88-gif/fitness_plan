@@ -46,4 +46,16 @@ class ExerciseLibraryUseCase @Inject constructor(
     suspend fun initializeDefaultExercises() {
         exerciseLibraryRepository.initializeDefaultExercises()
     }
+
+    suspend fun getAlternativeExercises(
+        currentExerciseName: String,
+        currentMuscleGroups: List<MuscleGroup>,
+        limit: Int = 3
+    ): List<ExerciseLibrary> {
+        return exerciseLibraryRepository.getAlternativeExercises(
+            currentExerciseName,
+            currentMuscleGroups,
+            limit
+        )
+    }
 }

@@ -100,6 +100,28 @@ class ExerciseLibraryRepositoryImpl @Inject constructor(
         return getAllExercises().first()
     }
 
+    override suspend fun getAlternativeExercises(
+        currentExerciseName: String,
+        currentMuscleGroups: List<MuscleGroup>,
+        limit: Int
+    ): List<ExerciseLibrary> {
+        val allExercises = getAllExercisesAsList()
+
+        return allExercises
+            .filter { it.name != currentExerciseName }
+            .mapNotNull { exercise ->
+                val commonMuscles = currentMuscleGroups.intersect(exercise.muscleGroups.toSet())
+                if (commonMuscles.isNotEmpty()) {
+                    Pair(exercise, commonMuscles.size)
+                } else {
+                    null
+                }
+            }
+            .sortedByDescending { it.second }
+            .map { it.first }
+            .take(limit)
+    }
+
     override suspend fun initializeDefaultExercises() {
         val currentExercises = getAllExercises().first()
         if (currentExercises.isNotEmpty()) return
