@@ -267,7 +267,7 @@ class WorkoutRepositoryImpl @Inject constructor(
         }
     }
 
-    private fun createExerciseWithAlternatives(
+    private suspend fun createExerciseWithAlternatives(
         id: String,
         name: String,
         sets: Int,
@@ -275,7 +275,8 @@ class WorkoutRepositoryImpl @Inject constructor(
         description: String? = null,
         recommendedWeight: Float? = null,
         recommendedRepsPerSet: String? = null,
-        profile: com.example.fitness_plan.domain.model.UserProfile? = null
+        profile: com.example.fitness_plan.domain.model.UserProfile? = null,
+        exerciseLibrary: List<com.example.fitness_plan.domain.model.ExerciseLibrary>? = null
     ): Exercise {
         val finalRecommendedWeight = if (recommendedWeight == null && profile != null && profile.weight > 0) {
             weightCalculator.calculateBaseWeight(
@@ -288,13 +289,15 @@ class WorkoutRepositoryImpl @Inject constructor(
         } else {
             recommendedWeight
         }
-        
+
         val finalRecommendedReps = if (recommendedRepsPerSet == null && profile != null) {
             weightCalculator.getRecommendedRepsString(profile.level)
         } else {
             recommendedRepsPerSet
         }
-        
+
+        val libExercise = exerciseLibrary?.find { it.name == name }
+
         return Exercise(
             id = id,
             name = name,
@@ -304,9 +307,14 @@ class WorkoutRepositoryImpl @Inject constructor(
             imageRes = null,
             isCompleted = false,
             alternatives = emptyList(),
-            description = description,
+            description = libExercise?.description ?: description,
             recommendedWeight = finalRecommendedWeight,
-            recommendedRepsPerSet = finalRecommendedReps
+            recommendedRepsPerSet = finalRecommendedReps,
+            muscleGroups = libExercise?.muscleGroups ?: emptyList(),
+            equipment = libExercise?.equipment ?: emptyList(),
+            exerciseType = libExercise?.exerciseType ?: com.example.fitness_plan.domain.model.ExerciseType.STRENGTH,
+            stepByStepInstructions = libExercise?.stepByStepInstructions,
+            animationUrl = libExercise?.animationUrl
         )
     }
 
@@ -324,72 +332,74 @@ class WorkoutRepositoryImpl @Inject constructor(
         val cardioSets = 1
         val cardioReps = "15-20 мин"
 
+        val exerciseLibrary = exerciseLibraryRepository.getAllExercisesAsList()
+
         val legExercises = listOf(
-            createExerciseWithAlternatives("1", "Приседания", sets, reps, "Базовое упражнение для ног", profile = profile),
-            createExerciseWithAlternatives("2", "Приседания с гантелями", sets, reps, "Приседания с отягощением", profile = profile),
-            createExerciseWithAlternatives("3", "Фронтальные приседания", sets, reps, "Акцент на квадрицепсы", profile = profile),
-            createExerciseWithAlternatives("4", "Гакк-приседания", sets, reps, "В тренажёре гакк-приседаний", profile = profile),
-            createExerciseWithAlternatives("5", "Жим ногами", sets, reps, "Изолированное упражнение для ног", profile = profile),
-            createExerciseWithAlternatives("6", "Разведение ног", sets, reps, "Для квадрицепсов", profile = profile),
-            createExerciseWithAlternatives("7", "Выпады", sets, reps, "Классические выпады", profile = profile),
-            createExerciseWithAlternatives("8", "Выпады назад", sets, reps, "Выпады назад", profile = profile),
-            createExerciseWithAlternatives("9", "Сумо-приседания", sets, reps, "Широкая постановка ног", profile = profile),
-            createExerciseWithAlternatives("10", "Болгарские сплит-приседания", sets, reps, "Приседания на одной ноге", profile = profile),
-            createExerciseWithAlternatives("11", "Ягодичный мостик", sets, reps, "Для ягодиц", profile = profile),
-            createExerciseWithAlternatives("12", "Подъёмы на носки стоя", sets, reps, "Для икроножных", profile = profile)
+            createExerciseWithAlternatives("1", "Приседания", sets, reps, "Базовое упражнение для ног", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("2", "Приседания с гантелями", sets, reps, "Приседания с отягощением", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("3", "Фронтальные приседания", sets, reps, "Акцент на квадрицепсы", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("4", "Гакк-приседания", sets, reps, "В тренажёре гакк-приседаний", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("5", "Жим ногами", sets, reps, "Изолированное упражнение для ног", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("6", "Разведение ног", sets, reps, "Для квадрицепсов", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("7", "Выпады", sets, reps, "Классические выпады", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("8", "Выпады назад", sets, reps, "Выпады назад", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("9", "Сумо-приседания", sets, reps, "Широкая постановка ног", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("10", "Болгарские сплит-приседания", sets, reps, "Приседания на одной ноге", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("11", "Ягодичный мостик", sets, reps, "Для ягодиц", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("12", "Подъёмы на носки стоя", sets, reps, "Для икроножных", profile = profile, exerciseLibrary = exerciseLibrary)
         )
 
         val chestExercises = listOf(
-            createExerciseWithAlternatives("13", "Жим лёжа", sets, reps, "Базовое упражнение для груди", profile = profile),
-            createExerciseWithAlternatives("14", "Жим гантелей на наклонной скамье", sets, reps, "Для верхней части груди", profile = profile),
-            createExerciseWithAlternatives("15", "Жим на наклонной скамье", sets, reps, "Штанга на наклонной скамье", profile = profile),
-            createExerciseWithAlternatives("16", "Жим на наклонной скамье вниз", sets, reps, "Для нижней части груди", profile = profile),
-            createExerciseWithAlternatives("17", "Жим гантелей лёжа", sets, reps, "Гантели на горизонтальной скамье", profile = profile),
-            createExerciseWithAlternatives("18", "Разведение гантелей лёжа", sets, reps, "Изолированное упражнение", profile = profile),
-            createExerciseWithAlternatives("19", "Пек-дек", sets, reps, "На тренажёре пек-дек", profile = profile),
-            createExerciseWithAlternatives("20", "Отжимания на брусьях", sets, reps, "Для груди и трицепсов", profile = profile)
+            createExerciseWithAlternatives("13", "Жим лёжа", sets, reps, "Базовое упражнение для груди", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("14", "Жим гантелей на наклонной скамье", sets, reps, "Для верхней части груди", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("15", "Жим на наклонной скамье", sets, reps, "Штанга на наклонной скамье", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("16", "Жим на наклонной скамье вниз", sets, reps, "Для нижней части груди", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("17", "Жим гантелей лёжа", sets, reps, "Гантели на горизонтальной скамье", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("18", "Разведение гантелей лёжа", sets, reps, "Изолированное упражнение", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("19", "Пек-дек", sets, reps, "На тренажёре пек-дек", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("20", "Отжимания на брусьях", sets, reps, "Для груди и трицепсов", profile = profile, exerciseLibrary = exerciseLibrary)
         )
 
         val backExercises = listOf(
-            createExerciseWithAlternatives("21", "Становая тяга", sets, reps, "Базовое упражнение", profile = profile),
-            createExerciseWithAlternatives("22", "Румынская тяга", sets, reps, "Тяга на прямых ногах", profile = profile),
-            createExerciseWithAlternatives("23", "Тяга штанги в наклоне", sets, reps, "Для широчайших", profile = profile),
-            createExerciseWithAlternatives("24", "Тяга гантели одной рукой", sets, reps, "С упором на скамью", profile = profile),
-            createExerciseWithAlternatives("25", "Т-тяга с гантелью", sets, reps, "Тяга с углом", profile = profile),
-            createExerciseWithAlternatives("26", "Тяга каната к лицу", sets, reps, "Для задних дельт", profile = profile),
-            createExerciseWithAlternatives("27", "Пуловер с гантелью", sets, reps, "Для широчайших", profile = profile),
-            createExerciseWithAlternatives("28", "Гиперэкстензия", sets, reps, "Для поясницы", profile = profile),
-            createExerciseWithAlternatives("29", "Тяга верхнего блока узким хватом", sets, reps, "Узким хватом", profile = profile)
+            createExerciseWithAlternatives("21", "Становая тяга", sets, reps, "Базовое упражнение", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("22", "Румынская тяга", sets, reps, "Тяга на прямых ногах", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("23", "Тяга штанги в наклоне", sets, reps, "Для широчайших", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("24", "Тяга гантели одной рукой", sets, reps, "С упором на скамью", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("25", "Т-тяга с гантелью", sets, reps, "Тяга с углом", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("26", "Тяга каната к лицу", sets, reps, "Для задних дельт", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("27", "Пуловер с гантелью", sets, reps, "Для широчайших", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("28", "Гиперэкстензия", sets, reps, "Для поясницы", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("29", "Тяга верхнего блока узким хватом", sets, reps, "Узким хватом", profile = profile, exerciseLibrary = exerciseLibrary)
         )
 
         val shoulderExercises = listOf(
-            createExerciseWithAlternatives("30", "Армейский жим", sets, reps, "Базовое упражнение", profile = profile),
-            createExerciseWithAlternatives("31", "Жим гантелей сидя", sets, reps, "Гантели сидя", profile = profile),
-            createExerciseWithAlternatives("32", "Жим Арнольда", sets, reps, "С поворотом", profile = profile),
-            createExerciseWithAlternatives("33", "Жим на плечах в машине", sets, reps, "На тренажёре", profile = profile),
-            createExerciseWithAlternatives("34", "Разведение гантелей в стороны", sets, reps, "Для средних дельт", profile = profile),
-            createExerciseWithAlternatives("35", "Обратные разведения", sets, reps, "Для задних дельт", profile = profile),
-            createExerciseWithAlternatives("36", "Подъём штанги перед собой", sets, reps, "Для передних дельт", profile = profile),
-            createExerciseWithAlternatives("37", "Махи гантелями перед собой", sets, reps, "Махи перед собой", profile = profile)
+            createExerciseWithAlternatives("30", "Армейский жим", sets, reps, "Базовое упражнение", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("31", "Жим гантелей сидя", sets, reps, "Гантели сидя", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("32", "Жим Арнольда", sets, reps, "С поворотом", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("33", "Жим на плечах в машине", sets, reps, "На тренажёре", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("34", "Разведение гантелей в стороны", sets, reps, "Для средних дельт", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("35", "Обратные разведения", sets, reps, "Для задних дельт", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("36", "Подъём штанги перед собой", sets, reps, "Для передних дельт", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("37", "Махи гантелями перед собой", sets, reps, "Махи перед собой", profile = profile, exerciseLibrary = exerciseLibrary)
         )
 
         val armExercises = listOf(
-            createExerciseWithAlternatives("38", "Бицепс со штангой", sets, reps, "Базовое упражнение", profile = profile),
-            createExerciseWithAlternatives("39", "Молотки", sets, reps, "Нейтральный хват", profile = profile),
-            createExerciseWithAlternatives("40", "Концентрированные сгибания", sets, reps, "Одной рукой", profile = profile),
-            createExerciseWithAlternatives("41", "Сгибания рук с гантелями", sets, reps, "Поочерёдно", profile = profile),
-            createExerciseWithAlternatives("42", "Французский жим", sets, reps, "Для трицепсов", profile = profile),
-            createExerciseWithAlternatives("43", "Трицепс на блоке", sets, reps, "Разгибания на блоке", profile = profile),
-            createExerciseWithAlternatives("44", "Кикбэки", sets, reps, "Разгибание в наклоне", profile = profile),
-            createExerciseWithAlternatives("45", "Разгибания на блоке из-за головы", sets, reps, "Из-за головы", profile = profile)
+            createExerciseWithAlternatives("38", "Бицепс со штангой", sets, reps, "Базовое упражнение", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("39", "Молотки", sets, reps, "Нейтральный хват", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("40", "Концентрированные сгибания", sets, reps, "Одной рукой", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("41", "Сгибания рук с гантелями", sets, reps, "Поочерёдно", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("42", "Французский жим", sets, reps, "Для трицепсов", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("43", "Трицепс на блоке", sets, reps, "Разгибания на блоке", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("44", "Кикбэки", sets, reps, "Разгибание в наклоне", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("45", "Разгибания на блоке из-за головы", sets, reps, "Из-за головы", profile = profile, exerciseLibrary = exerciseLibrary)
         )
 
         val cardioExercises = listOf(
-            createExerciseWithAlternatives("46", "Бег", cardioSets, cardioReps, "Кардио", profile = profile),
-            createExerciseWithAlternatives("47", "Велотренажёр", cardioSets, cardioReps, "Кардио", profile = profile),
-            createExerciseWithAlternatives("48", "Эллипсоид", cardioSets, cardioReps, "Кардио", profile = profile),
-            createExerciseWithAlternatives("49", "Гребной тренажёр", cardioSets, cardioReps, "Кардио", profile = profile),
-            createExerciseWithAlternatives("50", "HIIT", cardioSets, cardioReps, "Интервальное кардио", profile = profile)
+            createExerciseWithAlternatives("46", "Бег", cardioSets, cardioReps, "Кардио", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("47", "Велотренажёр", cardioSets, cardioReps, "Кардио", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("48", "Эллипсоид", cardioSets, cardioReps, "Кардио", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("49", "Гребной тренажёр", cardioSets, cardioReps, "Кардио", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("50", "HIIT", cardioSets, cardioReps, "Интервальное кардио", profile = profile, exerciseLibrary = exerciseLibrary)
         )
 
         val dayNames = listOf("Ноги", "Грудь", "Спина", "Плечи", "Руки")
@@ -472,17 +482,19 @@ class WorkoutRepositoryImpl @Inject constructor(
         return exercises
     }
 
-    private fun createWeightLossBeginnerPlan(profile: com.example.fitness_plan.domain.model.UserProfile, frequency: String): WorkoutPlan {
+    private suspend fun createWeightLossBeginnerPlan(profile: com.example.fitness_plan.domain.model.UserProfile, frequency: String): WorkoutPlan {
+        val exerciseLibrary = exerciseLibraryRepository.getAllExercisesAsList()
+
         val baseExercises = listOf(
-            createExerciseWithAlternatives("1", "Приседания", 3, "12-15", "Ноги на ширине плеч, спина прямая", 15.0f, "12,13,14"),
-            createExerciseWithAlternatives("2", "Жим лёжа", 3, "12-15", "Гриф на уровне груди, локти под 45°", 20.0f, "12,13,14"),
-            createExerciseWithAlternatives("3", "Тяга штанги в наклоне", 3, "10-12", "Тяни к поясу", 25.0f, "10,11,12"),
-            createExerciseWithAlternatives("4", "Армейский жим", 3, "12-15", "Жим вверх над головой", 12.0f, "12,13,14"),
-            createExerciseWithAlternatives("5", "Отжимания", 3, "10-15", "Грудь к полу, корпус прямое", null, "10,12,14"),
-            createExerciseWithAlternatives("6", "Планка", 3, "30-45 сек", "На предплечьях, тело прямое", null, null),
-            createExerciseWithAlternatives("7", "Скручивания", 3, "15-20", "Лёжа, поднимай плечи", null, null),
-            createExerciseWithAlternatives("8", "Бег", 1, "15 мин", "Умеренный темп", null, null),
-            createExerciseWithAlternatives("9", "Велотренажёр", 1, "15 мин", "Умеренный темп", null, null)
+            createExerciseWithAlternatives("1", "Приседания", 3, "12-15", "Ноги на ширине плеч, спина прямая", 15.0f, "12,13,14", profile, exerciseLibrary),
+            createExerciseWithAlternatives("2", "Жим лёжа", 3, "12-15", "Гриф на уровне груди, локти под 45°", 20.0f, "12,13,14", profile, exerciseLibrary),
+            createExerciseWithAlternatives("3", "Тяга штанги в наклоне", 3, "10-12", "Тяни к поясу", 25.0f, "10,11,12", profile, exerciseLibrary),
+            createExerciseWithAlternatives("4", "Армейский жим", 3, "12-15", "Жим вверх над головой", 12.0f, "12,13,14", profile, exerciseLibrary),
+            createExerciseWithAlternatives("5", "Отжимания", 3, "10-15", "Грудь к полу, корпус прямое", null, "10,12,14", profile, exerciseLibrary),
+            createExerciseWithAlternatives("6", "Планка", 3, "30-45 сек", "На предплечьях, тело прямое", null, null, profile, exerciseLibrary),
+            createExerciseWithAlternatives("7", "Скручивания", 3, "15-20", "Лёжа, поднимай плечи", null, null, profile, exerciseLibrary),
+            createExerciseWithAlternatives("8", "Бег", 1, "15 мин", "Умеренный темп", null, null, profile, exerciseLibrary),
+            createExerciseWithAlternatives("9", "Велотренажёр", 1, "15 мин", "Умеренный темп", null, null, profile, exerciseLibrary)
         )
 
         val daysCount = 10
@@ -528,23 +540,25 @@ class WorkoutRepositoryImpl @Inject constructor(
         )
     }
 
-    private fun createWeightLossIntermediatePlan(profile: com.example.fitness_plan.domain.model.UserProfile, frequency: String): WorkoutPlan {
+    private suspend fun createWeightLossIntermediatePlan(profile: com.example.fitness_plan.domain.model.UserProfile, frequency: String): WorkoutPlan {
+        val exerciseLibrary = exerciseLibraryRepository.getAllExercisesAsList()
+
         val baseExercises = listOf(
-            createExerciseWithAlternatives("1", "Приседания", 4, "10-12", profile = profile),
-            createExerciseWithAlternatives("2", "Жим лёжа", 4, "10-12", profile = profile),
-            createExerciseWithAlternatives("3", "Становая тяга", 4, "6-8", profile = profile),
-            createExerciseWithAlternatives("4", "Тяга штанги в наклоне", 4, "10-12", profile = profile),
-            createExerciseWithAlternatives("5", "Армейский жим", 4, "10-12", profile = profile),
-            createExerciseWithAlternatives("6", "Жим гантелей сидя", 4, "10-12", profile = profile),
-            createExerciseWithAlternatives("7", "Подтягивания", 4, "макс", profile = profile),
-            createExerciseWithAlternatives("8", "Отжимания", 4, "12-15", profile = profile),
-            createExerciseWithAlternatives("9", "Выпады", 4, "10-12", profile = profile),
-            createExerciseWithAlternatives("10", "Тяга верхнего блока", 4, "10-12", profile = profile),
-            createExerciseWithAlternatives("11", "Бицепс со штангой", 3, "10-12", profile = profile),
-            createExerciseWithAlternatives("12", "Трицепс на блоке", 3, "10-12", profile = profile),
-            createExerciseWithAlternatives("13", "Скручивания", 3, "15-20", profile = profile),
-            createExerciseWithAlternatives("14", "Планка", 3, "45-60 сек", profile = profile),
-            createExerciseWithAlternatives("15", "Бег", 1, "20 мин", profile = profile)
+            createExerciseWithAlternatives("1", "Приседания", 4, "10-12", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("2", "Жим лёжа", 4, "10-12", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("3", "Становая тяга", 4, "6-8", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("4", "Тяга штанги в наклоне", 4, "10-12", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("5", "Армейский жим", 4, "10-12", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("6", "Жим гантелей сидя", 4, "10-12", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("7", "Подтягивания", 4, "макс", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("8", "Отжимания", 4, "12-15", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("9", "Выпады", 4, "10-12", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("10", "Тяга верхнего блока", 4, "10-12", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("11", "Бицепс со штангой", 3, "10-12", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("12", "Трицепс на блоке", 3, "10-12", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("13", "Скручивания", 3, "15-20", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("14", "Планка", 3, "45-60 сек", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("15", "Бег", 1, "20 мин", profile = profile, exerciseLibrary = exerciseLibrary)
         )
 
         val daysCount = 10
@@ -590,20 +604,22 @@ class WorkoutRepositoryImpl @Inject constructor(
         )
     }
 
-    private fun createMuscleGainBeginnerPlan(profile: com.example.fitness_plan.domain.model.UserProfile, frequency: String): WorkoutPlan {
+    private suspend fun createMuscleGainBeginnerPlan(profile: com.example.fitness_plan.domain.model.UserProfile, frequency: String): WorkoutPlan {
+        val exerciseLibrary = exerciseLibraryRepository.getAllExercisesAsList()
+
         val baseExercises = listOf(
-            createExerciseWithAlternatives("1", "Приседания", 4, "8-10", profile = profile),
-            createExerciseWithAlternatives("2", "Жим лёжа", 4, "8-10", profile = profile),
-            createExerciseWithAlternatives("3", "Становая тяга", 4, "6-8", profile = profile),
-            createExerciseWithAlternatives("4", "Тяга штанги в наклоне", 4, "8-10", profile = profile),
-            createExerciseWithAlternatives("5", "Армейский жим", 4, "8-10", profile = profile),
-            createExerciseWithAlternatives("6", "Жим гантелей сидя", 4, "10-12", profile = profile),
-            createExerciseWithAlternatives("7", "Подтягивания", 4, "макс", profile = profile),
-            createExerciseWithAlternatives("8", "Отжимания", 4, "10-15", profile = profile),
-            createExerciseWithAlternatives("9", "Выпады", 4, "10-12", profile = profile),
-            createExerciseWithAlternatives("10", "Тяга верхнего блока", 4, "10-12", profile = profile),
-            createExerciseWithAlternatives("11", "Бицепс со штангой", 3, "10-12", profile = profile),
-            createExerciseWithAlternatives("12", "Скручивания", 3, "12-15", profile = profile)
+            createExerciseWithAlternatives("1", "Приседания", 4, "8-10", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("2", "Жим лёжа", 4, "8-10", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("3", "Становая тяга", 4, "6-8", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("4", "Тяга штанги в наклоне", 4, "8-10", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("5", "Армейский жим", 4, "8-10", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("6", "Жим гантелей сидя", 4, "10-12", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("7", "Подтягивания", 4, "макс", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("8", "Отжимания", 4, "10-15", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("9", "Выпады", 4, "10-12", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("10", "Тяга верхнего блока", 4, "10-12", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("11", "Бицепс со штангой", 3, "10-12", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("12", "Скручивания", 3, "12-15", profile = profile, exerciseLibrary = exerciseLibrary)
         )
 
         val daysCount = 10
@@ -649,23 +665,25 @@ class WorkoutRepositoryImpl @Inject constructor(
         )
     }
 
-    private fun createMuscleGainIntermediatePlan(profile: com.example.fitness_plan.domain.model.UserProfile, frequency: String): WorkoutPlan {
+    private suspend fun createMuscleGainIntermediatePlan(profile: com.example.fitness_plan.domain.model.UserProfile, frequency: String): WorkoutPlan {
+        val exerciseLibrary = exerciseLibraryRepository.getAllExercisesAsList()
+
         val baseExercises = listOf(
-            createExerciseWithAlternatives("1", "Приседания", 5, "6-8", profile = profile),
-            createExerciseWithAlternatives("2", "Жим лёжа", 5, "6-8", profile = profile),
-            createExerciseWithAlternatives("3", "Становая тяга", 5, "5-6", profile = profile),
-            createExerciseWithAlternatives("4", "Тяга штанги в наклоне", 5, "6-8", profile = profile),
-            createExerciseWithAlternatives("5", "Армейский жим", 5, "6-8", profile = profile),
-            createExerciseWithAlternatives("6", "Жим гантелей сидя", 5, "8-10", profile = profile),
-            createExerciseWithAlternatives("7", "Подтягивания", 5, "макс", profile = profile),
-            createExerciseWithAlternatives("8", "Отжимания", 5, "12-15", profile = profile),
-            createExerciseWithAlternatives("9", "Выпады", 4, "10-12", profile = profile),
-            createExerciseWithAlternatives("10", "Тяга верхнего блока", 5, "8-10", profile = profile),
-            createExerciseWithAlternatives("11", "Жим на наклонной скамье", 5, "8-10", profile = profile),
-            createExerciseWithAlternatives("12", "Бицепс со штангой", 4, "8-10", profile = profile),
-            createExerciseWithAlternatives("13", "Трицепс на блоке", 4, "8-10", profile = profile),
-            createExerciseWithAlternatives("14", "Скручивания", 4, "10-15", profile = profile),
-            createExerciseWithAlternatives("15", "Планка", 4, "45-60 сек", profile = profile)
+            createExerciseWithAlternatives("1", "Приседания", 5, "6-8", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("2", "Жим лёжа", 5, "6-8", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("3", "Становая тяга", 5, "5-6", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("4", "Тяга штанги в наклоне", 5, "6-8", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("5", "Армейский жим", 5, "6-8", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("6", "Жим гантелей сидя", 5, "8-10", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("7", "Подтягивания", 5, "макс", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("8", "Отжимания", 5, "12-15", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("9", "Выпады", 4, "10-12", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("10", "Тяга верхнего блока", 5, "8-10", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("11", "Жим на наклонной скамье", 5, "8-10", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("12", "Бицепс со штангой", 4, "8-10", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("13", "Трицепс на блоке", 4, "8-10", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("14", "Скручивания", 4, "10-15", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("15", "Планка", 4, "45-60 сек", profile = profile, exerciseLibrary = exerciseLibrary)
         )
 
         val daysCount = 10
@@ -711,23 +729,25 @@ class WorkoutRepositoryImpl @Inject constructor(
         )
     }
 
-    private fun createMuscleGainAdvancedPlan(profile: com.example.fitness_plan.domain.model.UserProfile, frequency: String): WorkoutPlan {
+    private suspend fun createMuscleGainAdvancedPlan(profile: com.example.fitness_plan.domain.model.UserProfile, frequency: String): WorkoutPlan {
+        val exerciseLibrary = exerciseLibraryRepository.getAllExercisesAsList()
+
         val baseExercises = listOf(
-            createExerciseWithAlternatives("1", "Приседания", 6, "4-6", profile = profile),
-            createExerciseWithAlternatives("2", "Жим лёжа", 6, "4-6", profile = profile),
-            createExerciseWithAlternatives("3", "Становая тяга", 6, "3-5", profile = profile),
-            createExerciseWithAlternatives("4", "Тяга штанги в наклоне", 6, "4-6", profile = profile),
-            createExerciseWithAlternatives("5", "Армейский жим", 6, "4-6", profile = profile),
-            createExerciseWithAlternatives("6", "Жим гантелей сидя", 6, "6-8", profile = profile),
-            createExerciseWithAlternatives("7", "Подтягивания", 6, "макс", profile = profile),
-            createExerciseWithAlternatives("8", "Отжимания", 6, "12-15", profile = profile),
-            createExerciseWithAlternatives("9", "Выпады", 5, "8-10", profile = profile),
-            createExerciseWithAlternatives("10", "Тяга верхнего блока", 6, "8-10", profile = profile),
-            createExerciseWithAlternatives("11", "Жим на наклонной скамье", 6, "6-8", profile = profile),
-            createExerciseWithAlternatives("12", "Бицепс со штангой", 4, "8-10", profile = profile),
-            createExerciseWithAlternatives("13", "Трицепс на блоке", 4, "8-10", profile = profile),
-            createExerciseWithAlternatives("14", "Скручивания", 4, "10-15", profile = profile),
-            createExerciseWithAlternatives("15", "Планка", 4, "60 сек", profile = profile)
+            createExerciseWithAlternatives("1", "Приседания", 6, "4-6", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("2", "Жим лёжа", 6, "4-6", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("3", "Становая тяга", 6, "3-5", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("4", "Тяга штанги в наклоне", 6, "4-6", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("5", "Армейский жим", 6, "4-6", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("6", "Жим гантелей сидя", 6, "6-8", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("7", "Подтягивания", 6, "макс", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("8", "Отжимания", 6, "12-15", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("9", "Выпады", 5, "8-10", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("10", "Тяга верхнего блока", 6, "8-10", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("11", "Жим на наклонной скамье", 6, "6-8", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("12", "Бицепс со штангой", 4, "8-10", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("13", "Трицепс на блоке", 4, "8-10", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("14", "Скручивания", 4, "10-15", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("15", "Планка", 4, "60 сек", profile = profile, exerciseLibrary = exerciseLibrary)
         )
 
         val daysCount = 10
@@ -773,21 +793,23 @@ class WorkoutRepositoryImpl @Inject constructor(
         )
     }
 
-    private fun createMaintenancePlan(profile: com.example.fitness_plan.domain.model.UserProfile, frequency: String): WorkoutPlan {
+    private suspend fun createMaintenancePlan(profile: com.example.fitness_plan.domain.model.UserProfile, frequency: String): WorkoutPlan {
+        val exerciseLibrary = exerciseLibraryRepository.getAllExercisesAsList()
+
         val baseExercises = listOf(
-            createExerciseWithAlternatives("1", "Приседания", 4, "10-12", profile = profile),
-            createExerciseWithAlternatives("2", "Жим лёжа", 4, "10-12", profile = profile),
-            createExerciseWithAlternatives("3", "Становая тяга", 4, "8-10", profile = profile),
-            createExerciseWithAlternatives("4", "Тяга штанги в наклоне", 4, "10-12", profile = profile),
-            createExerciseWithAlternatives("5", "Армейский жим", 4, "10-12", profile = profile),
-            createExerciseWithAlternatives("6", "Жим гантелей сидя", 4, "10-12", profile = profile),
-            createExerciseWithAlternatives("7", "Подтягивания", 4, "макс", profile = profile),
-            createExerciseWithAlternatives("8", "Отжимания", 4, "15-20", profile = profile),
-            createExerciseWithAlternatives("9", "Выпады", 4, "12-15", profile = profile),
-            createExerciseWithAlternatives("10", "Тяга верхнего блока", 4, "10-12", profile = profile),
-            createExerciseWithAlternatives("11", "Бицепс со штангой", 3, "10-12", profile = profile),
-            createExerciseWithAlternatives("12", "Скручивания", 3, "15-20", profile = profile),
-            createExerciseWithAlternatives("13", "Планка", 3, "45-60 сек", profile = profile)
+            createExerciseWithAlternatives("1", "Приседания", 4, "10-12", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("2", "Жим лёжа", 4, "10-12", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("3", "Становая тяга", 4, "8-10", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("4", "Тяга штанги в наклоне", 4, "10-12", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("5", "Армейский жим", 4, "10-12", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("6", "Жим гантелей сидя", 4, "10-12", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("7", "Подтягивания", 4, "макс", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("8", "Отжимания", 4, "15-20", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("9", "Выпады", 4, "12-15", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("10", "Тяга верхнего блока", 4, "10-12", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("11", "Бицепс со штангой", 3, "10-12", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("12", "Скручивания", 3, "15-20", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("13", "Планка", 3, "45-60 сек", profile = profile, exerciseLibrary = exerciseLibrary)
         )
 
         val daysCount = 10
