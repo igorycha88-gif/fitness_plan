@@ -5,8 +5,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
@@ -263,20 +261,14 @@ fun FilterSection(
                             .fillMaxWidth(0.9f)
                             .heightIn(max = 300.dp)
                     ) {
-                        Column(
-                            modifier = Modifier
-                                .verticalScroll(rememberScrollState())
-                                .heightIn(max = 300.dp)
-                        ) {
-                            EquipmentType.values().forEach { equipment ->
-                                DropdownMenuItem(
-                                    text = { Text(equipment.displayName) },
-                                    onClick = { onEquipmentSelect(equipment); onEquipmentToggle(false) },
-                                    leadingIcon = if (selectedEquipment.contains(equipment)) {
-                                        { Icon(Icons.Filled.Check, contentDescription = null) }
-                                    } else null
-                                )
-                            }
+                        EquipmentType.values().forEach { equipment ->
+                            DropdownMenuItem(
+                                text = { Text(equipment.displayName) },
+                                onClick = { onEquipmentSelect(equipment); onEquipmentToggle(false) },
+                                leadingIcon = if (selectedEquipment.contains(equipment)) {
+                                    { Icon(Icons.Filled.Check, contentDescription = null) }
+                                } else null
+                            )
                         }
                     }
                 }
@@ -304,20 +296,14 @@ fun FilterSection(
                             .fillMaxWidth(0.9f)
                             .heightIn(max = 300.dp)
                     ) {
-                        Column(
-                            modifier = Modifier
-                                .verticalScroll(rememberScrollState())
-                                .heightIn(max = 300.dp)
-                        ) {
-                            MuscleGroup.values().forEach { muscle ->
-                                DropdownMenuItem(
-                                    text = { Text(muscle.displayName) },
-                                    onClick = { onMuscleToggle(muscle); onMusclesToggle(false) },
-                                    leadingIcon = if (selectedMuscles.contains(muscle)) {
-                                        { Icon(Icons.Filled.Check, contentDescription = null) }
-                                    } else null
-                                )
-                            }
+                        MuscleGroup.values().forEach { muscle ->
+                            DropdownMenuItem(
+                                text = { Text(muscle.displayName) },
+                                onClick = { onMuscleToggle(muscle); onMusclesToggle(false) },
+                                leadingIcon = if (selectedMuscles.contains(muscle)) {
+                                    { Icon(Icons.Filled.Check, contentDescription = null) }
+                                } else null
+                            )
                         }
                     }
                 }
