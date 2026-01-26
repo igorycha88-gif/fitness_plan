@@ -34,6 +34,16 @@ class WorkoutRepositoryFavoriteExercisesTest {
             muscleGroups = listOf(MuscleGroup.CHEST, MuscleGroup.TRICEPS),
             difficulty = "Начальный",
             stepByStepInstructions = "Жми"
+        ),
+        ExerciseLibrary(
+            id = "incline_bench_press",
+            name = "Жим на наклонной скамье",
+            description = "Упражнение для верхней части груди",
+            exerciseType = com.example.fitness_plan.domain.model.ExerciseType.STRENGTH,
+            equipment = listOf(EquipmentType.SPECIAL_BENCH),
+            muscleGroups = listOf(MuscleGroup.CHEST, MuscleGroup.TRICEPS),
+            difficulty = "Средний",
+            stepByStepInstructions = "Жми на наклонной скамье"
         )
     )
 
@@ -71,13 +81,13 @@ class WorkoutRepositoryFavoriteExercisesTest {
     fun `when user has favorite exercises, first 50% exercises are replaced`() = runTest {
         val profile = UserProfile(
             username = "test_user",
-            goal = "Похудение",
+            goal = "Наращивание мышечной массы",
             level = "Новичок",
             frequency = "1 раз в неделю",
             weight = 80.0,
             height = 180.0,
             gender = "Мужской",
-            favoriteExercises = setOf("Жим лёжа")
+            favoriteExercises = setOf("Жим на наклонной скамье")
         )
 
         val plan = workoutRepositoryImpl.getWorkoutPlanForUser(profile)
@@ -93,13 +103,13 @@ class WorkoutRepositoryFavoriteExercisesTest {
     fun `favorite exercise with matching muscle groups replaces original exercise`() = runTest {
         val profile = UserProfile(
             username = "test_user",
-            goal = "Похудение",
+            goal = "Наращивание мышечной массы",
             level = "Новичок",
             frequency = "1 раз в неделю",
             weight = 80.0,
             height = 180.0,
             gender = "Мужской",
-            favoriteExercises = setOf("Жим лёжа")
+            favoriteExercises = setOf("Жим на наклонной скамье")
         )
 
         val plan = workoutRepositoryImpl.getWorkoutPlanForUser(profile)
@@ -109,14 +119,14 @@ class WorkoutRepositoryFavoriteExercisesTest {
         assertThat(substitutedExercises).isNotEmpty()
 
         val substitutedExercise = substitutedExercises.first()
-        assertThat(substitutedExercise.name).isEqualTo("Жим лёжа")
+        assertThat(substitutedExercise.name).isEqualTo("Жим на наклонной скамье")
     }
 
     @Test
     fun `when no favorite exercises match, original exercises are kept`() = runTest {
         val profile = UserProfile(
             username = "test_user",
-            goal = "Похудение",
+            goal = "Наращивание мышечной массы",
             level = "Новичок",
             frequency = "1 раз в неделю",
             weight = 80.0,
@@ -136,7 +146,7 @@ class WorkoutRepositoryFavoriteExercisesTest {
     fun `only first 50% of exercises are considered for substitution`() = runTest {
         val profile = UserProfile(
             username = "test_user",
-            goal = "Похудение",
+            goal = "Наращивание мышечной массы",
             level = "Новичок",
             frequency = "1 раз в неделю",
             weight = 80.0,

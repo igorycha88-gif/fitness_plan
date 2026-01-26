@@ -49,7 +49,7 @@ class WorkoutPlanExerciseDistributionTest {
     }
 
     @Test
-    fun `Weight Loss Beginner 3x per week should have minimum 5 exercises per day`() = runTest {
+    fun `Weight Loss Beginner should have split days with cardio`() = runTest {
         val profile = UserProfile(
             username = "testuser",
             goal = "Похудение",
@@ -63,36 +63,28 @@ class WorkoutPlanExerciseDistributionTest {
         val result = workoutRepositoryImpl.getWorkoutPlanForUser(profile)
 
         assertThat(result.days).hasSize(10)
-        result.days.forEachIndexed { index, day ->
-            assertThat(day.exercises.size).isAtLeast(5)
-            assertThat(day.exercises.size).isAtMost(8)
-            assertThat(day.dayName).contains("Full Body")
-        }
-    }
+        assertThat(result.name).contains("Похудение: Новичок")
 
-    @Test
-    fun `Weight Loss Beginner 1x per week should have minimum 5 exercises per day`() = runTest {
-        val profile = UserProfile(
-            username = "testuser",
-            goal = "Похудение",
-            level = "Новичок",
-            frequency = "1 раз в неделю",
-            weight = 70.0,
-            height = 175.0,
-            gender = "Мужской"
-        )
-
-        val result = workoutRepositoryImpl.getWorkoutPlanForUser(profile)
-
-        assertThat(result.days).hasSize(10)
         result.days.forEach { day ->
-            assertThat(day.exercises.size).isAtLeast(5)
-            assertThat(day.exercises.size).isAtMost(8)
+            assertThat(day.exercises.size).isAtLeast(6)
+            assertThat(day.dayName).isNotEmpty()
         }
+
+        val legsDays = result.days.filter { it.dayName.contains("Ноги") }
+        val chestDays = result.days.filter { it.dayName.contains("Грудь") }
+        val backDays = result.days.filter { it.dayName.contains("Спина") }
+        val shouldersDays = result.days.filter { it.dayName.contains("Плечи") }
+        val armsDays = result.days.filter { it.dayName.contains("Руки") }
+
+        assertThat(legsDays.size).isEqualTo(2)
+        assertThat(chestDays.size).isEqualTo(2)
+        assertThat(backDays.size).isEqualTo(2)
+        assertThat(shouldersDays.size).isEqualTo(2)
+        assertThat(armsDays.size).isEqualTo(2)
     }
 
     @Test
-    fun `Weight Loss Intermediate 3x per week should have minimum 5 exercises per day`() = runTest {
+    fun `Weight Loss Intermediate should have split days with cardio`() = runTest {
         val profile = UserProfile(
             username = "testuser",
             goal = "Похудение",
@@ -106,10 +98,107 @@ class WorkoutPlanExerciseDistributionTest {
         val result = workoutRepositoryImpl.getWorkoutPlanForUser(profile)
 
         assertThat(result.days).hasSize(10)
+        assertThat(result.name).contains("Похудение: Любитель")
+
         result.days.forEach { day ->
-            assertThat(day.exercises.size).isAtLeast(5)
-            assertThat(day.exercises.size).isAtMost(8)
-            assertThat(day.dayName).contains("Full Body")
+            assertThat(day.exercises.size).isAtLeast(6)
+        }
+
+        val legsDays = result.days.filter { it.dayName.contains("Ноги") }
+        val chestDays = result.days.filter { it.dayName.contains("Грудь") }
+        val backDays = result.days.filter { it.dayName.contains("Спина") }
+        val shouldersDays = result.days.filter { it.dayName.contains("Плечи") }
+        val armsDays = result.days.filter { it.dayName.contains("Руки") }
+
+        assertThat(legsDays.size).isEqualTo(2)
+        assertThat(chestDays.size).isEqualTo(2)
+        assertThat(backDays.size).isEqualTo(2)
+        assertThat(shouldersDays.size).isEqualTo(2)
+        assertThat(armsDays.size).isEqualTo(2)
+    }
+
+    @Test
+    fun `Weight Loss Advanced should have split days with cardio`() = runTest {
+        val profile = UserProfile(
+            username = "testuser",
+            goal = "Похудение",
+            level = "Профессионал",
+            frequency = "3 раза в неделю",
+            weight = 70.0,
+            height = 175.0,
+            gender = "Мужской"
+        )
+
+        val result = workoutRepositoryImpl.getWorkoutPlanForUser(profile)
+
+        assertThat(result.days).hasSize(10)
+        assertThat(result.name).contains("Похудение: Профессионал")
+
+        result.days.forEach { day ->
+            assertThat(day.exercises.size).isAtLeast(6)
+        }
+
+        val legsDays = result.days.filter { it.dayName.contains("Ноги") }
+        val chestDays = result.days.filter { it.dayName.contains("Грудь") }
+        val backDays = result.days.filter { it.dayName.contains("Спина") }
+        val shouldersDays = result.days.filter { it.dayName.contains("Плечи") }
+        val armsDays = result.days.filter { it.dayName.contains("Руки") }
+
+        assertThat(legsDays.size).isEqualTo(2)
+        assertThat(chestDays.size).isEqualTo(2)
+        assertThat(backDays.size).isEqualTo(2)
+        assertThat(shouldersDays.size).isEqualTo(2)
+        assertThat(armsDays.size).isEqualTo(2)
+    }
+
+    @Test
+    fun `Weight Loss plan should have unique exercises across 10 days`() = runTest {
+        val profile = UserProfile(
+            username = "testuser",
+            goal = "Похудение",
+            level = "Новичок",
+            frequency = "3 раза в неделю",
+            weight = 70.0,
+            height = 175.0,
+            gender = "Мужской"
+        )
+
+        val result = workoutRepositoryImpl.getWorkoutPlanForUser(profile)
+
+        val allExerciseNames = result.days.flatMap { day ->
+            day.exercises.map { it.name }
+        }.filter { !it.contains("Бег") && !it.contains("Велотренажёр") && !it.contains("Эллипсоид") && !it.contains("Гребной") && !it.contains("HIIT") }
+
+        val exerciseCountMap = allExerciseNames.groupingBy { it }.eachCount()
+
+        exerciseCountMap.forEach { (exerciseName, count) ->
+            assertThat(count).isAtMost(2)
+        }
+    }
+
+    @Test
+    fun `Weight Loss plan should have cardio exercises in each day`() = runTest {
+        val profile = UserProfile(
+            username = "testuser",
+            goal = "Похудение",
+            level = "Новичок",
+            frequency = "3 раза в неделю",
+            weight = 70.0,
+            height = 175.0,
+            gender = "Мужской"
+        )
+
+        val result = workoutRepositoryImpl.getWorkoutPlanForUser(profile)
+
+        result.days.forEach { day ->
+            val cardioExercises = day.exercises.filter { 
+                it.name.contains("Бег") || 
+                it.name.contains("Велотренажёр") || 
+                it.name.contains("Эллипсоид") || 
+                it.name.contains("Гребной") || 
+                it.name.contains("HIIT") 
+            }
+            assertThat(cardioExercises.size).isEqualTo(2)
         }
     }
 
@@ -198,51 +287,6 @@ class WorkoutPlanExerciseDistributionTest {
             assertThat(day.exercises.size).isAtLeast(5)
             assertThat(day.exercises.size).isAtMost(8)
             assertThat(day.dayName).contains("Full Body")
-        }
-    }
-
-    @Test
-    fun `Weight Loss Beginner 5x per week should distribute exercises across 5 days`() = runTest {
-        val profile = UserProfile(
-            username = "testuser",
-            goal = "Похудение",
-            level = "Новичок",
-            frequency = "5 раз в неделю",
-            weight = 70.0,
-            height = 175.0,
-            gender = "Мужской"
-        )
-
-        val result = workoutRepositoryImpl.getWorkoutPlanForUser(profile)
-
-        assertThat(result.days).hasSize(10)
-
-        val legsDays = result.days.filter { it.dayName.contains("Ноги") }
-        val chestDays = result.days.filter { it.dayName.contains("Грудь") }
-        val backDays = result.days.filter { it.dayName.contains("Спина") }
-        val shouldersDays = result.days.filter { it.dayName.contains("Плечи") }
-        val armsDays = result.days.filter { it.dayName.contains("Руки") }
-
-        assertThat(legsDays.size).isEqualTo(2)
-        assertThat(chestDays.size).isEqualTo(2)
-        assertThat(backDays.size).isEqualTo(2)
-        assertThat(shouldersDays.size).isEqualTo(2)
-        assertThat(armsDays.size).isEqualTo(2)
-
-        legsDays.forEach { day ->
-            assertThat(day.exercises.size).isAtLeast(1)
-        }
-        chestDays.forEach { day ->
-            assertThat(day.exercises.size).isAtLeast(1)
-        }
-        backDays.forEach { day ->
-            assertThat(day.exercises.size).isAtLeast(1)
-        }
-        shouldersDays.forEach { day ->
-            assertThat(day.exercises.size).isAtLeast(1)
-        }
-        armsDays.forEach { day ->
-            assertThat(day.exercises.size).isAtLeast(1)
         }
     }
 }

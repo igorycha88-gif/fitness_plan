@@ -220,7 +220,7 @@ class WorkoutFrequencyAdapterTest {
     }
 
     @Test
-    fun `createWeightLossBeginnerPlan with 1 per week should create 10 days with 5-8 exercises`() = runTest {
+    fun `createWeightLossBeginnerPlan with 1 per week should create 10 days with split and cardio`() = runTest {
         val profile = UserProfile(
             username = "testuser",
             goal = "Похудение",
@@ -235,14 +235,25 @@ class WorkoutFrequencyAdapterTest {
 
         assertThat(result.days).hasSize(10)
         result.days.forEach { day ->
-            assertThat(day.exercises.size).isAtLeast(5)
-            assertThat(day.exercises.size).isAtMost(8)
-            assertThat(day.dayName).contains("Full Body")
+            assertThat(day.exercises.size).isAtLeast(6)
+            assertThat(containsAnyOf(day.dayName, listOf("Ноги", "Грудь", "Спина", "Плечи", "Руки"))).isTrue()
         }
+
+        val legsDays = result.days.filter { it.dayName.contains("Ноги") }
+        val chestDays = result.days.filter { it.dayName.contains("Грудь") }
+        val backDays = result.days.filter { it.dayName.contains("Спина") }
+        val shouldersDays = result.days.filter { it.dayName.contains("Плечи") }
+        val armsDays = result.days.filter { it.dayName.contains("Руки") }
+
+        assertThat(legsDays.size).isEqualTo(2)
+        assertThat(chestDays.size).isEqualTo(2)
+        assertThat(backDays.size).isEqualTo(2)
+        assertThat(shouldersDays.size).isEqualTo(2)
+        assertThat(armsDays.size).isEqualTo(2)
     }
 
     @Test
-    fun `createWeightLossBeginnerPlan with 3 per week should create 10 days with full body`() = runTest {
+    fun `createWeightLossBeginnerPlan with 3 per week should create 10 days with split and cardio`() = runTest {
         val profile = UserProfile(
             username = "testuser",
             goal = "Похудение",
@@ -257,14 +268,25 @@ class WorkoutFrequencyAdapterTest {
 
         assertThat(result.days).hasSize(10)
         result.days.forEach { day ->
-            assertThat(day.exercises.size).isAtLeast(5)
-            assertThat(day.exercises.size).isAtMost(8)
-            assertThat(day.dayName).contains("Full Body")
+            assertThat(day.exercises.size).isAtLeast(6)
+            assertThat(containsAnyOf(day.dayName, listOf("Ноги", "Грудь", "Спина", "Плечи", "Руки"))).isTrue()
         }
+
+        val legsDays = result.days.filter { it.dayName.contains("Ноги") }
+        val chestDays = result.days.filter { it.dayName.contains("Грудь") }
+        val backDays = result.days.filter { it.dayName.contains("Спина") }
+        val shouldersDays = result.days.filter { it.dayName.contains("Плечи") }
+        val armsDays = result.days.filter { it.dayName.contains("Руки") }
+
+        assertThat(legsDays.size).isEqualTo(2)
+        assertThat(chestDays.size).isEqualTo(2)
+        assertThat(backDays.size).isEqualTo(2)
+        assertThat(shouldersDays.size).isEqualTo(2)
+        assertThat(armsDays.size).isEqualTo(2)
     }
 
     @Test
-    fun `createWeightLossBeginnerPlan with 5 per week should create 10 days with split`() = runTest {
+    fun `createWeightLossBeginnerPlan with 5 per week should create 10 days with split and cardio`() = runTest {
         val profile = UserProfile(
             username = "testuser",
             goal = "Похудение",
@@ -279,7 +301,7 @@ class WorkoutFrequencyAdapterTest {
 
         assertThat(result.days).hasSize(10)
         result.days.forEach { day ->
-            assertThat(day.exercises.size).isAtLeast(1)
+            assertThat(day.exercises.size).isAtLeast(6)
             assertThat(containsAnyOf(day.dayName, listOf("Ноги", "Грудь", "Спина", "Плечи", "Руки"))).isTrue()
         }
 
@@ -289,11 +311,11 @@ class WorkoutFrequencyAdapterTest {
         val shouldersDays = result.days.filter { it.dayName.contains("Плечи") }
         val armsDays = result.days.filter { it.dayName.contains("Руки") }
 
-        assertThat(legsDays.size).isGreaterThan(0)
-        assertThat(chestDays.size).isGreaterThan(0)
-        assertThat(backDays.size).isGreaterThan(0)
-        assertThat(shouldersDays.size).isGreaterThan(0)
-        assertThat(armsDays.size).isGreaterThan(0)
+        assertThat(legsDays.size).isEqualTo(2)
+        assertThat(chestDays.size).isEqualTo(2)
+        assertThat(backDays.size).isEqualTo(2)
+        assertThat(shouldersDays.size).isEqualTo(2)
+        assertThat(armsDays.size).isEqualTo(2)
     }
 
     @Test

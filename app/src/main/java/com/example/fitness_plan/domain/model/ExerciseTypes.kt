@@ -52,5 +52,7 @@ enum class MuscleGroup(
     GLUTES("Ягодицы", "muscle_glutes"),
     QUADS("Квадрицепсы", "muscle_quads"),
     HAMSTRINGS("Бёдра сзади", "muscle_hamstrings"),
-    CALVES("Икры", "muscle_calves")
+    CALVES("Икры", "muscle_calves"),
+    LOWER_BACK("Поясница", "muscle_lower_back"),
+    BRACHIALIS("Плечелучевая", "muscle_brachialis")
 }

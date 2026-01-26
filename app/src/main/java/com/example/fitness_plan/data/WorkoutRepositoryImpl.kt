@@ -100,13 +100,9 @@ class WorkoutRepositoryImpl @Inject constructor(
     override suspend fun getWorkoutPlanForUser(profile: com.example.fitness_plan.domain.model.UserProfile): WorkoutPlan {
         Log.d(TAG, "getWorkoutPlanForUser: goal=${profile.goal}, level=${profile.level}, frequency=${profile.frequency}, favorites=${profile.favoriteExercises.size}")
         val plan = when {
-            profile.goal == "Похудение" && profile.level == "Новичок" -> {
-                Log.d(TAG, "Creating weight loss beginner plan")
-                createWeightLossBeginnerPlan(profile, profile.frequency)
-            }
-            profile.goal == "Похудение" && profile.level == "Любитель" -> {
-                Log.d(TAG, "Creating weight loss intermediate plan")
-                createWeightLossIntermediatePlan(profile, profile.frequency)
+            profile.goal == "Похудение" -> {
+                Log.d(TAG, "Creating weight loss ${profile.level} plan with split")
+                createWeightLossPlanBySplit(profile, profile.level)
             }
             profile.goal == "Наращивание мышечной массы" && profile.level == "Новичок" -> {
                 Log.d(TAG, "Creating muscle gain beginner plan")
@@ -224,77 +220,49 @@ class WorkoutRepositoryImpl @Inject constructor(
         workoutScheduleRepository.saveWorkoutSchedule(username, dates)
     }
 
-    private fun getAlternatives(exerciseName: String): List<Exercise> {
-        return when (exerciseName) {
-            "Приседания" -> listOf(
-                Exercise(id = "alt1_1", name = "Приседания с гантелями", sets = 3, reps = "12-15"),
-                Exercise(id = "alt1_2", name = "Гакк-приседания", sets = 3, reps = "10-12")
+    private suspend fun getAlternatives(exerciseName: String): List<Exercise> {
+        val exerciseLibrary = exerciseLibraryRepository.getAllExercisesAsList()
+        val currentExercise = exerciseLibrary.find { it.name == exerciseName }
+
+        if (currentExercise == null || currentExercise.muscleGroups.isEmpty()) {
+            return emptyList()
+        }
+
+        val alternativeLibraryExercises = exerciseLibraryRepository.getAlternativeExercises(
+            currentExerciseName = exerciseName,
+            currentMuscleGroups = currentExercise.muscleGroups,
+            limit = 3
+        )
+
+        return alternativeLibraryExercises.map { libExercise ->
+            Exercise(
+                id = "alt_${libExercise.id}",
+                name = libExercise.name,
+                sets = 3,
+                reps = "10-12",
+                description = libExercise.description,
+                muscleGroups = libExercise.muscleGroups,
+                equipment = libExercise.equipment,
+                exerciseType = libExercise.exerciseType,
+                stepByStepInstructions = libExercise.stepByStepInstructions,
+                animationUrl = libExercise.animationUrl
             )
-            "Приседания со штангой" -> listOf(
-                Exercise(id = "alt2_1", name = "Приседания в Смите", sets = 4, reps = "8-10", isCompleted = false, alternatives = emptyList()),
-                Exercise(id = "alt2_2", name = "Фронтальные приседания", sets = 4, reps = "8-10", isCompleted = false, alternatives = emptyList())
-            )
-            "Жим лёжа" -> listOf(
-                Exercise(id = "alt3_1", name = "Жим на наклонной скамье", sets = 4, reps = "10-12", isCompleted = false, alternatives = emptyList()),
-                Exercise(id = "alt3_2", name = "Жим гантелей лёжа", sets = 4, reps = "10-12", isCompleted = false, alternatives = emptyList())
-            )
-            "Жим гантелей сидя" -> listOf(
-                Exercise(id = "alt4_1", name = "Жим Арнольда", sets = 4, reps = "10-12", isCompleted = false, alternatives = emptyList()),
-                Exercise(id = "alt4_2", name = "Подъём гантелей через стороны", sets = 4, reps = "12-15", isCompleted = false, alternatives = emptyList())
-            )
-            "Тяга штанги в наклоне" -> listOf(
-                Exercise(id = "alt5_1", name = "Тяга гантели одной рукой", sets = 4, reps = "10-12", isCompleted = false, alternatives = emptyList()),
-                Exercise(id = "alt5_2", name = "Тяга верхнего блока", sets = 4, reps = "10-12", isCompleted = false, alternatives = emptyList())
-            )
-            "Тяга верхнего блока" -> listOf(
-                Exercise(id = "alt6_1", name = "Тяга штанги в наклоне", sets = 4, reps = "10-12", isCompleted = false, alternatives = emptyList()),
-                Exercise(id = "alt6_2", name = "Подтягивания", sets = 4, reps = "макс", isCompleted = false, alternatives = emptyList())
-            )
-            "Становая тяга" -> listOf(
-                Exercise(id = "alt7_1", name = "Румынская тяга", sets = 4, reps = "10-12", isCompleted = false, alternatives = emptyList()),
-                Exercise(id = "alt7_2", name = "Тяга с плинтов", sets = 3, reps = "6-8", isCompleted = false, alternatives = emptyList())
-            )
-            "Подтягивания" -> listOf(
-                Exercise(id = "alt8_1", name = "Тяга верхнего блока", sets = 4, reps = "10-12", isCompleted = false, alternatives = emptyList()),
-                Exercise(id = "alt8_2", name = "Подтягивания с assistance", sets = 3, reps = "макс", isCompleted = false, alternatives = emptyList())
-            )
-            "Отжимания" -> listOf(
-                Exercise(id = "alt9_1", name = "Отжимания на брусьях", sets = 3, reps = "10-15", isCompleted = false, alternatives = emptyList()),
-                Exercise(id = "alt9_2", name = "Жим лёжа", sets = 4, reps = "10-12", isCompleted = false, alternatives = emptyList())
-            )
-            "Выпады" -> listOf(
-                Exercise(id = "alt10_1", name = "Выпады с гантелями", sets = 3, reps = "12-15", isCompleted = false, alternatives = emptyList()),
-                Exercise(id = "alt10_2", name = "Сjump squat", sets = 3, reps = "15-20", isCompleted = false, alternatives = emptyList())
-            )
-            "Бицепс" -> listOf(
-                Exercise(id = "alt11_1", name = "Подъём штанги на бицепс", sets = 3, reps = "10-12", isCompleted = false, alternatives = emptyList()),
-                Exercise(id = "alt11_2", name = "Молотки", sets = 3, reps = "12-15", isCompleted = false, alternatives = emptyList())
-            )
-            "Трицепс" -> listOf(
-                Exercise(id = "alt12_1", name = "Французский жим", sets = 3, reps = "10-12", isCompleted = false, alternatives = emptyList()),
-                Exercise(id = "alt12_2", name = "Отжимания на брусьях", sets = 3, reps = "10-15", isCompleted = false, alternatives = emptyList())
-            )
-            else -> emptyList()
         }
     }
 
     private fun getMuscleGroupsForExercise(name: String): List<String> {
         return when (name) {
-            "Приседания", "Приседания со штангой" -> listOf("Квадрицепсы", "Ягодицы", "Бёдра сзади", "Икры", "Пресс")
-            "Жим лёжа", "Жим штанги лёжа", "Жим гантелей на наклонной скамье", "Жим в хаммере", "Разведение гантелей лёжа", "Пуловер с гантелью", "Кроссовер" -> listOf("Грудь", "Трицепсы")
-            "Становая тяга", "Румынская тяга" -> listOf("Квадрицепсы", "Ягодицы", "Бёдра сзади", "Широчайшие", "Трапеции", "Предплечья")
-            "Тяга штанги в наклоне", "Тяга гантели одной рукой", "Т-тяга с гантелью", "Тяга каната" -> listOf("Широчайшие", "Трапеции", "Бицепсы", "Предплечья")
-            "Армейский жим", "Армейский жим с гантелями", "Жим гантелей сидя", "Жим плечами в машине", "Разведение гантелей в стороны", "Обратные разведения" -> listOf("Плечи", "Трицепсы")
-            "Подтягивания", "Подтягивания с резинкой", "Тяга верхнего блока" -> listOf("Широчайшие", "Трапеции", "Бицепсы", "Предплечья")
-            "Отжимания" -> listOf("Грудь", "Трицепсы", "Пресс")
-            "Выпады", "Выпады с гантелями", "Болгарские сплит-приседания", "Сумо-приседания", "Фронтальные приседания", "Шагающий выпад с поворотом", "Жим ногами в машине", "Подъёмы на носки", "Икры стоя", "Осёл-качки", "Ягодичный мостик" -> listOf("Квадрицепсы", "Ягодицы", "Бёдра сзади")
-            "Бицепс", "Бицепс со штангой", "Сгибания рук с гантелями", "Концентрированные сгибания" -> listOf("Бицепсы", "Предплечья")
-            "Трицепс", "Трицепс на блоке", "Разгибания рук на блоке", "Кикбэки", "Французский жим" -> listOf("Трицепсы")
+            "Приседания", "Приседания со штангой", "Приседания с гантелями", "Фронтальные приседания", "Гакк-приседания", "Сумо-приседания", "Болгарские сплит-приседания", "Приседания на одной ноге" -> listOf("Квадрицепсы", "Ягодицы", "Бёдра сзади", "Икры")
+            "Жим ногами", "Разведение ног", "Выпады", "Выпады назад", "Ягодичный мостик", "Подъёмы на носки стоя", "Подъёмы на носки сидя", "Сведение ног" -> listOf("Квадрицепсы", "Ягодицы", "Бёдра сзади", "Икры")
+            "Жим лёжа", "Жим штанги лёжа", "Жим гантелей на наклонной скамье", "Жим на наклонной скамье", "Жим на наклонной скамье вниз", "Жим гантелей лёжа", "Разведение гантелей лёжа", "Пек-дек", "Отжимания на брусьях", "Отжимания узким хватом", "Отжимания" -> listOf("Грудь", "Трицепсы", "Плечи")
+            "Становая тяга", "Румынская тяга", "Тяга штанги в наклоне", "Тяга гантели одной рукой", "Т-тяга с гантелью", "Тяга каната к лицу", "Пуловер с гантелью", "Гиперэкстензия", "Тяга верхнего блока", "Тяга верхнего блока узким хватом", "Подтягивания" -> listOf("Широчайшие", "Трапеции", "Бицепсы", "Предплечья", "Поясница")
+            "Армейский жим", "Армейский жим с гантелями", "Жим гантелей сидя", "Жим на плечах в машине", "Жим Арнольда", "Разведение гантелей в стороны", "Обратные разведения", "Подъём штанги перед собой", "Махи гантелями перед собой" -> listOf("Плечи", "Трицепсы", "Трапеции")
+            "Бицепс со штангой", "Бицепс", "Сгибания рук с гантелями", "Молотки", "Концентрированные сгибания" -> listOf("Бицепсы", "Предплечья", "Плечелучевая")
+            "Трицепс", "Трицепс на блоке", "Французский жим", "Кикбэки", "Разгибания рук на блоке", "Разгибания на блоке из-за головы" -> listOf("Трицепсы", "Предплечья")
             "Пресс", "Скручивания", "Велосипед" -> listOf("Пресс")
-            "Планка" -> listOf("Пресс", "Плечи")
-            "Бег", "Беговая дорожка", "Интервальный бег" -> listOf("Квадрицепсы", "Бёдра сзади", "Икры")
-            "Велотренажёр", "Велотренажёр с сопротивлением", "Кардио: Комбо" -> listOf("Квадрицепсы", "Бёдра сзади", "Икры")
-            "Кардио: Эллипс", "HIIT", "Кардио: Гребной тренажёр" -> listOf("Квадрицепсы", "Бёдра сзади", "Икры")
+            "Планка" -> listOf("Пресс", "Плечи", "Предплечья")
+            "Бег", "Беговая дорожка", "Интервальный бег" -> listOf("Квадрицепсы", "Бёдра сзади", "Икры", "Ягодицы")
+            "Велотренажёр", "Велотренажёр с сопротивлением", "Кардио: Комбо", "Эллипсоид", "Гребной тренажёр", "HIIT" -> listOf("Квадрицепсы", "Бёдра сзади", "Икры", "Ягодицы", "Широчайшие", "Бицепсы")
             else -> emptyList()
         }
     }
@@ -340,6 +308,168 @@ class WorkoutRepositoryImpl @Inject constructor(
             recommendedWeight = finalRecommendedWeight,
             recommendedRepsPerSet = finalRecommendedReps
         )
+    }
+
+    private suspend fun createWeightLossPlanBySplit(
+        profile: com.example.fitness_plan.domain.model.UserProfile,
+        level: String
+    ): WorkoutPlan {
+        val (sets, reps) = when (level) {
+            "Новичок" -> Pair(3, "12-15")
+            "Любитель" -> Pair(3, "10-12")
+            "Профессионал" -> Pair(4, "8-10")
+            else -> Pair(3, "10-12")
+        }
+
+        val cardioSets = 1
+        val cardioReps = "15-20 мин"
+
+        val legExercises = listOf(
+            createExerciseWithAlternatives("1", "Приседания", sets, reps, "Базовое упражнение для ног", profile = profile),
+            createExerciseWithAlternatives("2", "Приседания с гантелями", sets, reps, "Приседания с отягощением", profile = profile),
+            createExerciseWithAlternatives("3", "Фронтальные приседания", sets, reps, "Акцент на квадрицепсы", profile = profile),
+            createExerciseWithAlternatives("4", "Гакк-приседания", sets, reps, "В тренажёре гакк-приседаний", profile = profile),
+            createExerciseWithAlternatives("5", "Жим ногами", sets, reps, "Изолированное упражнение для ног", profile = profile),
+            createExerciseWithAlternatives("6", "Разведение ног", sets, reps, "Для квадрицепсов", profile = profile),
+            createExerciseWithAlternatives("7", "Выпады", sets, reps, "Классические выпады", profile = profile),
+            createExerciseWithAlternatives("8", "Выпады назад", sets, reps, "Выпады назад", profile = profile),
+            createExerciseWithAlternatives("9", "Сумо-приседания", sets, reps, "Широкая постановка ног", profile = profile),
+            createExerciseWithAlternatives("10", "Болгарские сплит-приседания", sets, reps, "Приседания на одной ноге", profile = profile),
+            createExerciseWithAlternatives("11", "Ягодичный мостик", sets, reps, "Для ягодиц", profile = profile),
+            createExerciseWithAlternatives("12", "Подъёмы на носки стоя", sets, reps, "Для икроножных", profile = profile)
+        )
+
+        val chestExercises = listOf(
+            createExerciseWithAlternatives("13", "Жим лёжа", sets, reps, "Базовое упражнение для груди", profile = profile),
+            createExerciseWithAlternatives("14", "Жим гантелей на наклонной скамье", sets, reps, "Для верхней части груди", profile = profile),
+            createExerciseWithAlternatives("15", "Жим на наклонной скамье", sets, reps, "Штанга на наклонной скамье", profile = profile),
+            createExerciseWithAlternatives("16", "Жим на наклонной скамье вниз", sets, reps, "Для нижней части груди", profile = profile),
+            createExerciseWithAlternatives("17", "Жим гантелей лёжа", sets, reps, "Гантели на горизонтальной скамье", profile = profile),
+            createExerciseWithAlternatives("18", "Разведение гантелей лёжа", sets, reps, "Изолированное упражнение", profile = profile),
+            createExerciseWithAlternatives("19", "Пек-дек", sets, reps, "На тренажёре пек-дек", profile = profile),
+            createExerciseWithAlternatives("20", "Отжимания на брусьях", sets, reps, "Для груди и трицепсов", profile = profile)
+        )
+
+        val backExercises = listOf(
+            createExerciseWithAlternatives("21", "Становая тяга", sets, reps, "Базовое упражнение", profile = profile),
+            createExerciseWithAlternatives("22", "Румынская тяга", sets, reps, "Тяга на прямых ногах", profile = profile),
+            createExerciseWithAlternatives("23", "Тяга штанги в наклоне", sets, reps, "Для широчайших", profile = profile),
+            createExerciseWithAlternatives("24", "Тяга гантели одной рукой", sets, reps, "С упором на скамью", profile = profile),
+            createExerciseWithAlternatives("25", "Т-тяга с гантелью", sets, reps, "Тяга с углом", profile = profile),
+            createExerciseWithAlternatives("26", "Тяга каната к лицу", sets, reps, "Для задних дельт", profile = profile),
+            createExerciseWithAlternatives("27", "Пуловер с гантелью", sets, reps, "Для широчайших", profile = profile),
+            createExerciseWithAlternatives("28", "Гиперэкстензия", sets, reps, "Для поясницы", profile = profile),
+            createExerciseWithAlternatives("29", "Тяга верхнего блока узким хватом", sets, reps, "Узким хватом", profile = profile)
+        )
+
+        val shoulderExercises = listOf(
+            createExerciseWithAlternatives("30", "Армейский жим", sets, reps, "Базовое упражнение", profile = profile),
+            createExerciseWithAlternatives("31", "Жим гантелей сидя", sets, reps, "Гантели сидя", profile = profile),
+            createExerciseWithAlternatives("32", "Жим Арнольда", sets, reps, "С поворотом", profile = profile),
+            createExerciseWithAlternatives("33", "Жим на плечах в машине", sets, reps, "На тренажёре", profile = profile),
+            createExerciseWithAlternatives("34", "Разведение гантелей в стороны", sets, reps, "Для средних дельт", profile = profile),
+            createExerciseWithAlternatives("35", "Обратные разведения", sets, reps, "Для задних дельт", profile = profile),
+            createExerciseWithAlternatives("36", "Подъём штанги перед собой", sets, reps, "Для передних дельт", profile = profile),
+            createExerciseWithAlternatives("37", "Махи гантелями перед собой", sets, reps, "Махи перед собой", profile = profile)
+        )
+
+        val armExercises = listOf(
+            createExerciseWithAlternatives("38", "Бицепс со штангой", sets, reps, "Базовое упражнение", profile = profile),
+            createExerciseWithAlternatives("39", "Молотки", sets, reps, "Нейтральный хват", profile = profile),
+            createExerciseWithAlternatives("40", "Концентрированные сгибания", sets, reps, "Одной рукой", profile = profile),
+            createExerciseWithAlternatives("41", "Сгибания рук с гантелями", sets, reps, "Поочерёдно", profile = profile),
+            createExerciseWithAlternatives("42", "Французский жим", sets, reps, "Для трицепсов", profile = profile),
+            createExerciseWithAlternatives("43", "Трицепс на блоке", sets, reps, "Разгибания на блоке", profile = profile),
+            createExerciseWithAlternatives("44", "Кикбэки", sets, reps, "Разгибание в наклоне", profile = profile),
+            createExerciseWithAlternatives("45", "Разгибания на блоке из-за головы", sets, reps, "Из-за головы", profile = profile)
+        )
+
+        val cardioExercises = listOf(
+            createExerciseWithAlternatives("46", "Бег", cardioSets, cardioReps, "Кардио", profile = profile),
+            createExerciseWithAlternatives("47", "Велотренажёр", cardioSets, cardioReps, "Кардио", profile = profile),
+            createExerciseWithAlternatives("48", "Эллипсоид", cardioSets, cardioReps, "Кардио", profile = profile),
+            createExerciseWithAlternatives("49", "Гребной тренажёр", cardioSets, cardioReps, "Кардио", profile = profile),
+            createExerciseWithAlternatives("50", "HIIT", cardioSets, cardioReps, "Интервальное кардио", profile = profile)
+        )
+
+        val dayNames = listOf("Ноги", "Грудь", "Спина", "Плечи", "Руки")
+        val exerciseGroups = listOf(legExercises, chestExercises, backExercises, shoulderExercises, armExercises)
+
+        val days = mutableListOf<com.example.fitness_plan.domain.model.WorkoutDay>()
+        var legDayIndex = 0
+        var chestDayIndex = 0
+        var backDayIndex = 0
+        var shoulderDayIndex = 0
+        var armDayIndex = 0
+        var cardioIndex = 0
+
+        for (dayIndex in 0 until 10) {
+            val groupIndex = dayIndex % 5
+            val muscleGroupName = dayNames[groupIndex]
+            val dayExercises = when (groupIndex) {
+                0 -> getExercisesForDay(legExercises, legDayIndex, 4)
+                1 -> getExercisesForDay(chestExercises, chestDayIndex, 4)
+                2 -> getExercisesForDay(backExercises, backDayIndex, 4)
+                3 -> getExercisesForDay(shoulderExercises, shoulderDayIndex, 4)
+                else -> getExercisesForDay(armExercises, armDayIndex, 4)
+            }
+
+            when (groupIndex) {
+                0 -> legDayIndex += 4
+                1 -> chestDayIndex += 4
+                2 -> backDayIndex += 4
+                3 -> shoulderDayIndex += 4
+                else -> armDayIndex += 4
+            }
+
+            val cardioStart = cardioExercises[cardioIndex].copy(
+                id = "${dayIndex}_cardio_start_${cardioExercises[cardioIndex].id}",
+                recommendedWeight = null,
+                recommendedRepsPerSet = cardioReps
+            )
+            val cardioEnd = cardioExercises[(cardioIndex + 1) % cardioExercises.size].copy(
+                id = "${dayIndex}_cardio_end_${cardioExercises[(cardioIndex + 1) % cardioExercises.size].id}",
+                recommendedWeight = null,
+                recommendedRepsPerSet = cardioReps
+            )
+            cardioIndex = (cardioIndex + 2) % cardioExercises.size
+
+            val allDayExercises = listOf(cardioStart) + dayExercises.map { it.copy(id = "${dayIndex}_${it.id}") } + listOf(cardioEnd)
+
+            val muscleGroups = allDayExercises.flatMap { getMuscleGroupsForExercise(it.name) }.distinct()
+
+            days.add(
+                com.example.fitness_plan.domain.model.WorkoutDay(
+                    id = dayIndex,
+                    dayName = "День ${dayIndex + 1}: $muscleGroupName",
+                    exercises = allDayExercises,
+                    muscleGroups = muscleGroups
+                )
+            )
+        }
+
+        return WorkoutPlan(
+            id = "weight_loss_${level.lowercase()}",
+            name = "Похудение: $level",
+            description = "10-дневный план по сплиту с уникальными упражнениями и кардио",
+            muscleGroups = listOf("Ноги", "Грудь", "Спина", "Плечи", "Руки", "Кардио"),
+            goal = profile.goal,
+            level = profile.level,
+            days = days
+        )
+    }
+
+    private fun getExercisesForDay(
+        exerciseList: List<Exercise>,
+        startIndex: Int,
+        count: Int
+    ): List<Exercise> {
+        val exercises = mutableListOf<Exercise>()
+        for (i in 0 until count) {
+            val index = (startIndex + i) % exerciseList.size
+            exercises.add(exerciseList[index])
+        }
+        return exercises
     }
 
     private fun createWeightLossBeginnerPlan(profile: com.example.fitness_plan.domain.model.UserProfile, frequency: String): WorkoutPlan {
