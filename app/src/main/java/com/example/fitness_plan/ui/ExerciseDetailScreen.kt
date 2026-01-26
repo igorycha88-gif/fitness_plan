@@ -32,6 +32,7 @@ fun ExerciseDetailScreen(
     val adminWorkoutPlan by workoutViewModel.adminWorkoutPlan.collectAsState()
     val exerciseStats by workoutViewModel.exerciseStats.collectAsState()
     val alternativeLibraryExercises by workoutViewModel.alternativeExercises.collectAsState()
+    val completedExercises by workoutViewModel.completedExercises.collectAsState()
 
     var exercise by remember { mutableStateOf<Exercise?>(null) }
     var selectedExercise by remember { mutableStateOf<Exercise?>(null) }
@@ -68,6 +69,8 @@ fun ExerciseDetailScreen(
 
     val currentExerciseName = selectedExercise?.name ?: decodedName
     val totalSets = selectedExercise?.sets ?: 3
+    val isCardioOrStretching = selectedExercise?.exerciseType == com.example.fitness_plan.domain.model.ExerciseType.CARDIO ||
+            selectedExercise?.exerciseType == com.example.fitness_plan.domain.model.ExerciseType.STRETCHING
 
     val recommendedReps = selectedExercise?.recommendedRepsPerSet?.split(",")?.mapNotNull { it.toIntOrNull() }
         ?: listOf(12, 13, 14)
@@ -86,7 +89,12 @@ fun ExerciseDetailScreen(
             .sortedBy { it.date }
     }
 
-    val allSetsCompleted = completedSets.size >= totalSets
+    val isExerciseCompleted = currentExerciseName in completedExercises
+    val allSetsCompleted = if (isCardioOrStretching) {
+        isExerciseCompleted
+    } else {
+        completedSets.size >= totalSets
+    }
     val currentSetNumber = completedSets.size + 1
 
     var isTimerRunning by remember { mutableStateOf(false) }
@@ -117,7 +125,7 @@ fun ExerciseDetailScreen(
                     if (allSetsCompleted) {
                         Icon(
                             Icons.Filled.Check,
-                            contentDescription = "Все подходы выполнены",
+                            contentDescription = if (isCardioOrStretching) "Упражнение выполнено" else "Все подходы выполнены",
                             tint = SuccessGreen,
                             modifier = Modifier.padding(end = 16.dp)
                         )
@@ -158,7 +166,7 @@ fun ExerciseDetailScreen(
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
-                                "Все подходы выполнены!",
+                                if (isCardioOrStretching) "Упражнение выполнено!" else "Все подходы выполнены!",
                                 color = SuccessGreen,
                                 style = MaterialTheme.typography.bodyLarge
                             )
@@ -317,145 +325,201 @@ fun ExerciseDetailScreen(
 
                 Spacer(modifier = Modifier.height(24.dp))
 
-                Text(
-                    text = "Записать результат",
-                    style = MaterialTheme.typography.titleMedium,
-                    modifier = Modifier.fillMaxWidth()
-                )
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                OutlinedTextField(
-                    value = "Подход $currentSetNumber из $totalSets${if (allSetsCompleted) " ✓" else ""}",
-                    onValueChange = {},
-                    readOnly = true,
-                    label = { Text("№ Подхода") },
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = if (allSetsCompleted) SuccessGreen else MaterialTheme.colorScheme.primary,
-                        unfocusedBorderColor = if (allSetsCompleted) SuccessGreen else MaterialTheme.colorScheme.outline,
-                        focusedLabelColor = if (allSetsCompleted) SuccessGreen else MaterialTheme.colorScheme.primary
-                    )
-                )
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    val baseRecommendedWeight = selectedExercise?.recommendedWeight
-                    val recommendedReps = selectedExercise?.recommendedRepsPerSet
-                    
-                    val finalRecommendedWeight = adaptiveWeight ?: baseRecommendedWeight
-                    
-                    val weightPlaceholder = if (weight.isEmpty() && finalRecommendedWeight != null) {
-                        val prefix = if (adaptiveWeight != null) "Адаптивно (история)" else "Рекомендуется"
-                        "$prefix: ${String.format("%.1f", finalRecommendedWeight)} кг"
-                    } else {
-                        null
-                    }
-                    
-                    OutlinedTextField(
-                        value = weight,
-                        onValueChange = { weight = it },
-                        label = { Text("Вес (кг)") },
-                        placeholder = if (weightPlaceholder != null) {
-                            { 
-                                Text(
-                                    weightPlaceholder,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
-                                ) 
-                            }
-                        } else null,
-                        modifier = Modifier.weight(1f),
-                        singleLine = true
+                if (isCardioOrStretching) {
+                    Text(
+                        text = "Статус выполнения",
+                        style = MaterialTheme.typography.titleMedium,
+                        modifier = Modifier.fillMaxWidth()
                     )
 
-                    val currentSetReps = recommendedReps?.split(",")?.getOrNull(currentSetNumber - 1)
-                    val repsPlaceholder = if (reps.isEmpty() && recommendedReps != null && currentSetReps != null) {
-                        "Рекомендуется: $currentSetReps"
-                    } else {
-                        null
-                    }
-                    
-                    OutlinedTextField(
-                        value = reps,
-                        onValueChange = { reps = it },
-                        label = { Text("Повторения") },
-                        placeholder = if (repsPlaceholder != null) {
-                            { 
-                                Text(
-                                    repsPlaceholder,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
-                                ) 
-                            }
-                        } else null,
-                        modifier = Modifier.weight(1f),
-                        singleLine = true
-                    )
-                }
+                    Spacer(modifier = Modifier.height(16.dp))
 
-                Spacer(modifier = Modifier.height(16.dp))
-
-                Button(
-                    onClick = {
-                        selectedExercise?.let {
-                            workoutViewModel.saveExerciseStats(
-                                exerciseName = currentExerciseName,
-                                weight = weight.toDoubleOrNull() ?: 0.0,
-                                reps = reps.toIntOrNull() ?: 0,
-                                setNumber = currentSetNumber,
-                                sets = totalSets
-                            )
-
-                            if (completedSets.size + 1 >= totalSets) {
-                                workoutViewModel.toggleExerciseCompletion(currentExerciseName, true)
-                            }
-
-                            timerSeconds = 0
-                            isTimerRunning = false
-                            weight = ""
-                            reps = ""
-                        }
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
-                    enabled = !allSetsCompleted
-                ) {
-                    Icon(Icons.Filled.Check, contentDescription = null)
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(if (allSetsCompleted) "Все подходы выполнены" else "Сохранить подход $currentSetNumber")
-                }
-
-                if (!allSetsCompleted) {
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    OutlinedButton(
+                    Button(
                         onClick = {
                             selectedExercise?.let {
-                                workoutViewModel.toggleExerciseCompletion(currentExerciseName, true)
+                                if (!allSetsCompleted) {
+                                    workoutViewModel.toggleExerciseCompletion(currentExerciseName, true)
+                                }
                             }
                         },
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+                        enabled = !allSetsCompleted
                     ) {
                         Icon(Icons.Filled.Check, contentDescription = null)
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("Пропустить все оставшиеся подходы")
+                        Text(if (allSetsCompleted) "Упражнение выполнено" else "Отметить как выполненное")
+                    }
+
+                    if (!allSetsCompleted) {
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        OutlinedButton(
+                            onClick = {
+                                selectedExercise?.let {
+                                    workoutViewModel.toggleExerciseCompletion(currentExerciseName, true)
+                                }
+                            },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Icon(Icons.Filled.Check, contentDescription = null)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Отметить как выполненное")
+                        }
+                    } else {
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        OutlinedButton(
+                            onClick = {
+                                workoutViewModel.toggleExerciseCompletion(currentExerciseName, false)
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)
+                        ) {
+                            Text("Отменить выполнение")
+                        }
                     }
                 } else {
+                    Text(
+                        text = "Записать результат",
+                        style = MaterialTheme.typography.titleMedium,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
                     Spacer(modifier = Modifier.height(8.dp))
 
-                    OutlinedButton(
+                    OutlinedTextField(
+                        value = "Подход $currentSetNumber из $totalSets${if (allSetsCompleted) " ✓" else ""}",
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text("№ Подхода") },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = if (allSetsCompleted) SuccessGreen else MaterialTheme.colorScheme.primary,
+                            unfocusedBorderColor = if (allSetsCompleted) SuccessGreen else MaterialTheme.colorScheme.outline,
+                            focusedLabelColor = if (allSetsCompleted) SuccessGreen else MaterialTheme.colorScheme.primary
+                        )
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        val baseRecommendedWeight = selectedExercise?.recommendedWeight
+                        val recommendedReps = selectedExercise?.recommendedRepsPerSet
+
+                        val finalRecommendedWeight = adaptiveWeight ?: baseRecommendedWeight
+
+                        val weightPlaceholder = if (weight.isEmpty() && finalRecommendedWeight != null) {
+                            val prefix = if (adaptiveWeight != null) "Адаптивно (история)" else "Рекомендуется"
+                            "$prefix: ${String.format("%.1f", finalRecommendedWeight)} кг"
+                        } else {
+                            null
+                        }
+
+                        OutlinedTextField(
+                            value = weight,
+                            onValueChange = { weight = it },
+                            label = { Text("Вес (кг)") },
+                            placeholder = if (weightPlaceholder != null) {
+                                {
+                                    Text(
+                                        weightPlaceholder,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                                    )
+                                }
+                            } else null,
+                            modifier = Modifier.weight(1f),
+                            singleLine = true
+                        )
+
+                        val currentSetReps = recommendedReps?.split(",")?.getOrNull(currentSetNumber - 1)
+                        val repsPlaceholder = if (reps.isEmpty() && recommendedReps != null && currentSetReps != null) {
+                            "Рекомендуется: $currentSetReps"
+                        } else {
+                            null
+                        }
+
+                        OutlinedTextField(
+                            value = reps,
+                            onValueChange = { reps = it },
+                            label = { Text("Повторения") },
+                            placeholder = if (repsPlaceholder != null) {
+                                {
+                                    Text(
+                                        repsPlaceholder,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                                    )
+                                }
+                            } else null,
+                            modifier = Modifier.weight(1f),
+                            singleLine = true
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    Button(
                         onClick = {
-                            workoutViewModel.toggleExerciseCompletion(currentExerciseName, false)
+                            selectedExercise?.let {
+                                workoutViewModel.saveExerciseStats(
+                                    exerciseName = currentExerciseName,
+                                    weight = weight.toDoubleOrNull() ?: 0.0,
+                                    reps = reps.toIntOrNull() ?: 0,
+                                    setNumber = currentSetNumber,
+                                    sets = totalSets
+                                )
+
+                                if (completedSets.size + 1 >= totalSets) {
+                                    workoutViewModel.toggleExerciseCompletion(currentExerciseName, true)
+                                }
+
+                                timerSeconds = 0
+                                isTimerRunning = false
+                                weight = ""
+                                reps = ""
+                            }
                         },
                         modifier = Modifier.fillMaxWidth(),
-                        colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+                        enabled = !allSetsCompleted
                     ) {
-                        Text("Отменить выполнение")
+                        Icon(Icons.Filled.Check, contentDescription = null)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(if (allSetsCompleted) "Все подходы выполнены" else "Сохранить подход $currentSetNumber")
+                    }
+
+                    if (!allSetsCompleted) {
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        OutlinedButton(
+                            onClick = {
+                                selectedExercise?.let {
+                                    workoutViewModel.toggleExerciseCompletion(currentExerciseName, true)
+                                }
+                            },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Icon(Icons.Filled.Check, contentDescription = null)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Пропустить все оставшиеся подходы")
+                        }
+                    } else {
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        OutlinedButton(
+                            onClick = {
+                                workoutViewModel.toggleExerciseCompletion(currentExerciseName, false)
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)
+                        ) {
+                            Text("Отменить выполнение")
+                        }
                     }
                 }
 
