@@ -17,3 +17,6 @@ local.properties
 # Keystore
 *.jks
 keystore.properties
+
+# APK files
+*.apk
