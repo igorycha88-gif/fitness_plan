@@ -347,4 +347,42 @@ class WorkoutUseCaseTest {
         assertThat(benchSummary!!.totalVolume).isEqualTo((60 * 10 + 65 * 8).toLong())
         assertThat(benchSummary!!.totalSets).isEqualTo(2)
     }
+
+    @Test
+    fun `toggleExerciseCompletion with partial completion should return only fully completed days`() = runTest {
+        val plan = WorkoutPlan(
+            id = "test_plan",
+            name = "Test Plan",
+            description = "Test Description",
+            muscleGroups = emptyList(),
+            goal = "Test",
+            level = "Test",
+            days = listOf(
+                com.example.fitness_plan.domain.model.WorkoutDay(
+                    id = 0,
+                    dayName = "Day 1",
+                    exercises = listOf(
+                        Exercise(id = "ex1", name = "Squats", sets = 3, reps = "12-15", weight = null, imageRes = null, isCompleted = false, alternatives = emptyList()),
+                        Exercise(id = "ex2", name = "BenchPress", sets = 3, reps = "10-12", weight = null, imageRes = null, isCompleted = false, alternatives = emptyList())
+                    ),
+                    muscleGroups = emptyList()
+                ),
+                com.example.fitness_plan.domain.model.WorkoutDay(
+                    id = 1,
+                    dayName = "Day 2",
+                    exercises = listOf(
+                        Exercise(id = "ex3", name = "Deadlift", sets = 3, reps = "8-10", weight = null, imageRes = null, isCompleted = false, alternatives = emptyList())
+                    ),
+                    muscleGroups = emptyList()
+                )
+            )
+        )
+
+        coEvery { mockExerciseCompletionRepository.setExerciseCompleted(any(), any(), any()) } just runs
+        every { mockExerciseCompletionRepository.getAllCompletedExercises(any()) } returns flowOf(setOf("0_Squats"))
+
+        val result = workoutUseCase.toggleExerciseCompletion("testuser", "0_Squats", true, plan)
+
+        assertThat(result).containsExactly(1)
+    }
 }

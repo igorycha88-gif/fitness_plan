@@ -55,6 +55,9 @@ class WorkoutViewModel @Inject constructor(
     private val _completedDays = MutableStateFlow<Set<Int>>(emptySet())
     val completedDays: StateFlow<Set<Int>> = _completedDays.asStateFlow()
 
+    private val _partiallyCompletedDays = MutableStateFlow<Set<Int>>(emptySet())
+    val partiallyCompletedDays: StateFlow<Set<Int>> = _partiallyCompletedDays.asStateFlow()
+
     private val _currentCycle = MutableStateFlow<Cycle?>(null)
     val currentCycle: StateFlow<Cycle?> = _currentCycle.asStateFlow()
 
@@ -156,14 +159,19 @@ class WorkoutViewModel @Inject constructor(
     private fun updateCompletedDays(completedExercises: Set<String>) {
         val plan = _currentWorkoutPlan.value ?: return
         val completed = mutableSetOf<Int>()
+        val partiallyCompleted = mutableSetOf<Int>()
         plan.days.forEachIndexed { dayIndex, day ->
             val dayExerciseNames = day.exercises.map { "${dayIndex}_${it.name}" }.toSet()
-            val hasCompleted = dayExerciseNames.any { it in completedExercises }
-            if (hasCompleted) {
-                completed.add(dayIndex)
+            val completedCount = dayExerciseNames.count { it in completedExercises }
+            val totalCount = dayExerciseNames.size
+            when {
+                completedCount == 0 -> {}
+                completedCount == totalCount -> completed.add(dayIndex)
+                else -> partiallyCompleted.add(dayIndex)
             }
         }
         _completedDays.value = completed
+        _partiallyCompletedDays.value = partiallyCompleted
     }
 
     fun toggleExerciseCompletion(exerciseKey: String, completed: Boolean) {
@@ -178,6 +186,9 @@ class WorkoutViewModel @Inject constructor(
                 _currentWorkoutPlan.value
             )
             _completedDays.value = newCompletedDays
+
+            val allCompletedExercises = workoutUseCase.getCompletedExercises(username).first()
+            updateCompletedDays(allCompletedExercises)
 
             cycleUseCase.updateProgress(username, newCompletedDays.size)
 

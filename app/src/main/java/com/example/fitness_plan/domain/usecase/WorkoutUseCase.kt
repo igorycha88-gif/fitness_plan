@@ -22,6 +22,11 @@ class WorkoutUseCase @Inject constructor(
         val completedDays: Set<Int>
     )
 
+    data class DayCompletionStatus(
+        val fullyCompletedDays: Set<Int>,
+        val partiallyCompletedDays: Set<Int>
+    )
+
     suspend fun getWorkoutPlan(username: String): WorkoutPlan? {
         return workoutRepository.getWorkoutPlan(username).first()
     }
@@ -62,22 +67,27 @@ class WorkoutUseCase @Inject constructor(
         }
 
         val allCompleted = exerciseCompletionRepository.getAllCompletedExercises(username).first()
-        return calculateCompletedDays(allCompleted, currentPlan)
+        val status = calculateCompletedDays(allCompleted, currentPlan)
+        return status.fullyCompletedDays
     }
 
     private fun calculateCompletedDays(
         completedExercises: Set<String>,
         plan: WorkoutPlan?
-    ): Set<Int> {
-        val completed = mutableSetOf<Int>()
+    ): DayCompletionStatus {
+        val fullyCompleted = mutableSetOf<Int>()
+        val partiallyCompleted = mutableSetOf<Int>()
         plan?.days?.forEachIndexed { dayIndex, day ->
             val dayExerciseKeys = day.exercises.map { "${dayIndex}_${it.name}" }.toSet()
-            val hasCompleted = dayExerciseKeys.any { it in completedExercises }
-            if (hasCompleted) {
-                completed.add(dayIndex)
+            val completedCount = dayExerciseKeys.count { it in completedExercises }
+            val totalCount = dayExerciseKeys.size
+            when {
+                completedCount == 0 -> {}
+                completedCount == totalCount -> fullyCompleted.add(dayIndex)
+                else -> partiallyCompleted.add(dayIndex)
             }
         }
-        return completed
+        return DayCompletionStatus(fullyCompleted, partiallyCompleted)
     }
 
     suspend fun saveExerciseStats(

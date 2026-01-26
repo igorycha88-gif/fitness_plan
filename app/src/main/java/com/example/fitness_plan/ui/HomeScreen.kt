@@ -37,6 +37,7 @@ import com.example.fitness_plan.domain.model.WorkoutDay
 import com.example.fitness_plan.domain.model.WorkoutPlan
 import com.example.fitness_plan.presentation.viewmodel.WorkoutViewModel
 import com.example.fitness_plan.ui.theme.SuccessGreen
+import com.example.fitness_plan.ui.theme.FitnessSecondaryLight
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -137,6 +138,7 @@ fun HomeScreen(
     val exerciseStats by viewModel.exerciseStats.collectAsState()
     val completedExercises by viewModel.completedExercises.collectAsState()
     val completedDays by viewModel.completedDays.collectAsState()
+    val partiallyCompletedDays by viewModel.partiallyCompletedDays.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
 
     LaunchedEffect(Unit) {
@@ -184,6 +186,7 @@ fun HomeScreen(
                     exerciseStats = exerciseStats,
                     completedExercises = completedExercises,
                     completedDays = completedDays,
+                    partiallyCompletedDays = partiallyCompletedDays,
                     onExerciseClick = onExerciseClick,
                     onExerciseToggle = { name, completed ->
                         viewModel.toggleExerciseCompletion(name, completed)
@@ -199,6 +202,7 @@ fun HomeScreen(
                     exerciseStats = exerciseStats,
                     completedExercises = completedExercises,
                     completedDays = completedDays,
+                    partiallyCompletedDays = partiallyCompletedDays,
                     onExerciseClick = onExerciseClick,
                     onExerciseToggle = { name, completed ->
                         viewModel.toggleExerciseCompletion(name, completed)
@@ -219,6 +223,7 @@ fun AdaptivePlanDetailsScreen(
     exerciseStats: List<ExerciseStats>,
     completedExercises: Set<String>,
     completedDays: Set<Int>,
+    partiallyCompletedDays: Set<Int>,
     onExerciseClick: (Exercise) -> Unit,
     onExerciseToggle: (String, Boolean) -> Unit,
     onDateChange: (Int, Long?) -> Unit,
@@ -256,22 +261,26 @@ fun AdaptivePlanDetailsScreen(
             plan.days.forEachIndexed { index, day ->
                 val isSelected = selectedDayIndex == index
                 val isCompleted = index in completedDays
+                val isPartiallyCompleted = index in partiallyCompletedDays
+                val backgroundColor = when {
+                    isSelected -> MaterialTheme.colorScheme.primaryContainer
+                    isCompleted -> SuccessGreen.copy(alpha = 0.1f)
+                    isPartiallyCompleted -> FitnessSecondaryLight.copy(alpha = 0.15f)
+                    else -> MaterialTheme.colorScheme.surface
+                }
+                val borderColor = when {
+                    isSelected -> null
+                    isCompleted -> BorderStroke(1.dp, SuccessGreen)
+                    isPartiallyCompleted -> BorderStroke(1.dp, FitnessSecondaryLight)
+                    else -> null
+                }
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(vertical = 4.dp)
                         .clickable { selectedDayIndex = index },
-                    colors = CardDefaults.cardColors(
-                        containerColor = if (isSelected)
-                            MaterialTheme.colorScheme.primaryContainer
-                        else if (isCompleted)
-                            Color(0xFF2DD4BF).copy(alpha = 0.1f)
-                        else
-                            MaterialTheme.colorScheme.surface
-                    ),
-                    border = if (isCompleted && !isSelected) {
-                        BorderStroke(1.dp, Color(0xFF2DD4BF))
-                    } else null
+                    colors = CardDefaults.cardColors(containerColor = backgroundColor),
+                    border = borderColor
                 ) {
                     Column(modifier = Modifier.padding(12.dp)) {
                         Text(
@@ -286,9 +295,17 @@ fun AdaptivePlanDetailsScreen(
                         )
                         if (isCompleted) {
                             Text(
-                                text = "✓",
+                                text = "✓ Выполнено",
                                 style = MaterialTheme.typography.bodySmall,
-                                color = Color(0xFF2DD4BF)
+                                color = SuccessGreen
+                            )
+                        } else if (isPartiallyCompleted) {
+                            val dayExerciseKeys = day.exercises.map { "${index}_${it.name}" }.toSet()
+                            val completedCount = dayExerciseKeys.count { it in completedExercises }
+                            Text(
+                                text = "○ $completedCount/${day.exercises.size}",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = FitnessSecondaryLight
                             )
                         }
                     }
@@ -313,14 +330,16 @@ fun AdaptivePlanDetailsScreen(
         ) {
             val selectedDay = plan.days.getOrNull(selectedDayIndex)
             selectedDay?.let { day ->
+                val isDayCompleted = selectedDayIndex in completedDays
+                val isDayPartiallyCompleted = selectedDayIndex in partiallyCompletedDays
+                val dayBackgroundColor = when {
+                    isDayCompleted -> SuccessGreen.copy(alpha = 0.15f)
+                    isDayPartiallyCompleted -> FitnessSecondaryLight.copy(alpha = 0.15f)
+                    else -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                }
                 Card(
                     modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(
-                        containerColor = if (selectedDayIndex in completedDays)
-                            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
-                        else
-                            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-                    )
+                    colors = CardDefaults.cardColors(containerColor = dayBackgroundColor)
                 ) {
                     Column(modifier = Modifier.padding(20.dp)) {
                         Text(
@@ -340,12 +359,22 @@ fun AdaptivePlanDetailsScreen(
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.primary
                         )
-                        if (selectedDayIndex in completedDays) {
+                        if (isDayCompleted) {
                             Spacer(modifier = Modifier.height(8.dp))
                             Text(
                                 text = "✓ Выполнено",
                                 style = MaterialTheme.typography.bodyMedium,
-                                color = Color(0xFF2DD4BF),
+                                color = SuccessGreen,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        } else if (isDayPartiallyCompleted) {
+                            Spacer(modifier = Modifier.height(8.dp))
+                            val dayExerciseKeys = day.exercises.map { "${selectedDayIndex}_${it.name}" }.toSet()
+                            val completedCount = dayExerciseKeys.count { it in completedExercises }
+                            Text(
+                                text = "○ $completedCount/${day.exercises.size}",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = FitnessSecondaryLight,
                                 fontWeight = FontWeight.SemiBold
                             )
                         }
@@ -437,6 +466,7 @@ fun PlanDetailsScreen(
     exerciseStats: List<ExerciseStats>,
     completedExercises: Set<String>,
     completedDays: Set<Int>,
+    partiallyCompletedDays: Set<Int>,
     onExerciseClick: (Exercise) -> Unit,
     onExerciseToggle: (String, Boolean) -> Unit,
     onDateChange: ((Int, Long?) -> Unit)? = null,
@@ -470,6 +500,7 @@ fun PlanDetailsScreen(
             exerciseStats = exerciseStats,
             completedExercises = completedExercises,
             completedDays = completedDays,
+            partiallyCompletedDays = partiallyCompletedDays,
             onExerciseClick = onExerciseClick,
             onExerciseToggle = onExerciseToggle,
             onDateChange = onDateChange
@@ -485,6 +516,7 @@ fun WorkoutDaysList(
     exerciseStats: List<ExerciseStats>,
     completedExercises: Set<String>,
     completedDays: Set<Int>,
+    partiallyCompletedDays: Set<Int>,
     onExerciseClick: (Exercise) -> Unit,
     onExerciseToggle: (String, Boolean) -> Unit,
     onDateChange: ((Int, Long?) -> Unit)? = null
@@ -492,10 +524,12 @@ fun WorkoutDaysList(
     Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         days.forEachIndexed { index, day ->
             val isCompleted = index in completedDays
+            val isPartiallyCompleted = index in partiallyCompletedDays
             WorkoutDayCard(
                 day = day,
                 dayIndex = index,
                 isCompleted = isCompleted,
+                isPartiallyCompleted = isPartiallyCompleted,
                 completedExercises = completedExercises,
                 exerciseStats = exerciseStats,
                 onExerciseClick = onExerciseClick,
@@ -512,6 +546,7 @@ fun WorkoutDayCard(
     day: WorkoutDay,
     dayIndex: Int = 0,
     isCompleted: Boolean = false,
+    isPartiallyCompleted: Boolean = false,
     completedExercises: Set<String>,
     exerciseStats: List<ExerciseStats>,
     onExerciseClick: (Exercise) -> Unit,
@@ -522,8 +557,15 @@ fun WorkoutDayCard(
     var showDatePicker by remember { mutableStateOf(false) }
 
     val backgroundColor = when {
-        isCompleted -> Color(0xFF2DD4BF).copy(alpha = 0.15f)
+        isCompleted -> SuccessGreen.copy(alpha = 0.15f)
+        isPartiallyCompleted -> FitnessSecondaryLight.copy(alpha = 0.15f)
         else -> MaterialTheme.colorScheme.surface
+    }
+
+    val borderColor = when {
+        isCompleted -> BorderStroke(2.dp, SuccessGreen)
+        isPartiallyCompleted -> BorderStroke(1.dp, FitnessSecondaryLight)
+        else -> BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
     }
 
     Card(
@@ -531,11 +573,7 @@ fun WorkoutDayCard(
             .fillMaxWidth()
             .padding(horizontal = 16.dp),
         colors = CardDefaults.cardColors(containerColor = backgroundColor),
-        border = if (isCompleted) {
-            BorderStroke(2.dp, Color(0xFF2DD4BF))
-        } else {
-            BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
-        }
+        border = borderColor
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(
@@ -582,7 +620,17 @@ fun WorkoutDayCard(
                         Text(
                             text = "✓ Выполнено",
                             style = MaterialTheme.typography.bodySmall,
-                            color = Color(0xFF2DD4BF),
+                            color = SuccessGreen,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    } else if (isPartiallyCompleted) {
+                        Spacer(modifier = Modifier.height(4.dp))
+                        val dayExerciseKeys = day.exercises.map { "${dayIndex}_${it.name}" }.toSet()
+                        val completedCount = dayExerciseKeys.count { it in completedExercises }
+                        Text(
+                            text = "○ $completedCount/${day.exercises.size}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = FitnessSecondaryLight,
                             fontWeight = FontWeight.SemiBold
                         )
                     }
