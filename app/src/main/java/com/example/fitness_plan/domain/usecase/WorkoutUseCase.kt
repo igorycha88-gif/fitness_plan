@@ -40,7 +40,26 @@ class WorkoutUseCase @Inject constructor(
         completed: Boolean,
         currentPlan: WorkoutPlan?
     ): Set<Int> {
-        exerciseCompletionRepository.setExerciseCompleted(username, exerciseKey, completed)
+        val exerciseName = if (exerciseKey.contains("_")) {
+            exerciseKey.substringAfter("_")
+        } else {
+            exerciseKey
+        }
+
+        if (exerciseKey.contains("_")) {
+            exerciseCompletionRepository.setExerciseCompleted(username, exerciseKey, completed)
+        } else {
+            val exerciseKeysToToggle = mutableSetOf<String>()
+            currentPlan?.days?.forEachIndexed { dayIndex, day ->
+                if (day.exercises.any { it.name == exerciseName }) {
+                    exerciseKeysToToggle.add("${dayIndex}_${exerciseName}")
+                }
+            }
+
+            exerciseKeysToToggle.forEach { key ->
+                exerciseCompletionRepository.setExerciseCompleted(username, key, completed)
+            }
+        }
 
         val allCompleted = exerciseCompletionRepository.getAllCompletedExercises(username).first()
         return calculateCompletedDays(allCompleted, currentPlan)

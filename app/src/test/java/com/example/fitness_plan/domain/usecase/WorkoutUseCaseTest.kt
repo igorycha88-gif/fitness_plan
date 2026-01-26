@@ -200,6 +200,85 @@ class WorkoutUseCaseTest {
     }
 
     @Test
+    fun `toggleExerciseCompletion with exercise name only should mark all occurrences`() = runTest {
+        val username = "testuser"
+        val exerciseKey = "Squats"
+        val completed = true
+
+        val plan = WorkoutPlan(
+            id = "test_plan",
+            name = "Test Plan",
+            description = "Test Description",
+            muscleGroups = emptyList(),
+            goal = "Test",
+            level = "Test",
+            days = listOf(
+                com.example.fitness_plan.domain.model.WorkoutDay(
+                    id = 0,
+                    dayName = "Day 1",
+                    exercises = listOf(
+                        Exercise(
+                            id = "ex1",
+                            name = "Squats",
+                            sets = 3,
+                            reps = "12-15",
+                            weight = null,
+                            imageRes = null,
+                            isCompleted = false,
+                            alternatives = emptyList()
+                        )
+                    ),
+                    muscleGroups = emptyList()
+                ),
+                com.example.fitness_plan.domain.model.WorkoutDay(
+                    id = 1,
+                    dayName = "Day 2",
+                    exercises = listOf(
+                        Exercise(
+                            id = "ex2",
+                            name = "Squats",
+                            sets = 3,
+                            reps = "10-12",
+                            weight = null,
+                            imageRes = null,
+                            isCompleted = false,
+                            alternatives = emptyList()
+                        )
+                    ),
+                    muscleGroups = emptyList()
+                ),
+                com.example.fitness_plan.domain.model.WorkoutDay(
+                    id = 2,
+                    dayName = "Day 3",
+                    exercises = listOf(
+                        Exercise(
+                            id = "ex3",
+                            name = "BenchPress",
+                            sets = 3,
+                            reps = "8-10",
+                            weight = null,
+                            imageRes = null,
+                            isCompleted = false,
+                            alternatives = emptyList()
+                        )
+                    ),
+                    muscleGroups = emptyList()
+                )
+            )
+        )
+
+        val slot = mutableListOf<String>()
+        coEvery { mockExerciseCompletionRepository.setExerciseCompleted(any(), capture(slot), any()) } just runs
+        every { mockExerciseCompletionRepository.getAllCompletedExercises(username) } returns flowOf(setOf("0_Squats", "1_Squats"))
+
+        val completedDays = workoutUseCase.toggleExerciseCompletion(username, exerciseKey, completed, plan)
+
+        coVerify(exactly = 2) { mockExerciseCompletionRepository.setExerciseCompleted(username, any(), true) }
+        assertThat(slot).containsExactly("0_Squats", "1_Squats")
+        assertThat(completedDays).containsExactly(0, 1)
+    }
+
+    @Test
     fun `updateWorkoutSchedule should delegate to repository`() = runTest {
         val username = "testuser"
         val dates = listOf(1000L, 2000L, 3000L)
