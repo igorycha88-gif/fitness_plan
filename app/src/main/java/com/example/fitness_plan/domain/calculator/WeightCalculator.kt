@@ -1,6 +1,8 @@
 package com.example.fitness_plan.domain.calculator
 
 import com.example.fitness_plan.domain.model.ExerciseStats
+import com.example.fitness_plan.domain.model.WeightProgressionResult
+import com.example.fitness_plan.domain.model.WeightChangeType
 import kotlin.math.abs
 
 enum class ExerciseType {
@@ -19,12 +21,12 @@ data class WeightRecommendation(
 class WeightCalculator {
     
     companion object {
-        private val STANDARD_DUMBBELL_WEIGHTS = listOf(
+        val STANDARD_DUMBBELL_WEIGHTS = listOf(
             1.25f, 2.5f, 3.75f, 5f, 6.25f, 7.5f, 8.75f, 10f, 11.25f, 12.5f, 13.75f, 15f,
             17.5f, 20f, 22.5f, 25f, 27.5f, 30f, 32.5f, 35f, 37.5f, 40f, 45f, 50f, 55f, 60f
         )
         
-        private val STANDARD_BARBELL_WEIGHTS = listOf(
+        val STANDARD_BARBELL_WEIGHTS = listOf(
             2.5f, 5f, 7.5f, 10f, 15f, 20f, 25f, 30f, 35f, 40f, 45f, 50f, 60f, 70f, 80f, 90f, 100f
         )
     }
@@ -60,12 +62,81 @@ class WeightCalculator {
         val avgWeight = lastTwo.map { it.weight }.average()
         val targetReps = baseReps.average()
         
-        if (avgReps >= targetReps + 2) {
-            val newWeight = roundToStandardWeight(avgWeight.toFloat() + 1.25f)
+        if (avgReps >= targetReps + 1) {
+            val newWeight = roundToStandardWeight(avgWeight.toFloat() + 2.5f)
             return newWeight
         }
         
         return null
+    }
+    
+    fun calculateWeightProgression(
+        exerciseName: String,
+        currentWeight: Float?,
+        history: List<ExerciseStats>,
+        baseReps: List<Int>
+    ): WeightProgressionResult {
+        if (history.size < 2) {
+            return WeightProgressionResult(
+                exerciseName = exerciseName,
+                oldWeight = currentWeight,
+                newWeight = currentWeight,
+                changeType = WeightChangeType.NO_HISTORY,
+                reason = "Недостаточно данных для адаптации (требуется минимум 2 записи)"
+            )
+        }
+        
+        val lastTwo = history.takeLast(2)
+        val avgReps = lastTwo.map { it.reps }.average()
+        val targetReps = baseReps.average()
+        
+        val currentWeightValue = currentWeight ?: lastTwo.map { it.weight }.average().toFloat()
+        
+        when {
+            avgReps >= targetReps + 1 -> {
+                val newWeight = roundToStandardWeight(currentWeightValue + 2.5f)
+                return WeightProgressionResult(
+                    exerciseName = exerciseName,
+                    oldWeight = currentWeightValue,
+                    newWeight = newWeight,
+                    changeType = WeightChangeType.INCREASED,
+                    reason = String.format(
+                        "Средние повторения (%.1f) выше целевого на %.1f. Вес увеличен на %.1f кг",
+                        avgReps,
+                        avgReps - targetReps,
+                        newWeight - currentWeightValue
+                    )
+                )
+            }
+            avgReps < targetReps - 2 -> {
+                val newWeight = roundToStandardWeight((currentWeightValue - 2.5f).coerceAtLeast(1.0f))
+                return WeightProgressionResult(
+                    exerciseName = exerciseName,
+                    oldWeight = currentWeightValue,
+                    newWeight = newWeight,
+                    changeType = WeightChangeType.DECREASED,
+                    reason = String.format(
+                        "Средние повторения (%.1f) ниже целевого на %.1f. Вес уменьшен на %.1f кг",
+                        avgReps,
+                        targetReps - avgReps,
+                        currentWeightValue - newWeight
+                    )
+                )
+            }
+            else -> {
+                return WeightProgressionResult(
+                    exerciseName = exerciseName,
+                    oldWeight = currentWeightValue,
+                    newWeight = currentWeightValue,
+                    changeType = WeightChangeType.UNCHANGED,
+                    reason = String.format(
+                        "Средние повторения (%.1f) в целевом диапазоне (%.1f ± 2). Вес не изменен",
+                        avgReps,
+                        targetReps
+                    )
+                )
+            }
+        }
     }
     
     fun roundToStandardWeight(weight: Float): Float {

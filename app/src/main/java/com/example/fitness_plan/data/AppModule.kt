@@ -8,6 +8,7 @@ import com.example.fitness_plan.domain.repository.ICredentialsRepository
 import com.example.fitness_plan.domain.admin.AdminCredentialsRepository as AdminCredentialsDomainRepository
 import com.example.fitness_plan.domain.usecase.AdminUseCase
 import com.example.fitness_plan.domain.usecase.ExerciseLibraryUseCase
+import com.example.fitness_plan.domain.usecase.WeightProgressionUseCase
 import com.example.fitness_plan.data.CredentialsRepository
 import com.example.fitness_plan.data.ReferenceDataRepositoryImpl
 import com.example.fitness_plan.domain.repository.CycleRepository
@@ -141,9 +142,21 @@ object AppModule {
         cycleRepository: CycleRepository,
         workoutRepository: WorkoutRepository,
         userRepository: DomainUserRepository,
-        exerciseCompletionRepository: ExerciseCompletionRepository
+        exerciseCompletionRepository: ExerciseCompletionRepository,
+        weightProgressionUseCase: WeightProgressionUseCase
     ): CycleUseCase {
-        return CycleUseCase(cycleRepository, workoutRepository, userRepository, exerciseCompletionRepository)
+        return CycleUseCase(cycleRepository, workoutRepository, userRepository, exerciseCompletionRepository, weightProgressionUseCase)
+    }
+
+    @Provides
+    @Singleton
+    fun provideWeightProgressionUseCase(
+        workoutRepository: WorkoutRepository,
+        exerciseStatsRepository: ExerciseStatsRepository,
+        userRepository: DomainUserRepository,
+        weightCalculator: WeightCalculator
+    ): WeightProgressionUseCase {
+        return WeightProgressionUseCase(workoutRepository, exerciseStatsRepository, userRepository, weightCalculator)
     }
 
     @Provides

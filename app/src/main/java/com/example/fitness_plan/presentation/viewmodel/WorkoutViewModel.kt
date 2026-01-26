@@ -14,8 +14,11 @@ import com.example.fitness_plan.domain.repository.ExerciseStatsRepository
 import com.example.fitness_plan.domain.repository.UserRepository
 import com.example.fitness_plan.domain.usecase.CycleUseCase
 import com.example.fitness_plan.domain.usecase.WorkoutUseCase
+import com.example.fitness_plan.domain.usecase.WeightProgressionUseCase
 import com.example.fitness_plan.domain.calculator.WeightCalculator
+import com.example.fitness_plan.notification.NotificationHelper
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -28,6 +31,7 @@ private const val TAG = "WorkoutViewModel"
 
 @HiltViewModel
 class WorkoutViewModel @Inject constructor(
+    @ApplicationContext private val applicationContext: android.content.Context,
     private val userRepository: UserRepository,
     private val cycleRepository: CycleRepository,
     private val exerciseStatsRepository: ExerciseStatsRepository,
@@ -170,6 +174,16 @@ class WorkoutViewModel @Inject constructor(
             _completedDays.value = newCompletedDays
 
             cycleUseCase.updateProgress(username, newCompletedDays.size)
+
+            val progressionSummary = cycleUseCase.checkAndApplyMicrocycleProgression(username, newCompletedDays.size)
+            if (progressionSummary != null) {
+                NotificationHelper.showWeightProgressionNotification(
+                    applicationContext,
+                    progressionSummary.totalIncreased,
+                    progressionSummary.totalDecreased,
+                    progressionSummary.totalUnchanged
+                )
+            }
 
             checkCycleCompletion(username, newCompletedDays.size)
         }

@@ -51,6 +51,7 @@ class WorkoutViewModelTest {
         mockWeightCalculator = mockk<com.example.fitness_plan.domain.calculator.WeightCalculator>(relaxed = true)
 
         viewModel = WorkoutViewModel(
+            mockk(relaxed = true),
             mockUserRepository,
             mockCycleRepository,
             mockExerciseStatsRepository,

@@ -80,6 +80,16 @@ class CycleRepository @Inject constructor(
             preferences[key] = json
         }
     }
+    
+    override suspend fun updateCompletedMicrocycles(username: String, completedMicrocycles: Int) {
+        val current = getCurrentCycleSync(username) ?: return
+        val updated = current.copy(completedMicrocycles = completedMicrocycles)
+        val key = getCycleKey(username)
+        val json = gson.toJson(updated)
+        context.cycleDataStore.edit { preferences ->
+            preferences[key] = json
+        }
+    }
 
     override suspend fun markCycleCompleted(username: String, completedDate: Long) {
         val current = getCurrentCycleSync(username) ?: return

@@ -20,7 +20,8 @@ class CycleUseCase @Inject constructor(
     private val cycleRepository: CycleRepository,
     private val workoutRepository: WorkoutRepository,
     private val userRepository: UserRepository,
-    private val exerciseCompletionRepository: ExerciseCompletionRepository
+    private val exerciseCompletionRepository: ExerciseCompletionRepository,
+    private val weightProgressionUseCase: WeightProgressionUseCase
 ) {
     data class CycleState(
         val cycle: Cycle?,
@@ -124,7 +125,28 @@ class CycleUseCase @Inject constructor(
 
         if (completedDaysCount >= Cycle.DAYS_IN_CYCLE) {
             cycleRepository.markCycleCompleted(username, System.currentTimeMillis())
+        } else {
+            checkAndApplyMicrocycleProgression(username, completedDaysCount)
         }
+    }
+    
+    suspend fun checkAndApplyMicrocycleProgression(username: String, completedDaysCount: Int): WeightProgressionUseCase.WeightProgressionSummary? {
+        val currentCycle = cycleRepository.getCurrentCycleSync(username) ?: return null
+        val newMicrocycleCount = completedDaysCount / Cycle.DAYS_IN_MICROCYCLE
+        
+        if (newMicrocycleCount > currentCycle.completedMicrocycles) {
+            Log.d(TAG, "Microcycle completed: $newMicrocycleCount (was ${currentCycle.completedMicrocycles})")
+            
+            cycleRepository.updateCompletedMicrocycles(username, newMicrocycleCount)
+            
+            val progressionResult = weightProgressionUseCase.applyAdaptiveProgression(username)
+            if (progressionResult.isSuccess) {
+                val summary = progressionResult.getOrNull()
+                Log.d(TAG, "Adaptive progression applied: increased=${summary?.totalIncreased}, decreased=${summary?.totalDecreased}")
+                return summary
+            }
+        }
+        return null
     }
 
     suspend fun checkAndStartNewCycleIfNeeded() {
