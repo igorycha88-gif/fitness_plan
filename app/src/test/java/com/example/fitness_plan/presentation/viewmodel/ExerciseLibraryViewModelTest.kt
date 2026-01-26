@@ -16,6 +16,7 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
+import kotlinx.coroutines.test.advanceUntilIdle
 import org.junit.After
 import org.junit.Assert.*
 import org.junit.Before
@@ -196,5 +197,116 @@ class ExerciseLibraryViewModelTest {
         val exercises = flow.first()
 
         assertEquals(2, exercises.size)
+    }
+
+    @Test
+    fun `setTypeFilter should update selected type`() = runTest {
+        viewModel.initialize()
+        viewModel.setTypeFilter(ExerciseType.STRENGTH)
+
+        assertEquals(ExerciseType.STRENGTH, viewModel.selectedType.value)
+    }
+
+    @Test
+    fun `setEquipmentFilter should update selected equipment`() = runTest {
+        viewModel.initialize()
+        viewModel.setEquipmentFilter(listOf(EquipmentType.BARBELL))
+
+        assertEquals(listOf(EquipmentType.BARBELL), viewModel.selectedEquipment.value)
+    }
+
+    @Test
+    fun `toggleMuscleFilter should add muscle if not selected`() = runTest {
+        viewModel.initialize()
+        viewModel.toggleMuscleFilter(MuscleGroup.QUADS)
+
+        assertEquals(listOf(MuscleGroup.QUADS), viewModel.selectedMuscles.value)
+    }
+
+    @Test
+    fun `toggleMuscleFilter should remove muscle if selected`() = runTest {
+        viewModel.initialize()
+        viewModel.toggleMuscleFilter(MuscleGroup.QUADS)
+        viewModel.toggleMuscleFilter(MuscleGroup.QUADS)
+
+        assertEquals(emptyList<MuscleGroup>(), viewModel.selectedMuscles.value)
+    }
+
+    @Test
+    fun `resetFilters should clear all filters`() = runTest {
+        viewModel.initialize()
+        viewModel.setTypeFilter(ExerciseType.STRENGTH)
+        viewModel.setEquipmentFilter(listOf(EquipmentType.BARBELL))
+        viewModel.toggleMuscleFilter(MuscleGroup.QUADS)
+
+        viewModel.resetFilters()
+
+        assertNull(viewModel.selectedType.value)
+        assertEquals(emptyList<EquipmentType>(), viewModel.selectedEquipment.value)
+        assertEquals(emptyList<MuscleGroup>(), viewModel.selectedMuscles.value)
+    }
+
+    @Test
+    fun `filteredExercises should update when type filter changes`() = runTest {
+        viewModel.initialize()
+        advanceUntilIdle()
+
+        viewModel.setTypeFilter(ExerciseType.STRENGTH)
+        advanceUntilIdle()
+
+        val filtered = viewModel.filteredExercises.first()
+        assertEquals(2, filtered.size)
+    }
+
+    @Test
+    fun `filteredExercises should update when muscle filter changes`() = runTest {
+        viewModel.initialize()
+        advanceUntilIdle()
+
+        viewModel.toggleMuscleFilter(MuscleGroup.QUADS)
+        advanceUntilIdle()
+
+        val filtered = viewModel.filteredExercises.first()
+        assertEquals(1, filtered.size)
+        assertEquals("Приседания", filtered[0].name)
+    }
+
+    @Test
+    fun `filteredExercises should show only exercises matching all filters`() = runTest {
+        viewModel.initialize()
+        advanceUntilIdle()
+
+        viewModel.setTypeFilter(ExerciseType.STRENGTH)
+        viewModel.toggleMuscleFilter(MuscleGroup.CHEST)
+        advanceUntilIdle()
+
+        val filtered = viewModel.filteredExercises.first()
+        assertEquals(1, filtered.size)
+        assertEquals("Жим лёжа", filtered[0].name)
+    }
+
+    @Test
+    fun `filteredExercises should be empty when no exercises match filters`() = runTest {
+        viewModel.initialize()
+        advanceUntilIdle()
+
+        viewModel.setTypeFilter(ExerciseType.CARDIO)
+        advanceUntilIdle()
+
+        val filtered = viewModel.filteredExercises.first()
+        assertEquals(0, filtered.size)
+    }
+
+    @Test
+    fun `filteredExercises with multiple muscles should show exercises matching any muscle`() = runTest {
+        viewModel.initialize()
+        advanceUntilIdle()
+
+        viewModel.toggleMuscleFilter(MuscleGroup.QUADS)
+        viewModel.toggleMuscleFilter(MuscleGroup.CHEST)
+        advanceUntilIdle()
+
+        val filtered = viewModel.filteredExercises.first()
+        assertEquals(2, filtered.size)
     }
 }

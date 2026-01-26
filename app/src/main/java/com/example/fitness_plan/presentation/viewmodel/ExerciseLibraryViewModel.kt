@@ -12,6 +12,9 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -25,6 +28,34 @@ class ExerciseLibraryViewModel @Inject constructor(
 
     private val _favoriteExercises = MutableStateFlow<Set<String>>(emptySet())
     val favoriteExercises: StateFlow<Set<String>> = _favoriteExercises.asStateFlow()
+
+    private val _selectedType = MutableStateFlow<ExerciseType?>(null)
+    val selectedType: StateFlow<ExerciseType?> = _selectedType.asStateFlow()
+
+    private val _selectedEquipment = MutableStateFlow<List<EquipmentType>>(emptyList())
+    val selectedEquipment: StateFlow<List<EquipmentType>> = _selectedEquipment.asStateFlow()
+
+    private val _selectedMuscles = MutableStateFlow<List<MuscleGroup>>(emptyList())
+    val selectedMuscles: StateFlow<List<MuscleGroup>> = _selectedMuscles.asStateFlow()
+
+    val filteredExercises: StateFlow<List<ExerciseLibrary>> = combine(
+        _exercises,
+        _favoriteExercises,
+        _selectedType,
+        _selectedEquipment,
+        _selectedMuscles
+    ) { exercises, favorites, type, equipment, muscles ->
+        getFilteredAndSortedExercises(
+            typeFilter = type,
+            equipmentFilter = equipment,
+            muscleFilter = muscles,
+            favorites = favorites
+        )
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = emptyList()
+    )
 
     fun initialize() {
         viewModelScope.launch {
@@ -101,5 +132,29 @@ class ExerciseLibraryViewModel @Inject constructor(
             priorityOrder.indexOf(group)
         }
         return minIndex ?: Int.MAX_VALUE
+    }
+
+    fun setTypeFilter(type: ExerciseType?) {
+        _selectedType.value = type
+    }
+
+    fun setEquipmentFilter(equipment: List<EquipmentType>) {
+        _selectedEquipment.value = equipment
+    }
+
+    fun toggleMuscleFilter(muscle: MuscleGroup) {
+        val current = _selectedMuscles.value.toMutableList()
+        if (current.contains(muscle)) {
+            current.remove(muscle)
+        } else {
+            current.add(muscle)
+        }
+        _selectedMuscles.value = current
+    }
+
+    fun resetFilters() {
+        _selectedType.value = null
+        _selectedEquipment.value = emptyList()
+        _selectedMuscles.value = emptyList()
     }
 }

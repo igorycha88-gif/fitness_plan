@@ -13,6 +13,7 @@ import io.mockk.mockk
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -59,12 +60,24 @@ class ExerciseLibraryScreenTest {
 
     private val exercisesFlow = MutableStateFlow(sampleExercises)
     private val favoritesFlow = MutableStateFlow(setOf("Приседания"))
+    private val filteredExercisesFlow = MutableStateFlow(sampleExercises)
+    private val selectedTypeFlow = MutableStateFlow<ExerciseType?>(null)
+    private val selectedEquipmentFlow = MutableStateFlow<List<EquipmentType>>(emptyList())
+    private val selectedMusclesFlow = MutableStateFlow<List<MuscleGroup>>(emptyList())
 
     @Before
     fun setup() {
         every { mockExerciseLibraryViewModel.exercises } returns exercisesFlow as StateFlow<List<ExerciseLibrary>>
         every { mockExerciseLibraryViewModel.favoriteExercises } returns MutableStateFlow(emptySet<String>()) as StateFlow<Set<String>>
+        every { mockExerciseLibraryViewModel.filteredExercises } returns filteredExercisesFlow as StateFlow<List<ExerciseLibrary>>
+        every { mockExerciseLibraryViewModel.selectedType } returns selectedTypeFlow as StateFlow<ExerciseType?>
+        every { mockExerciseLibraryViewModel.selectedEquipment } returns selectedEquipmentFlow as StateFlow<List<EquipmentType>>
+        every { mockExerciseLibraryViewModel.selectedMuscles } returns selectedMusclesFlow as StateFlow<List<MuscleGroup>>
         every { mockExerciseLibraryViewModel.initialize() } returns Unit
+        every { mockExerciseLibraryViewModel.setTypeFilter(any()) } returns Unit
+        every { mockExerciseLibraryViewModel.setEquipmentFilter(any()) } returns Unit
+        every { mockExerciseLibraryViewModel.toggleMuscleFilter(any()) } returns Unit
+        every { mockExerciseLibraryViewModel.resetFilters() } returns Unit
 
         every { mockProfileViewModel?.getFavoriteExercises() } returns favoritesFlow
     }
@@ -169,5 +182,175 @@ class ExerciseLibraryScreenTest {
         composeTestRule.onNodeWithContentDescription("Добавить в избранное").performClick()
 
         assertEquals("Приседания", toggledExercise)
+    }
+
+    @Test
+    fun exerciseLibraryScreen_shouldDisplayFilterSection() {
+        composeTestRule.setContent {
+            ExerciseLibraryScreen(
+                viewModel = mockExerciseLibraryViewModel,
+                profileViewModel = mockProfileViewModel,
+                onExerciseClick = {},
+                onToggleFavorite = {}
+            )
+        }
+
+        composeTestRule.onNodeWithText("Фильтры").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Тип").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Оборудование").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Мышцы").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Сбросить").assertIsDisplayed()
+    }
+
+    @Test
+    fun exerciseLibraryScreen_onTypeButtonClick_shouldExpandTypeDropdown() {
+        composeTestRule.setContent {
+            ExerciseLibraryScreen(
+                viewModel = mockExerciseLibraryViewModel,
+                profileViewModel = mockProfileViewModel,
+                onExerciseClick = {},
+                onToggleFavorite = {}
+            )
+        }
+
+        composeTestRule.onNodeWithText("Тип").performClick()
+
+        composeTestRule.onNodeWithText("Все типы").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Силовые").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Кардио").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Растяжка").assertIsDisplayed()
+    }
+
+    @Test
+    fun exerciseLibraryScreen_onTypeSelect_shouldCallViewModel() {
+        composeTestRule.setContent {
+            ExerciseLibraryScreen(
+                viewModel = mockExerciseLibraryViewModel,
+                profileViewModel = mockProfileViewModel,
+                onExerciseClick = {},
+                onToggleFavorite = {}
+            )
+        }
+
+        composeTestRule.onNodeWithText("Тип").performClick()
+        composeTestRule.onNodeWithText("Силовые").performClick()
+
+        composeTestRule.verify { mockExerciseLibraryViewModel.setTypeFilter(ExerciseType.STRENGTH) }
+    }
+
+    @Test
+    fun exerciseLibraryScreen_onResetButtonClick_shouldCallViewModel() {
+        composeTestRule.setContent {
+            ExerciseLibraryScreen(
+                viewModel = mockExerciseLibraryViewModel,
+                profileViewModel = mockProfileViewModel,
+                onExerciseClick = {},
+                onToggleFavorite = {}
+            )
+        }
+
+        composeTestRule.onNodeWithText("Сбросить").performClick()
+
+        composeTestRule.verify { mockExerciseLibraryViewModel.resetFilters() }
+    }
+
+    @Test
+    fun exerciseLibraryScreen_shouldDisplaySelectedType() {
+        selectedTypeFlow.value = ExerciseType.STRENGTH
+
+        composeTestRule.setContent {
+            ExerciseLibraryScreen(
+                viewModel = mockExerciseLibraryViewModel,
+                profileViewModel = mockProfileViewModel,
+                onExerciseClick = {},
+                onToggleFavorite = {}
+            )
+        }
+
+        composeTestRule.onNodeWithText("Силовые").assertIsDisplayed()
+    }
+
+    @Test
+    fun exerciseLibraryScreen_shouldDisplaySelectedEquipmentCount() {
+        selectedEquipmentFlow.value = listOf(EquipmentType.BARBELL, EquipmentType.DUMBBELLS)
+
+        composeTestRule.setContent {
+            ExerciseLibraryScreen(
+                viewModel = mockExerciseLibraryViewModel,
+                profileViewModel = mockProfileViewModel,
+                onExerciseClick = {},
+                onToggleFavorite = {}
+            )
+        }
+
+        composeTestRule.onNodeWithText("(2)").assertIsDisplayed()
+    }
+
+    @Test
+    fun exerciseLibraryScreen_shouldDisplaySelectedMusclesCount() {
+        selectedMusclesFlow.value = listOf(MuscleGroup.CHEST, MuscleGroup.TRICEPS)
+
+        composeTestRule.setContent {
+            ExerciseLibraryScreen(
+                viewModel = mockExerciseLibraryViewModel,
+                profileViewModel = mockProfileViewModel,
+                onExerciseClick = {},
+                onToggleFavorite = {}
+            )
+        }
+
+        composeTestRule.onNodeWithText("(2)").assertIsDisplayed()
+    }
+
+    @Test
+    fun exerciseLibraryScreen_shouldDisplayFilterChipsForEquipment() {
+        selectedEquipmentFlow.value = listOf(EquipmentType.BARBELL, EquipmentType.DUMBBELLS)
+
+        composeTestRule.setContent {
+            ExerciseLibraryScreen(
+                viewModel = mockExerciseLibraryViewModel,
+                profileViewModel = mockProfileViewModel,
+                onExerciseClick = {},
+                onToggleFavorite = {}
+            )
+        }
+
+        composeTestRule.onNodeWithText("Штанга").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Гантели").assertIsDisplayed()
+    }
+
+    @Test
+    fun exerciseLibraryScreen_shouldDisplayFilterChipsForMuscles() {
+        selectedMusclesFlow.value = listOf(MuscleGroup.CHEST, MuscleGroup.TRICEPS)
+
+        composeTestRule.setContent {
+            ExerciseLibraryScreen(
+                viewModel = mockExerciseLibraryViewModel,
+                profileViewModel = mockProfileViewModel,
+                onExerciseClick = {},
+                onToggleFavorite = {}
+            )
+        }
+
+        composeTestRule.onNodeWithText("Грудь").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Трицепсы").assertIsDisplayed()
+    }
+
+    @Test
+    fun exerciseLibraryScreen_onFilterChipClick_shouldRemoveFilter() {
+        selectedMusclesFlow.value = listOf(MuscleGroup.CHEST)
+
+        composeTestRule.setContent {
+            ExerciseLibraryScreen(
+                viewModel = mockExerciseLibraryViewModel,
+                profileViewModel = mockProfileViewModel,
+                onExerciseClick = {},
+                onToggleFavorite = {}
+            )
+        }
+
+        composeTestRule.onNodeWithText("Грудь").performClick()
+
+        composeTestRule.verify { mockExerciseLibraryViewModel.toggleMuscleFilter(MuscleGroup.CHEST) }
     }
 }
