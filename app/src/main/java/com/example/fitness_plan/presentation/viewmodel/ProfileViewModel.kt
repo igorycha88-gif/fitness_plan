@@ -107,6 +107,11 @@ class ProfileViewModel @Inject constructor(
             Log.d(TAG, "saveUserProfile: saving profile for user=${profile.username}")
             userRepository.saveUserProfile(profile)
 
+            if (currentProfile == null) {
+                Log.d(TAG, "saveUserProfile: first profile creation, saving initial weight")
+                weightRepository.saveWeight(profile.username, profile.weight, System.currentTimeMillis())
+            }
+
             if (goalOrLevelChanged) {
                 Log.d(TAG, "saveUserProfile: goal or level changed, resetting cycle")
                 cycleRepository.resetCycle(profile.username)

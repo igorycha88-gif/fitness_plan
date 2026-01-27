@@ -28,7 +28,8 @@ private const val TAG = "StatisticsViewModel"
 enum class TimeFilter(val days: Int, val label: String) {
     WEEK(7, "Неделя"),
     MONTH(30, "Месяц"),
-    YEAR(365, "Год")
+    YEAR(365, "Год"),
+    ALL(0, "Всё время")
 }
 
 @HiltViewModel
@@ -62,6 +63,12 @@ class StatisticsViewModel @Inject constructor(
     private val _currentUsername = MutableStateFlow("")
     val currentUsername: StateFlow<String> = _currentUsername.asStateFlow()
 
+    private val _selectedTimeFilter = MutableStateFlow(TimeFilter.MONTH)
+    val selectedTimeFilter: StateFlow<TimeFilter> = _selectedTimeFilter.asStateFlow()
+
+    private val _showWeightDialog = MutableStateFlow(false)
+    val showWeightDialog: StateFlow<Boolean> = _showWeightDialog.asStateFlow()
+
 
 
 
@@ -81,6 +88,23 @@ class StatisticsViewModel @Inject constructor(
         loadWeightHistory()
         loadExerciseStats()
         loadCycleData()
+    }
+
+    fun setTimeFilter(filter: TimeFilter) {
+        _selectedTimeFilter.value = filter
+    }
+
+    fun setShowWeightDialog(show: Boolean) {
+        _showWeightDialog.value = show
+    }
+
+    fun saveWeight(weight: Double, date: Long = System.currentTimeMillis()) {
+        viewModelScope.launch {
+            val username = _currentUsername.value
+            if (username.isNotEmpty()) {
+                weightRepository.saveWeight(username, weight, date)
+            }
+        }
     }
 
     private suspend fun loadWeightHistory() {
@@ -121,9 +145,30 @@ class StatisticsViewModel @Inject constructor(
 
 
     fun getFilteredWeightHistory(): List<WeightEntry> {
-        val days = TimeFilter.MONTH.days // Default to month
+        val days = _selectedTimeFilter.value.days
+        if (days == 0) {
+            return _weightHistory.value.sortedBy { it.date }
+        }
         val cutoffTime = System.currentTimeMillis() - (days * 24 * 60 * 60 * 1000L)
-        return _weightHistory.value.filter { it.date >= cutoffTime }
+        return _weightHistory.value.filter { it.date >= cutoffTime }.sortedBy { it.date }
+    }
+
+    fun getCurrentWeight(): Double {
+        val filtered = getFilteredWeightHistory()
+        return if (filtered.isNotEmpty()) filtered.last().weight else 0.0
+    }
+
+    fun getStartWeight(): Double {
+        val filtered = getFilteredWeightHistory()
+        return if (filtered.isNotEmpty()) filtered.first().weight else 0.0
+    }
+
+    fun getDaysFromStart(): Int {
+        val filtered = getFilteredWeightHistory()
+        if (filtered.isEmpty()) return 0
+        val firstEntry = filtered.first()
+        val days = ((System.currentTimeMillis() - firstEntry.date) / (24 * 60 * 60 * 1000L)).toInt()
+        return maxOf(1, days)
     }
 
     fun getFilteredExerciseStats(): List<ExerciseStats> {
