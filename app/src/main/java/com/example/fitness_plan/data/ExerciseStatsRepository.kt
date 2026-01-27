@@ -54,8 +54,23 @@ class ExerciseStatsRepository @Inject constructor(
             val json = preferences[key] ?: "[]"
             val type = object : TypeToken<List<ExerciseStats>>() {}.type
             try {
-                gson.fromJson(json, type) ?: emptyList()
+                val stats = gson.fromJson<List<ExerciseStats>>(json, type) ?: emptyList()
+                if (stats.isNotEmpty()) {
+                    Log.d(TAG, "Loaded ${stats.size} exercise stats for user $username")
+                    val oldestStat = stats.minByOrNull { it.date }
+                    val newestStat = stats.maxByOrNull { it.date }
+                    if (oldestStat != null && newestStat != null) {
+                        val dateRangeDays = ((newestStat.date - oldestStat.date) / (24 * 60 * 60 * 1000L))
+                        Log.d(TAG, "Date range: $dateRangeDays days (from ${oldestStat.exerciseName} to ${newestStat.exerciseName})")
+                    }
+                    val uniqueExercises = stats.map { it.exerciseName }.distinct()
+                    Log.d(TAG, "Unique exercises: ${uniqueExercises.size} - ${uniqueExercises.take(5)}")
+                } else {
+                    Log.d(TAG, "No exercise stats found for user $username")
+                }
+                stats
             } catch (e: Exception) {
+                Log.e(TAG, "Error parsing stats for user $username", e)
                 emptyList()
             }
         }

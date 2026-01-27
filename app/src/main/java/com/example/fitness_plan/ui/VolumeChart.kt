@@ -195,7 +195,8 @@ fun VolumeChart(
                     formatVolumeDateShort(entry.date)
                 }
                 VolumeTimeFilter.MONTH,
-                VolumeTimeFilter.YEAR -> {
+                VolumeTimeFilter.YEAR,
+                VolumeTimeFilter.ALL -> {
                     formatVolumeDateWeek(entry.date)
                 }
             }

@@ -407,6 +407,13 @@ class StatisticsViewModelTest {
     }
 
     @Test
+    fun `setVolumeFilter should support ALL option`() {
+        viewModel.setVolumeFilter(VolumeTimeFilter.ALL)
+
+        assertThat(viewModel.selectedVolumeFilter.value).isEqualTo(VolumeTimeFilter.ALL)
+    }
+
+    @Test
     fun `getFilteredVolumeData with WEEK filter should aggregate by day`() = runTest {
         val now = System.currentTimeMillis()
         val dayInMillis = 24 * 60 * 60 * 1000L
@@ -570,5 +577,70 @@ class StatisticsViewModelTest {
 
         assertThat(filtered).hasSize(1)
         assertThat(filtered[0].exerciseCount).isEqualTo(2)
+    }
+
+    @Test
+    fun `getFilteredVolumeData with ALL filter should include all data regardless of date`() = runTest {
+        val now = System.currentTimeMillis()
+        val dayInMillis = 24 * 60 * 60 * 1000L
+
+        val stats = listOf(
+            ExerciseStats("Жим лёжа", now, 100.0, 10, 1, 1),
+            ExerciseStats("Приседания", now - 500 * dayInMillis, 80.0, 8, 1, 1),
+            ExerciseStats("Становая тяга", now - 1000 * dayInMillis, 120.0, 5, 1, 1)
+        )
+
+        mutableStatsFlow.value = stats
+        viewModel.setVolumeFilter(VolumeTimeFilter.ALL)
+
+        val filtered = viewModel.getFilteredVolumeData()
+
+        assertThat(filtered.size).isAtLeast(1)
+        val totalVolume = filtered.sumOf { it.volume }
+        assertThat(totalVolume).isEqualTo(2240L)
+    }
+
+    @Test
+    fun `getExerciseStatsSummary should return correct summary`() = runTest {
+        val now = System.currentTimeMillis()
+
+        val stats = listOf(
+            ExerciseStats("Жим лёжа", now, 100.0, 10, 1, 1),
+            ExerciseStats("Приседания", now, 80.0, 8, 1, 1),
+            ExerciseStats("Жим лёжа", now + 1000, 110.0, 10, 1, 1)
+        )
+
+        mutableStatsFlow.value = stats
+
+        val summary = viewModel.getExerciseStatsSummary()
+
+        assertThat(summary.totalCount).isEqualTo(3)
+        assertThat(summary.uniqueCount).isEqualTo(2)
+        assertThat(summary.exerciseNames).containsExactly("Жим лёжа", "Приседания")
+        assertThat(summary.totalVolume).isEqualTo(1640L + 1100L)
+    }
+
+    @Test
+    fun `getVolumeDataSummary should return reason when no data`() {
+        val summary = viewModel.getVolumeDataSummary()
+
+        assertThat(summary.totalCount).isEqualTo(0)
+        assertThat(summary.reason).isEqualTo("Нет выполненных упражнений")
+    }
+
+    @Test
+    fun `getVolumeDataSummary should return OK when data exists`() = runTest {
+        val now = System.currentTimeMillis()
+
+        val stats = listOf(
+            ExerciseStats("Жим лёжа", now, 100.0, 10, 1, 1)
+        )
+
+        mutableStatsFlow.value = stats
+
+        val summary = viewModel.getVolumeDataSummary()
+
+        assertThat(summary.totalCount).isGreaterThan(0)
+        assertThat(summary.reason).isEqualTo("OK")
     }
 }

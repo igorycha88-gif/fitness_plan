@@ -46,8 +46,10 @@ fun VolumeScreen(viewModel: StatisticsViewModel = hiltViewModel()) {
     val noDataReason = remember(volumeData, selectedFilter, selectedExercise) {
         when {
             exerciseStats.isEmpty() -> "Нет выполненных упражнений. Запишите вес и повторения в тренажёрном зале."
-            selectedExercise != null && volumeData.none { it.exerciseName == selectedExercise } -> "Нет данных для выбранного упражнения. Попробуйте выбрать другое упражнение или 'Все упражнения'."
-            volumeData.isEmpty() -> "Нет данных за выбранный период. Попробуйте выбрать другой период или выполните упражнения."
+            selectedExercise != null && exerciseStats.none { it.exerciseName == selectedExercise } -> "Нет данных для выбранного упражнения. Попробуйте выбрать другое упражнение или 'Все упражнения'."
+            selectedExercise == null && selectedFilter != VolumeTimeFilter.ALL && volumeData.isEmpty() && exerciseStats.isNotEmpty() -> "Нет данных за выбранный период. Попробуйте выбрать 'Всё время'."
+            selectedExercise != null && selectedFilter != VolumeTimeFilter.ALL && volumeData.isEmpty() -> "Нет данных для выбранного упражнения за этот период. Попробуйте выбрать 'Всё время'."
+            volumeData.isEmpty() -> "Нет данных за выбранный период."
             else -> null
         }
     }

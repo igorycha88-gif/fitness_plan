@@ -38,7 +38,8 @@ enum class VolumeTimeFilter(val days: Int, val label: String) {
     DAY(1, "День"),
     WEEK(7, "Неделя"),
     MONTH(30, "Месяц"),
-    YEAR(365, "Год")
+    YEAR(365, "Год"),
+    ALL(0, "Всё время")
 }
 
 @HiltViewModel
@@ -78,7 +79,7 @@ class StatisticsViewModel @Inject constructor(
     private val _showWeightDialog = MutableStateFlow(false)
     val showWeightDialog: StateFlow<Boolean> = _showWeightDialog.asStateFlow()
 
-    private val _selectedVolumeFilter = MutableStateFlow(VolumeTimeFilter.DAY)
+    private val _selectedVolumeFilter = MutableStateFlow(VolumeTimeFilter.WEEK)
     val selectedVolumeFilter: StateFlow<VolumeTimeFilter> = _selectedVolumeFilter.asStateFlow()
 
     private val _volumeData = MutableStateFlow<List<ExerciseStats>>(emptyList())
@@ -180,7 +181,11 @@ class StatisticsViewModel @Inject constructor(
         selectedExercise: String?,
         filter: VolumeTimeFilter
     ) {
-        val cutoffTime = System.currentTimeMillis() - (filter.days.toLong() * 24 * 60 * 60 * 1000)
+        val cutoffTime = if (filter.days > 0) {
+            System.currentTimeMillis() - (filter.days.toLong() * 24 * 60 * 60 * 1000)
+        } else {
+            0L
+        }
         Log.d(TAG, "updateVolumeData: filter=${filter.label}, days=${filter.days}, selectedExercise=$selectedExercise, totalStats=${stats.size}")
 
         val beforeFilterCount = stats.size
@@ -190,6 +195,15 @@ class StatisticsViewModel @Inject constructor(
             .sortedBy { it.date }
 
         Log.d(TAG, "updateVolumeData: filtered from $beforeFilterCount to ${filteredStats.size} records")
+        if (filteredStats.isNotEmpty()) {
+            val totalVolume = filteredStats.sumOf { it.volume }
+            val uniqueExercises = filteredStats.map { it.exerciseName }.distinct()
+            Log.d(TAG, "updateVolumeData: totalVolume=$totalVolume, uniqueExercises=${uniqueExercises.size}, exercises=${uniqueExercises}")
+            val oldestDate = filteredStats.first().date
+            val newestDate = filteredStats.last().date
+            val dateRange = (newestDate - oldestDate) / (24 * 60 * 60 * 1000L)
+            Log.d(TAG, "updateVolumeData: dateRange=$dateRange days")
+        }
         _volumeData.value = filteredStats
     }
 
@@ -288,6 +302,68 @@ class StatisticsViewModel @Inject constructor(
         return if (progress > 0) "+%.1f%%".format(progress) else "%.1f%%".format(progress)
     }
 
+    fun getExerciseStatsSummary(): ExerciseStatsSummary {
+        val stats = _exerciseStats.value
+        return if (stats.isEmpty()) {
+            ExerciseStatsSummary(0, 0, emptyList(), emptyList(), 0L, "Нет данных")
+        } else {
+            val uniqueExercises = stats.map { it.exerciseName }.distinct()
+            val oldestDate = stats.minOfOrNull { it.date } ?: 0L
+            val newestDate = stats.maxOfOrNull { it.date } ?: 0L
+            val totalVolume = stats.sumOf { it.volume }
+            val dateRangeDays = if (oldestDate > 0 && newestDate > 0) {
+                (newestDate - oldestDate) / (24 * 60 * 60 * 1000L)
+            } else {
+                0L
+            }
+            ExerciseStatsSummary(
+                totalCount = stats.size,
+                uniqueCount = uniqueExercises.size,
+                exerciseNames = uniqueExercises,
+                sampleDates = stats.take(5).map { it.date },
+                totalVolume = totalVolume,
+                dateRange = "$dateRangeDays дней"
+            )
+        }
+    }
+
+    fun getVolumeDataSummary(): VolumeDataSummary {
+        val volumeData = _volumeData.value
+        val filter = _selectedVolumeFilter.value
+        val selectedExercise = _selectedExercise.value
+
+        return if (volumeData.isEmpty()) {
+            val allStats = _exerciseStats.value
+            VolumeDataSummary(
+                totalCount = 0,
+                filterLabel = filter.label,
+                selectedExercise = selectedExercise,
+                reason = when {
+                    allStats.isEmpty() -> "Нет выполненных упражнений"
+                    selectedExercise != null && allStats.none { it.exerciseName == selectedExercise } -> "Нет данных для выбранного упражнения"
+                    filter != VolumeTimeFilter.ALL && allStats.isNotEmpty() -> {
+                        val cutoffTime = System.currentTimeMillis() - (filter.days.toLong() * 24 * 60 * 60 * 1000)
+                        val filteredByDate = allStats.filter { it.date >= cutoffTime }
+                        val filteredByExercise = if (selectedExercise != null) {
+                            filteredByDate.filter { it.exerciseName == selectedExercise }
+                        } else {
+                            filteredByDate
+                        }
+                        "Данные отфильтрованы: ${allStats.size} → ${filteredByExercise.size}"
+                    }
+                    else -> "Нет данных за выбранный период"
+                }
+            )
+        } else {
+            VolumeDataSummary(
+                totalCount = volumeData.size,
+                filterLabel = filter.label,
+                selectedExercise = selectedExercise,
+                reason = "OK"
+            )
+        }
+    }
+
     fun getFilteredVolumeData(): List<VolumeEntry> {
         val filter = _selectedVolumeFilter.value
         val exerciseStats = _volumeData.value
@@ -322,6 +398,18 @@ class StatisticsViewModel @Inject constructor(
                     .map { (week, stats) ->
                         VolumeEntry(
                             date = week,
+                            volume = stats.sumOf { it.volume },
+                            exerciseCount = stats.size,
+                            stats = stats
+                        )
+                    }
+                    .sortedBy { it.date }
+            }
+            VolumeTimeFilter.ALL -> {
+                exerciseStats.groupBy { getStartOfDay(it.date) }
+                    .map { (day, stats) ->
+                        VolumeEntry(
+                            date = day,
                             volume = stats.sumOf { it.volume },
                             exerciseCount = stats.size,
                             stats = stats
@@ -371,3 +459,19 @@ class StatisticsViewModel @Inject constructor(
         return calendar.timeInMillis
     }
 }
+
+data class ExerciseStatsSummary(
+    val totalCount: Int,
+    val uniqueCount: Int,
+    val exerciseNames: List<String>,
+    val sampleDates: List<Long>,
+    val totalVolume: Long,
+    val dateRange: String
+)
+
+data class VolumeDataSummary(
+    val totalCount: Int,
+    val filterLabel: String,
+    val selectedExercise: String?,
+    val reason: String
+)

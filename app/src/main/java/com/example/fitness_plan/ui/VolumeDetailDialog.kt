@@ -202,7 +202,8 @@ fun getVolumeDetailTitle(
             sdf.format(Date(volumeEntry.date))
         }
         VolumeTimeFilter.MONTH,
-        VolumeTimeFilter.YEAR -> {
+        VolumeTimeFilter.YEAR,
+        VolumeTimeFilter.ALL -> {
             val calendar = Calendar.getInstance()
             calendar.timeInMillis = volumeEntry.date
             val endDate = calendar.clone() as Calendar
