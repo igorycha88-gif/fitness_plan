@@ -7,6 +7,7 @@ import com.example.fitness_plan.domain.model.Cycle
 import com.example.fitness_plan.domain.model.CycleHistoryEntry
 import com.example.fitness_plan.domain.model.ExerciseStats
 import com.example.fitness_plan.domain.model.UserProfile
+import com.example.fitness_plan.domain.model.VolumeEntry
 import com.example.fitness_plan.domain.model.WeightEntry
 import com.example.fitness_plan.domain.repository.ICredentialsRepository
 import com.example.fitness_plan.domain.repository.CycleRepository
@@ -30,6 +31,12 @@ enum class TimeFilter(val days: Int, val label: String) {
     MONTH(30, "Месяц"),
     YEAR(365, "Год"),
     ALL(0, "Всё время")
+}
+
+enum class VolumeTimeFilter(val days: Int, val label: String) {
+    WEEK(7, "Неделя"),
+    MONTH(30, "Месяц"),
+    YEAR(365, "Год")
 }
 
 @HiltViewModel
@@ -69,6 +76,12 @@ class StatisticsViewModel @Inject constructor(
     private val _showWeightDialog = MutableStateFlow(false)
     val showWeightDialog: StateFlow<Boolean> = _showWeightDialog.asStateFlow()
 
+    private val _selectedVolumeFilter = MutableStateFlow(VolumeTimeFilter.MONTH)
+    val selectedVolumeFilter: StateFlow<VolumeTimeFilter> = _selectedVolumeFilter.asStateFlow()
+
+    private val _volumeData = MutableStateFlow<List<VolumeEntry>>(emptyList())
+    val volumeData: StateFlow<List<VolumeEntry>> = _volumeData.asStateFlow()
+
 
 
 
@@ -88,6 +101,7 @@ class StatisticsViewModel @Inject constructor(
         loadWeightHistory()
         loadExerciseStats()
         loadCycleData()
+        loadVolumeData()
     }
 
     fun setTimeFilter(filter: TimeFilter) {
@@ -96,6 +110,10 @@ class StatisticsViewModel @Inject constructor(
 
     fun setShowWeightDialog(show: Boolean) {
         _showWeightDialog.value = show
+    }
+
+    fun setVolumeFilter(filter: VolumeTimeFilter) {
+        _selectedVolumeFilter.value = filter
     }
 
     fun saveWeight(weight: Double, date: Long = System.currentTimeMillis()) {
@@ -107,22 +125,64 @@ class StatisticsViewModel @Inject constructor(
         }
     }
 
-    private suspend fun loadWeightHistory() {
-        weightRepository.getWeightHistory(_currentUsername.value).collect { entries ->
-            _weightHistory.value = entries.sortedBy { it.date }
+    private fun loadWeightHistory() {
+        viewModelScope.launch {
+            weightRepository.getWeightHistory(_currentUsername.value).collect { entries ->
+                _weightHistory.value = entries.sortedBy { it.date }
+            }
         }
     }
 
-    private suspend fun loadExerciseStats() {
-        exerciseStatsRepository.getExerciseStats(_currentUsername.value).collect { stats ->
-            _exerciseStats.value = stats.sortedBy { it.date }
-            updateAvailableExercises(stats)
+    private fun loadExerciseStats() {
+        viewModelScope.launch {
+            exerciseStatsRepository.getExerciseStats(_currentUsername.value).collect { stats ->
+                _exerciseStats.value = stats.sortedBy { it.date }
+                updateAvailableExercises(stats)
+            }
         }
     }
 
     private fun updateAvailableExercises(stats: List<ExerciseStats>) {
         val exercises = stats.map { it.exerciseName }.distinct().sorted()
         _availableExercises.value = exercises
+    }
+
+    private fun loadVolumeData() {
+        viewModelScope.launch {
+            _exerciseStats.collect { stats ->
+                updateVolumeData(stats)
+            }
+        }
+    }
+
+    private fun updateVolumeData(stats: List<ExerciseStats>) {
+        val filter = _selectedVolumeFilter.value
+        val cutoffTime = System.currentTimeMillis() - (filter.days.toLong() * 24 * 60 * 60 * 1000)
+
+        val filteredStats = stats.filter { it.date >= cutoffTime }.sortedBy { it.date }
+        val volumeEntries = mutableMapOf<Long, VolumeEntry>()
+
+        for (stat in filteredStats) {
+            val volume = stat.volume
+            val existing = volumeEntries[stat.date]
+
+            if (existing != null) {
+                volumeEntries[stat.date] = existing.copy(
+                    volume = existing.volume + volume,
+                    exerciseCount = existing.exerciseCount + 1,
+                    stats = existing.stats + stat
+                )
+            } else {
+                volumeEntries[stat.date] = VolumeEntry(
+                    date = stat.date,
+                    volume = volume,
+                    exerciseCount = 1,
+                    stats = listOf(stat)
+                )
+            }
+        }
+
+        _volumeData.value = volumeEntries.values.toList().sortedBy { it.date }
     }
 
     private suspend fun loadCycleData() {
@@ -218,5 +278,67 @@ class StatisticsViewModel @Inject constructor(
     fun getStrengthProgressText(): String {
         val progress = getStrengthProgress()
         return if (progress > 0) "+%.1f%%".format(progress) else "%.1f%%".format(progress)
+    }
+
+    fun getFilteredVolumeData(): List<VolumeEntry> {
+        val filter = _selectedVolumeFilter.value
+        val volumeEntries = _volumeData.value
+
+        return when (filter) {
+            VolumeTimeFilter.WEEK -> {
+                volumeEntries.groupBy { getStartOfDay(it.date) }
+                    .map { (day, entries) ->
+                        VolumeEntry(
+                            date = day,
+                            volume = entries.sumOf { it.volume },
+                            exerciseCount = entries.sumOf { it.exerciseCount },
+                            stats = entries.flatMap { it.stats }
+                        )
+                    }
+                    .sortedBy { it.date }
+            }
+            VolumeTimeFilter.MONTH, VolumeTimeFilter.YEAR -> {
+                volumeEntries.groupBy { getStartOfWeek(it.date) }
+                    .map { (week, entries) ->
+                        VolumeEntry(
+                            date = week,
+                            volume = entries.sumOf { it.volume },
+                            exerciseCount = entries.sumOf { it.exerciseCount },
+                            stats = entries.flatMap { it.stats }
+                        )
+                    }
+                    .sortedBy { it.date }
+            }
+        }
+    }
+
+    fun getTotalVolume(): Long {
+        return getFilteredVolumeData().sumOf { it.volume }
+    }
+
+    fun getAverageVolume(): Long {
+        val data = getFilteredVolumeData()
+        return if (data.isNotEmpty()) data.sumOf { it.volume } / data.size else 0L
+    }
+
+    private fun getStartOfDay(timestamp: Long): Long {
+        val calendar = java.util.Calendar.getInstance()
+        calendar.timeInMillis = timestamp
+        calendar.set(java.util.Calendar.HOUR_OF_DAY, 0)
+        calendar.set(java.util.Calendar.MINUTE, 0)
+        calendar.set(java.util.Calendar.SECOND, 0)
+        calendar.set(java.util.Calendar.MILLISECOND, 0)
+        return calendar.timeInMillis
+    }
+
+    private fun getStartOfWeek(timestamp: Long): Long {
+        val calendar = java.util.Calendar.getInstance()
+        calendar.timeInMillis = timestamp
+        calendar.set(java.util.Calendar.DAY_OF_WEEK, java.util.Calendar.MONDAY)
+        calendar.set(java.util.Calendar.HOUR_OF_DAY, 0)
+        calendar.set(java.util.Calendar.MINUTE, 0)
+        calendar.set(java.util.Calendar.SECOND, 0)
+        calendar.set(java.util.Calendar.MILLISECOND, 0)
+        return calendar.timeInMillis
     }
 }

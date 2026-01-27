@@ -1,6 +1,8 @@
 package com.example.fitness_plan.presentation.viewmodel
 
+import com.example.fitness_plan.domain.model.ExerciseStats
 import com.example.fitness_plan.domain.model.UserProfile
+import com.example.fitness_plan.domain.model.VolumeEntry
 import com.example.fitness_plan.domain.model.WeightEntry
 import com.example.fitness_plan.domain.repository.CycleRepository
 import com.example.fitness_plan.domain.repository.ExerciseStatsRepository
@@ -10,6 +12,7 @@ import com.example.fitness_plan.domain.repository.WeightRepository
 import io.mockk.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.*
@@ -30,6 +33,7 @@ class StatisticsViewModelTest {
 
     private val testDispatcher = UnconfinedTestDispatcher()
     private val testScope = TestScope(testDispatcher)
+    private val mutableStatsFlow = MutableStateFlow<List<ExerciseStats>>(emptyList())
 
     private val testUser = UserProfile(
         username = "testuser",
@@ -55,7 +59,7 @@ class StatisticsViewModelTest {
         coEvery { mockCredentialsRepository.getUsername() } returns "testuser"
         every { mockUserRepository.getUserProfile() } returns flowOf(testUser)
         every { mockWeightRepository.getWeightHistory(any()) } returns flowOf(emptyList())
-        every { mockExerciseStatsRepository.getExerciseStats(any()) } returns flowOf(emptyList())
+        every { mockExerciseStatsRepository.getExerciseStats(any()) } returns mutableStatsFlow
         coEvery { mockCycleRepository.getCurrentCycle(any()) } returns flowOf(null)
         coEvery { mockCycleRepository.getCycleHistory(any()) } returns flowOf(emptyList())
 
@@ -387,5 +391,115 @@ class StatisticsViewModelTest {
         val change = testViewModel.getWeightChange()
 
         assertThat(change).isEqualTo(0.0)
+    }
+
+    @Test
+    fun `initial volume filter should be MONTH`() {
+        assertThat(viewModel.selectedVolumeFilter.value).isEqualTo(VolumeTimeFilter.MONTH)
+    }
+
+    @Test
+    fun `setVolumeFilter should update selected filter`() {
+        viewModel.setVolumeFilter(VolumeTimeFilter.WEEK)
+
+        assertThat(viewModel.selectedVolumeFilter.value).isEqualTo(VolumeTimeFilter.WEEK)
+    }
+
+    @Test
+    fun `getFilteredVolumeData with WEEK filter should aggregate by day`() = runTest {
+        val now = System.currentTimeMillis()
+        val dayInMillis = 24 * 60 * 60 * 1000L
+
+        val stats = listOf(
+            ExerciseStats("Жим лёжа", now, 100.0, 10, 1, 1),
+            ExerciseStats("Приседания", now, 80.0, 8, 1, 1),
+            ExerciseStats("Становая тяга", now + 2 * dayInMillis, 120.0, 5, 1, 1),
+            ExerciseStats("Подтягивания", now + 2 * dayInMillis, 70.0, 10, 1, 1)
+        )
+
+        mutableStatsFlow.value = stats
+
+        viewModel.setVolumeFilter(VolumeTimeFilter.WEEK)
+
+        val filtered = viewModel.getFilteredVolumeData()
+
+        assertThat(filtered).hasSize(2)
+        assertThat(filtered[0].volume).isEqualTo(1000L + 640L)
+        assertThat(filtered[0].exerciseCount).isEqualTo(2)
+        assertThat(filtered[1].volume).isEqualTo(600L + 700L)
+    }
+
+    @Test
+    fun `getFilteredVolumeData with MONTH filter should aggregate by week`() = runTest {
+        val now = System.currentTimeMillis()
+        val dayInMillis = 24 * 60 * 60 * 1000L
+
+        val stats = listOf(
+            ExerciseStats("Жим лёжа", now, 100.0, 10, 1, 1),
+            ExerciseStats("Приседания", now + 2 * dayInMillis, 80.0, 8, 1, 1),
+            ExerciseStats("Становая тяга", now + 8 * dayInMillis, 120.0, 5, 1, 1),
+            ExerciseStats("Подтягивания", now + 10 * dayInMillis, 70.0, 10, 1, 1)
+        )
+
+        mutableStatsFlow.value = stats
+
+        viewModel.setVolumeFilter(VolumeTimeFilter.MONTH)
+
+        val filtered = viewModel.getFilteredVolumeData()
+
+        assertThat(filtered.size).isAtLeast(1)
+        val totalVolume = filtered.sumOf { it.volume }
+        assertThat(totalVolume).isEqualTo(1640L + 600L + 700L)
+    }
+
+    @Test
+    fun `getTotalVolume should return sum of all volumes`() = runTest {
+        val now = System.currentTimeMillis()
+
+        val stats = listOf(
+            ExerciseStats("Жим лёжа", now, 100.0, 10, 1, 1),
+            ExerciseStats("Приседания", now, 80.0, 8, 1, 1),
+            ExerciseStats("Становая тяга", now, 120.0, 5, 1, 1)
+        )
+
+        mutableStatsFlow.value = stats
+
+        val totalVolume = viewModel.getTotalVolume()
+
+        assertThat(totalVolume).isEqualTo(2240L)
+    }
+
+    @Test
+    fun `getTotalVolume should return 0 when no data`() = runTest {
+        val totalVolume = viewModel.getTotalVolume()
+
+        assertThat(totalVolume).isEqualTo(0L)
+    }
+
+    @Test
+    fun `getAverageVolume should calculate average correctly`() = runTest {
+        val now = System.currentTimeMillis()
+        val dayInMillis = 24 * 60 * 60 * 1000L
+
+        val stats = listOf(
+            ExerciseStats("Жим лёжа", now, 100.0, 10, 1, 1),
+            ExerciseStats("Приседания", now + dayInMillis, 80.0, 8, 1, 1),
+            ExerciseStats("Становая тяга", now + 2 * dayInMillis, 120.0, 5, 1, 1)
+        )
+
+        mutableStatsFlow.value = stats
+
+        viewModel.setVolumeFilter(VolumeTimeFilter.WEEK)
+
+        val averageVolume = viewModel.getAverageVolume()
+
+        assertThat(averageVolume).isEqualTo((1000L + 640L + 600L) / 3)
+    }
+
+    @Test
+    fun `getAverageVolume should return 0 when no data`() = runTest {
+        val averageVolume = viewModel.getAverageVolume()
+
+        assertThat(averageVolume).isEqualTo(0L)
     }
 }
