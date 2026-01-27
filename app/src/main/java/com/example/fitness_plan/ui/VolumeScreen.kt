@@ -5,6 +5,9 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -20,8 +23,12 @@ import com.example.fitness_plan.presentation.viewmodel.VolumeTimeFilter
 fun VolumeScreen(viewModel: StatisticsViewModel = hiltViewModel()) {
     val volumeData by viewModel.volumeData.collectAsState()
     val selectedFilter by viewModel.selectedVolumeFilter.collectAsState()
+    val availableExercises by viewModel.availableExercises.collectAsState()
+    val selectedExercise by viewModel.selectedExercise.collectAsState()
 
-    val filteredVolumeData = remember(selectedFilter, volumeData) {
+    var expanded by remember { mutableStateOf(false) }
+
+    val filteredVolumeData = remember(selectedFilter, selectedExercise, volumeData) {
         viewModel.getFilteredVolumeData()
     }
 
@@ -53,6 +60,21 @@ fun VolumeScreen(viewModel: StatisticsViewModel = hiltViewModel()) {
         )
 
         Spacer(modifier = Modifier.height(16.dp))
+
+        if (availableExercises.isNotEmpty()) {
+            ExerciseFilterDropdown(
+                availableExercises = availableExercises,
+                selectedExercise = selectedExercise,
+                expanded = expanded,
+                onExpandedChange = { expanded = it },
+                onExerciseSelected = { exerciseName ->
+                    viewModel.setSelectedExercise(exerciseName)
+                    expanded = false
+                }
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+        }
 
         Card(
             modifier = Modifier
@@ -235,5 +257,60 @@ fun formatVolumeCompact(volume: Long): String {
         "%.0fK".format(volume / 1000.0)
     } else {
         "$volume"
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ExerciseFilterDropdown(
+    availableExercises: List<String>,
+    selectedExercise: String?,
+    expanded: Boolean,
+    onExpandedChange: (Boolean) -> Unit,
+    onExerciseSelected: (String?) -> Unit
+) {
+    Box {
+        ExposedDropdownMenuBox(
+            expanded = expanded,
+            onExpandedChange = onExpandedChange
+        ) {
+            OutlinedTextField(
+                value = selectedExercise ?: "Все упражнения",
+                onValueChange = {},
+                readOnly = true,
+                trailingIcon = { Icon(Icons.Default.ArrowDropDown, contentDescription = null) },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .menuAnchor(),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = MaterialTheme.colorScheme.primary,
+                    unfocusedBorderColor = MaterialTheme.colorScheme.outline
+                ),
+                shape = RoundedCornerShape(12.dp)
+            )
+
+            ExposedDropdownMenu(
+                expanded = expanded,
+                onDismissRequest = { onExpandedChange(false) }
+            ) {
+                DropdownMenuItem(
+                    text = { Text("Все упражнения") },
+                    onClick = { onExerciseSelected(null) },
+                    leadingIcon = if (selectedExercise == null) {
+                        { Icon(Icons.Default.Check, contentDescription = null) }
+                    } else null
+                )
+
+                availableExercises.forEach { exercise ->
+                    DropdownMenuItem(
+                        text = { Text(exercise) },
+                        onClick = { onExerciseSelected(exercise) },
+                        leadingIcon = if (selectedExercise == exercise) {
+                            { Icon(Icons.Default.Check, contentDescription = null) }
+                        } else null
+                    )
+                }
+            }
+        }
     }
 }

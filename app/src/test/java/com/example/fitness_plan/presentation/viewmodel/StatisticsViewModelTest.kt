@@ -497,9 +497,77 @@ class StatisticsViewModelTest {
     }
 
     @Test
-    fun `getAverageVolume should return 0 when no data`() = runTest {
+    fun `getAverageVolume should return 0 when no data`() {
         val averageVolume = viewModel.getAverageVolume()
 
         assertThat(averageVolume).isEqualTo(0L)
+    }
+
+    @Test
+    fun `setSelectedExercise should update selected exercise`() {
+        viewModel.setSelectedExercise("Жим лёжа")
+
+        assertThat(viewModel.getSelectedExercise()).isEqualTo("Жим лёжа")
+    }
+
+    @Test
+    fun `setSelectedExercise with null should clear selection`() {
+        viewModel.setSelectedExercise("Жим лёжа")
+        assertThat(viewModel.getSelectedExercise()).isEqualTo("Жим лёжа")
+
+        viewModel.setSelectedExercise(null)
+        assertThat(viewModel.getSelectedExercise()).isNull()
+    }
+
+    @Test
+    fun `initial selected exercise should be null`() {
+        assertThat(viewModel.selectedExercise.value).isNull()
+    }
+
+    @Test
+    fun `getFilteredVolumeData with selected exercise should filter by exercise`() = runTest {
+        val now = System.currentTimeMillis()
+        val dayInMillis = 24 * 60 * 60 * 1000L
+
+        val stats = listOf(
+            ExerciseStats("Жим лёжа", now, 100.0, 10, 1, 1),
+            ExerciseStats("Приседания", now, 80.0, 8, 1, 1),
+            ExerciseStats("Жим лёжа", now + dayInMillis, 110.0, 10, 1, 1),
+            ExerciseStats("Приседания", now + dayInMillis, 85.0, 8, 1, 1)
+        )
+
+        mutableStatsFlow.value = stats
+        viewModel.setVolumeFilter(VolumeTimeFilter.WEEK)
+        viewModel.setSelectedExercise("Жим лёжа")
+
+        val filtered = viewModel.getFilteredVolumeData()
+
+        assertThat(filtered).hasSize(2)
+        assertThat(filtered[0].exerciseCount).isEqualTo(1)
+        assertThat(filtered[1].exerciseCount).isEqualTo(1)
+        filtered.forEach { entry ->
+            entry.stats.forEach { stat ->
+                assertThat(stat.exerciseName).isEqualTo("Жим лёжа")
+            }
+        }
+    }
+
+    @Test
+    fun `getFilteredVolumeData with null selected exercise should include all exercises`() = runTest {
+        val now = System.currentTimeMillis()
+
+        val stats = listOf(
+            ExerciseStats("Жим лёжа", now, 100.0, 10, 1, 1),
+            ExerciseStats("Приседания", now, 80.0, 8, 1, 1)
+        )
+
+        mutableStatsFlow.value = stats
+        viewModel.setVolumeFilter(VolumeTimeFilter.WEEK)
+        viewModel.setSelectedExercise(null)
+
+        val filtered = viewModel.getFilteredVolumeData()
+
+        assertThat(filtered).hasSize(1)
+        assertThat(filtered[0].exerciseCount).isEqualTo(2)
     }
 }

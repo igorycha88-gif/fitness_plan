@@ -89,6 +89,9 @@ class StatisticsViewModel @Inject constructor(
     private val _availableExercises = MutableStateFlow<List<String>>(emptyList())
     val availableExercises: StateFlow<List<String>> = _availableExercises.asStateFlow()
 
+    private val _selectedExercise = MutableStateFlow<String?>(null)
+    val selectedExercise: StateFlow<String?> = _selectedExercise.asStateFlow()
+
     init {
         viewModelScope.launch {
             val username = credentialsRepository.getUsername() ?: ""
@@ -114,6 +117,14 @@ class StatisticsViewModel @Inject constructor(
 
     fun setVolumeFilter(filter: VolumeTimeFilter) {
         _selectedVolumeFilter.value = filter
+    }
+
+    fun setSelectedExercise(exerciseName: String?) {
+        _selectedExercise.value = exerciseName
+    }
+
+    fun getSelectedExercise(): String? {
+        return _selectedExercise.value
     }
 
     fun saveWeight(weight: Double, date: Long = System.currentTimeMillis()) {
@@ -153,13 +164,24 @@ class StatisticsViewModel @Inject constructor(
                 updateVolumeData(stats)
             }
         }
+
+        viewModelScope.launch {
+            _selectedExercise.collect {
+                val stats = _exerciseStats.value
+                updateVolumeData(stats)
+            }
+        }
     }
 
     private fun updateVolumeData(stats: List<ExerciseStats>) {
         val filter = _selectedVolumeFilter.value
+        val selectedExercise = _selectedExercise.value
         val cutoffTime = System.currentTimeMillis() - (filter.days.toLong() * 24 * 60 * 60 * 1000)
 
-        val filteredStats = stats.filter { it.date >= cutoffTime }.sortedBy { it.date }
+        val filteredStats = stats
+            .filter { it.date >= cutoffTime }
+            .filter { selectedExercise == null || it.exerciseName == selectedExercise }
+            .sortedBy { it.date }
         val volumeEntries = mutableMapOf<Long, VolumeEntry>()
 
         for (stat in filteredStats) {
