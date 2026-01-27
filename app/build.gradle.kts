@@ -44,6 +44,26 @@ android {
         compose = true
     }
 
+    packaging {
+        resources {
+            excludes += setOf(
+                "META-INF/LICENSE.md",
+                "META-INF/LICENSE-notice.md",
+                "META-INF/LICENSE",
+                "META-INF/LICENSE.txt",
+                "META-INF/NOTICE",
+                "META-INF/NOTICE.md",
+                "META-INF/NOTICE.txt",
+                "META-INF/license.md",
+                "META-INF/license-notice.md",
+                "META-INF/notice.md"
+            )
+            pickFirsts += setOf(
+                "META-INF/kotlinx_coroutines_core.version"
+            )
+        }
+    }
+
     // 👇 ИСПОЛЬЗУЙТЕ composeOptions ВМЕСТО composeCompiler
     composeOptions {
         // Ссылаемся на переменную, определенную в корневом build.gradle.kts

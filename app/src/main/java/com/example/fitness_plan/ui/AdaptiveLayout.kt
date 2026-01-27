@@ -419,3 +419,27 @@ data class AdaptiveBarDimensions(
     val padding: PaddingValues,
     val contentPadding: PaddingValues
 )
+
+@Composable
+fun getLoginImageMaxHeight(): Dp {
+    val screenHeight = rememberAdaptiveInfo().screenHeight
+    return (screenHeight * 0.35f).coerceIn(150.dp, 280.dp)
+}
+
+@Composable
+fun getLoginScreenPadding(): Dp {
+    return when (rememberAdaptiveInfo().deviceType) {
+        DeviceType.COMPACT -> 16.dp
+        DeviceType.MEDIUM -> 20.dp
+        DeviceType.EXPANDED -> 24.dp
+    }
+}
+
+@Composable
+fun getLoginScreenSpacing(): Dp {
+    return when (rememberAdaptiveInfo().deviceType) {
+        DeviceType.COMPACT -> 12.dp
+        DeviceType.MEDIUM -> 16.dp
+        DeviceType.EXPANDED -> 24.dp
+    }
+}

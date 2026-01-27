@@ -3,11 +3,12 @@ package com.example.fitness_plan.ui
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import com.example.fitness_plan.domain.repository.Credentials
 import dagger.hilt.android.testing.HiltAndroidTest
+import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -22,18 +23,16 @@ class LoginScreenTest {
 
     private val mockProfileViewModel = mockk<com.example.fitness_plan.presentation.viewmodel.ProfileViewModel>()
 
-    private val credentialsFlow = MutableStateFlow<String?>(null)
-
     @Before
     fun setup() {
-        every { mockProfileViewModel.getCredentials() } returns credentialsFlow.value
-        every { mockProfileViewModel.verifyPassword(any(), any()) } returns false
+        coEvery { mockProfileViewModel.getCredentials() } returns null
+        coEvery { mockProfileViewModel.verifyPassword(any(), any()) } returns false
         every { mockProfileViewModel.setCurrentUsername(any()) } returns Unit
     }
 
     @Test
     fun loginScreen_shouldDisplayWelcomeMessage() {
-        credentialsFlow.value = null
+        coEvery { mockProfileViewModel.getCredentials() } returns null
 
         composeTestRule.setContent {
             LoginScreen(
@@ -44,13 +43,13 @@ class LoginScreenTest {
             )
         }
 
-        composeTestRule.onNodeWithText("Добро пожаловать!").assertIsDisplayed()
-        composeTestRule.onNodeWithText("Создайте аккаунт или войдите").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Добро пожаловать!").performScrollTo().assertIsDisplayed()
+        composeTestRule.onNodeWithText("Создайте аккаунт или войдите").performScrollTo().assertIsDisplayed()
     }
 
     @Test
     fun loginScreen_existingAccount_shouldDisplayWelcomeBackMessage() {
-        credentialsFlow.value = "test_user"
+        coEvery { mockProfileViewModel.getCredentials() } returns Credentials("test_user", "hashed_password")
 
         composeTestRule.setContent {
             LoginScreen(
@@ -61,8 +60,8 @@ class LoginScreenTest {
             )
         }
 
-        composeTestRule.onNodeWithText("С возвращением!").assertIsDisplayed()
-        composeTestRule.onNodeWithText("Войдите, чтобы продолжить тренировки").assertIsDisplayed()
+        composeTestRule.onNodeWithText("С возвращением!").performScrollTo().assertIsDisplayed()
+        composeTestRule.onNodeWithText("Войдите, чтобы продолжить тренировки").performScrollTo().assertIsDisplayed()
     }
 
     @Test
@@ -76,13 +75,13 @@ class LoginScreenTest {
             )
         }
 
-        composeTestRule.onNodeWithText("Логин").assertIsDisplayed()
-        composeTestRule.onNodeWithText("Пароль").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Логин").performScrollTo().assertIsDisplayed()
+        composeTestRule.onNodeWithText("Пароль").performScrollTo().assertIsDisplayed()
     }
 
     @Test
     fun loginScreen_emptyUsername_shouldShowErrorMessage() {
-        every { mockProfileViewModel.verifyPassword(any(), any()) } returns false
+        coEvery { mockProfileViewModel.verifyPassword(any(), any()) } returns false
 
         composeTestRule.setContent {
             LoginScreen(
@@ -93,13 +92,13 @@ class LoginScreenTest {
             )
         }
 
-        composeTestRule.onNodeWithText("Войти").performClick()
-        composeTestRule.onNodeWithText("Введите логин").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Войти").performScrollTo().performClick()
+        composeTestRule.onNodeWithText("Введите логин").performScrollTo().assertIsDisplayed()
     }
 
     @Test
     fun loginScreen_emptyPassword_shouldShowErrorMessage() {
-        every { mockProfileViewModel.verifyPassword(any(), any()) } returns false
+        coEvery { mockProfileViewModel.verifyPassword(any(), any()) } returns false
 
         composeTestRule.setContent {
             LoginScreen(
@@ -110,14 +109,14 @@ class LoginScreenTest {
             )
         }
 
-        composeTestRule.onNodeWithText("Логин").performTextInput("testuser")
-        composeTestRule.onNodeWithText("Войти").performClick()
-        composeTestRule.onNodeWithText("Введите пароль").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Логин").performScrollTo().performTextInput("testuser")
+        composeTestRule.onNodeWithText("Войти").performScrollTo().performClick()
+        composeTestRule.onNodeWithText("Введите пароль").performScrollTo().assertIsDisplayed()
     }
 
     @Test
     fun loginScreen_invalidCredentials_shouldShowErrorMessage() {
-        every { mockProfileViewModel.verifyPassword("testuser", "wrongpass") } returns false
+        coEvery { mockProfileViewModel.verifyPassword("testuser", "wrongpass") } returns false
 
         composeTestRule.setContent {
             LoginScreen(
@@ -128,16 +127,16 @@ class LoginScreenTest {
             )
         }
 
-        composeTestRule.onNodeWithText("Логин").performTextInput("testuser")
-        composeTestRule.onNodeWithText("Пароль").performTextInput("wrongpass")
-        composeTestRule.onNodeWithText("Войти").performClick()
-        composeTestRule.onNodeWithText("Неверный логин или пароль").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Логин").performScrollTo().performTextInput("testuser")
+        composeTestRule.onNodeWithText("Пароль").performScrollTo().performTextInput("wrongpass")
+        composeTestRule.onNodeWithText("Войти").performScrollTo().performClick()
+        composeTestRule.onNodeWithText("Неверный логин или пароль").performScrollTo().assertIsDisplayed()
     }
 
     @Test
     fun loginScreen_validCredentials_shouldTriggerLoginSuccess() {
         var loginSuccessTriggered = false
-        every { mockProfileViewModel.verifyPassword("testuser", "correctpass") } returns true
+        coEvery { mockProfileViewModel.verifyPassword("testuser", "correctpass") } returns true
 
         composeTestRule.setContent {
             LoginScreen(
@@ -148,9 +147,9 @@ class LoginScreenTest {
             )
         }
 
-        composeTestRule.onNodeWithText("Логин").performTextInput("testuser")
-        composeTestRule.onNodeWithText("Пароль").performTextInput("correctpass")
-        composeTestRule.onNodeWithText("Войти").performClick()
+        composeTestRule.onNodeWithText("Логин").performScrollTo().performTextInput("testuser")
+        composeTestRule.onNodeWithText("Пароль").performScrollTo().performTextInput("correctpass")
+        composeTestRule.onNodeWithText("Войти").performScrollTo().performClick()
 
         composeTestRule.waitUntil(5000) { loginSuccessTriggered }
     }
@@ -168,8 +167,8 @@ class LoginScreenTest {
             )
         }
 
-        composeTestRule.onNodeWithText("Создать аккаунт").performClick()
-        kotlin.test.assertTrue(registerClicked)
+        composeTestRule.onNodeWithText("Создать аккаунт").performScrollTo().performClick()
+        assertTrue(registerClicked)
     }
 
     @Test
@@ -185,7 +184,7 @@ class LoginScreenTest {
             )
         }
 
-        composeTestRule.onNodeWithText("Войти как администратор").performClick()
-        kotlin.test.assertTrue(adminLoginClicked)
+        composeTestRule.onNodeWithText("Войти как администратор").performScrollTo().performClick()
+        assertTrue(adminLoginClicked)
     }
 }
