@@ -119,11 +119,19 @@ class MainActivity : ComponentActivity() {
                             )
                         }
 
-                        composable("exercise_detail/{exerciseName}") { backStackEntry ->
+                        composable(
+                            route = "exercise_detail/{exerciseName}/{dayIndex}",
+                            arguments = listOf(
+                                androidx.navigation.navArgument("exerciseName") { type = androidx.navigation.NavType.StringType },
+                                androidx.navigation.navArgument("dayIndex") { type = androidx.navigation.NavType.IntType; defaultValue = -1 }
+                            )
+                        ) { backStackEntry ->
                             val exerciseName = backStackEntry.arguments?.getString("exerciseName") ?: ""
+                            val dayIndex = backStackEntry.arguments?.getInt("dayIndex") ?: -1
                             val isAdmin = navController.previousBackStackEntry?.destination?.route == "admin_main"
                             ExerciseDetailScreen(
                                 exerciseName = exerciseName,
+                                dayIndex = dayIndex,
                                 onBackClick = { navController.popBackStack() },
                                 workoutViewModel = workoutViewModel,
                                 isAdmin = isAdmin
@@ -135,9 +143,9 @@ class MainActivity : ComponentActivity() {
                                 mainNavController = navController,
                                 profileViewModel = profileViewModel,
                                 workoutViewModel = workoutViewModel,
-                                onExerciseClick = { exercise ->
+                                onExerciseClick = { exercise, dayIndex ->
                                     val encodedName = URLEncoder.encode(exercise.name, "UTF-8")
-                                    navController.navigate("exercise_detail/$encodedName")
+                                    navController.navigate("exercise_detail/$encodedName/$dayIndex")
                                 }
                             )
                         }
@@ -147,9 +155,9 @@ class MainActivity : ComponentActivity() {
                                 mainNavController = navController,
                                 profileViewModel = profileViewModel,
                                 workoutViewModel = workoutViewModel,
-                                onExerciseClick = { exercise ->
+                                onExerciseClick = { exercise, dayIndex ->
                                     val encodedName = URLEncoder.encode(exercise.name, "UTF-8")
-                                    navController.navigate("exercise_detail/$encodedName")
+                                    navController.navigate("exercise_detail/$encodedName/$dayIndex")
                                 },
                                 onExerciseLibraryClick = { exercise ->
                                     navController.navigate("exercise_guide/${exercise.id}")

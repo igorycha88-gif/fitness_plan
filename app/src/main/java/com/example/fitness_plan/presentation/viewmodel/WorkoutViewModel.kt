@@ -40,7 +40,8 @@ class WorkoutViewModel @Inject constructor(
     private val cycleUseCase: CycleUseCase,
     private val workoutUseCase: WorkoutUseCase,
     private val weightCalculator: WeightCalculator,
-    private val exerciseLibraryUseCase: ExerciseLibraryUseCase
+    private val exerciseLibraryUseCase: ExerciseLibraryUseCase,
+    private val exerciseCompletionRepo: com.example.fitness_plan.domain.repository.ExerciseCompletionRepository
 ) : ViewModel() {
 
     private val _currentWorkoutPlan = MutableStateFlow<WorkoutPlan?>(null)
@@ -116,6 +117,10 @@ class WorkoutViewModel @Inject constructor(
             _cycleHistory.value = cycleState.history
 
             Log.d(TAG, "Workout plan set: ${_currentWorkoutPlan.value?.name}, days=${_currentWorkoutPlan.value?.days?.size}")
+
+            if (cycleState.workoutPlan != null) {
+                exerciseCompletionRepo.migrateOldFormatExercises(username, cycleState.workoutPlan)
+            }
         } catch (e: Exception) {
             Log.e(TAG, "Error loading workout data", e)
         }

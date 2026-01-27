@@ -132,7 +132,7 @@ fun isAllSetsCompleted(exerciseName: String, totalSets: Int, exerciseStats: List
 @Composable
 fun HomeScreen(
     viewModel: WorkoutViewModel = hiltViewModel(),
-    onExerciseClick: (Exercise) -> Unit = {}
+    onExerciseClick: (Exercise, Int) -> Unit = { _, _ -> }
 ) {
     val workoutPlan by viewModel.currentWorkoutPlan.collectAsState()
     val exerciseStats by viewModel.exerciseStats.collectAsState()
@@ -224,7 +224,7 @@ fun AdaptivePlanDetailsScreen(
     completedExercises: Set<String>,
     completedDays: Set<Int>,
     partiallyCompletedDays: Set<Int>,
-    onExerciseClick: (Exercise) -> Unit,
+    onExerciseClick: (Exercise, Int) -> Unit,
     onExerciseToggle: (String, Boolean) -> Unit,
     onDateChange: (Int, Long?) -> Unit,
     modifier: Modifier = Modifier
@@ -399,7 +399,7 @@ fun AdaptivePlanDetailsScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(vertical = 4.dp)
-                            .clickable { onExerciseClick(exercise) },
+                            .clickable { onExerciseClick(exercise, selectedDayIndex) },
                         colors = CardDefaults.cardColors(
                             containerColor = if (showCheckmark)
                                 SuccessGreen.copy(alpha = 0.08f)
@@ -467,7 +467,7 @@ fun PlanDetailsScreen(
     completedExercises: Set<String>,
     completedDays: Set<Int>,
     partiallyCompletedDays: Set<Int>,
-    onExerciseClick: (Exercise) -> Unit,
+    onExerciseClick: (Exercise, Int) -> Unit,
     onExerciseToggle: (String, Boolean) -> Unit,
     onDateChange: ((Int, Long?) -> Unit)? = null,
     modifier: Modifier = Modifier
@@ -517,7 +517,7 @@ fun WorkoutDaysList(
     completedExercises: Set<String>,
     completedDays: Set<Int>,
     partiallyCompletedDays: Set<Int>,
-    onExerciseClick: (Exercise) -> Unit,
+    onExerciseClick: (Exercise, Int) -> Unit,
     onExerciseToggle: (String, Boolean) -> Unit,
     onDateChange: ((Int, Long?) -> Unit)? = null
 ) {
@@ -549,7 +549,7 @@ fun WorkoutDayCard(
     isPartiallyCompleted: Boolean = false,
     completedExercises: Set<String>,
     exerciseStats: List<ExerciseStats>,
-    onExerciseClick: (Exercise) -> Unit,
+    onExerciseClick: (Exercise, Int) -> Unit,
     onExerciseToggle: (String, Boolean) -> Unit,
     onDateChange: ((Long?) -> Unit)? = null
 ) {
@@ -661,7 +661,7 @@ fun WorkoutDayCard(
                         isLast = index == day.exercises.lastIndex,
                         dayIndex = dayIndex,
                         exerciseStats = exerciseStats,
-                        onClick = { onExerciseClick(exercise) },
+                        onClick = onExerciseClick,
                         onToggle = { completed -> onExerciseToggle(exerciseKey, completed) }
                     )
                 }
@@ -712,7 +712,7 @@ fun ExerciseRow(
     isLast: Boolean,
     dayIndex: Int = 0,
     exerciseStats: List<ExerciseStats> = emptyList(),
-    onClick: () -> Unit = {},
+    onClick: (Exercise, Int) -> Unit = { _, _ -> },
     onToggle: (Boolean) -> Unit = {}
 ) {
     val context = LocalContext.current
@@ -721,7 +721,7 @@ fun ExerciseRow(
 
     Column(modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
         Row(
-            modifier = Modifier.fillMaxWidth().clickable { onClick() },
+            modifier = Modifier.fillMaxWidth().clickable { onClick(exercise, dayIndex) },
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {

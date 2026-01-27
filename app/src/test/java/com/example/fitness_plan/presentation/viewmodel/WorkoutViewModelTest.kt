@@ -61,7 +61,8 @@ class WorkoutViewModelTest {
             mockCycleUseCase,
             mockWorkoutUseCase,
             mockWeightCalculator,
-            mockExerciseLibraryUseCase
+            mockExerciseLibraryUseCase,
+            mockExerciseCompletionRepository
         )
     }
 

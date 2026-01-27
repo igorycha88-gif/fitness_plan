@@ -43,7 +43,7 @@ fun MainScreen(
     mainNavController: NavHostController,
     profileViewModel: ProfileViewModel? = null,
     workoutViewModel: WorkoutViewModel? = null,
-    onExerciseClick: ((Exercise) -> Unit)? = null,
+    onExerciseClick: ((Exercise, Int) -> Unit)? = null,
     onExerciseLibraryClick: ((ExerciseLibrary) -> Unit)? = null
 ) {
     val bottomNavController = rememberNavController()
@@ -81,9 +81,9 @@ fun MainScreen(
                 .padding(innerPadding)
                 .windowInsetsPadding(WindowInsets.systemBars.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal))
         ) {
-             composable(Screen.Home.route) {
-                  HomeScreen(onExerciseClick = onExerciseClick ?: {})
-              }
+              composable(Screen.Home.route) {
+                   HomeScreen(onExerciseClick = onExerciseClick ?: { _, _ -> })
+               }
             composable(Screen.Profile.route) {
                 ProfileScreen(
                     viewModel = profileViewModel ?: hiltViewModel(),

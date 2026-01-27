@@ -1,5 +1,6 @@
 package com.example.fitness_plan.ui
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -11,6 +12,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.fitness_plan.domain.model.Exercise
 import com.example.fitness_plan.domain.model.WorkoutPlan
@@ -24,6 +26,7 @@ import androidx.compose.material3.MenuAnchorType
 @Composable
 fun ExerciseDetailScreen(
     exerciseName: String,
+    dayIndex: Int = -1,
     onBackClick: () -> Unit,
     workoutViewModel: WorkoutViewModel,
     isAdmin: Boolean = false
@@ -72,6 +75,12 @@ fun ExerciseDetailScreen(
     val isCardioOrStretching = selectedExercise?.exerciseType == com.example.fitness_plan.domain.model.ExerciseType.CARDIO ||
             selectedExercise?.exerciseType == com.example.fitness_plan.domain.model.ExerciseType.STRETCHING
 
+    val exerciseKey = if (dayIndex >= 0) {
+        "${dayIndex}_${currentExerciseName}"
+    } else {
+        currentExerciseName
+    }
+
     val recommendedReps = selectedExercise?.recommendedRepsPerSet?.split(",")?.mapNotNull { it.toIntOrNull() }
         ?: listOf(12, 13, 14)
     var adaptiveWeight by remember { mutableStateOf<Float?>(null) }
@@ -89,7 +98,7 @@ fun ExerciseDetailScreen(
             .sortedBy { it.date }
     }
 
-    val isExerciseCompleted = currentExerciseName in completedExercises
+    val isExerciseCompleted = exerciseKey in completedExercises
     val allSetsCompleted = if (isCardioOrStretching) {
         isExerciseCompleted
     } else {
@@ -123,12 +132,22 @@ fun ExerciseDetailScreen(
                 },
                 actions = {
                     if (allSetsCompleted) {
-                        Icon(
-                            Icons.Filled.Check,
-                            contentDescription = if (isCardioOrStretching) "Упражнение выполнено" else "Все подходы выполнены",
-                            tint = SuccessGreen,
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
                             modifier = Modifier.padding(end = 16.dp)
-                        )
+                        ) {
+                            Icon(
+                                Icons.Filled.Check,
+                                contentDescription = if (isCardioOrStretching) "Упражнение выполнено" else "Все подходы выполнены",
+                                tint = SuccessGreen
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                "Выполнено",
+                                color = SuccessGreen,
+                                style = MaterialTheme.typography.titleSmall
+                            )
+                        }
                     }
                 }
             )
@@ -153,23 +172,36 @@ fun ExerciseDetailScreen(
                 if (allSetsCompleted) {
                     Card(
                         modifier = Modifier.fillMaxWidth(),
-                        colors = CardDefaults.cardColors(containerColor = SuccessGreen.copy(alpha = 0.15f))
+                        colors = CardDefaults.cardColors(
+                            containerColor = SuccessGreen.copy(alpha = 0.15f),
+                            contentColor = SuccessGreen
+                        ),
+                        border = BorderStroke(2.dp, SuccessGreen.copy(alpha = 0.5f))
                     ) {
                         Row(
-                            modifier = Modifier.padding(16.dp),
+                            modifier = Modifier.padding(20.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Icon(
                                 Icons.Filled.Check,
                                 contentDescription = null,
-                                tint = SuccessGreen
+                                tint = SuccessGreen,
+                                modifier = Modifier.size(32.dp)
                             )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                if (isCardioOrStretching) "Упражнение выполнено!" else "Все подходы выполнены!",
-                                color = SuccessGreen,
-                                style = MaterialTheme.typography.bodyLarge
-                            )
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Column {
+                                Text(
+                                    "Выполнено!",
+                                    color = SuccessGreen,
+                                    style = MaterialTheme.typography.titleLarge,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Text(
+                                    if (isCardioOrStretching) "Отличная работа!" else "Все подходы завершены!",
+                                    color = SuccessGreen,
+                                    style = MaterialTheme.typography.bodyMedium
+                                )
+                            }
                         }
                     }
                     Spacer(modifier = Modifier.height(16.dp))
@@ -338,7 +370,7 @@ fun ExerciseDetailScreen(
                         onClick = {
                             selectedExercise?.let {
                                 if (!allSetsCompleted) {
-                                    workoutViewModel.toggleExerciseCompletion(currentExerciseName, true)
+                                    workoutViewModel.toggleExerciseCompletion(exerciseKey, true)
                                 }
                             }
                         },
@@ -357,7 +389,7 @@ fun ExerciseDetailScreen(
                         OutlinedButton(
                             onClick = {
                                 selectedExercise?.let {
-                                    workoutViewModel.toggleExerciseCompletion(currentExerciseName, true)
+                                    workoutViewModel.toggleExerciseCompletion(exerciseKey, true)
                                 }
                             },
                             modifier = Modifier.fillMaxWidth()
@@ -371,7 +403,7 @@ fun ExerciseDetailScreen(
 
                         OutlinedButton(
                             onClick = {
-                                workoutViewModel.toggleExerciseCompletion(currentExerciseName, false)
+                                workoutViewModel.toggleExerciseCompletion(exerciseKey, false)
                             },
                             modifier = Modifier.fillMaxWidth(),
                             colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)
@@ -475,7 +507,7 @@ fun ExerciseDetailScreen(
                                 )
 
                                 if (completedSets.size + 1 >= totalSets) {
-                                    workoutViewModel.toggleExerciseCompletion(currentExerciseName, true)
+                                    workoutViewModel.toggleExerciseCompletion(exerciseKey, true)
                                 }
 
                                 timerSeconds = 0
@@ -499,7 +531,7 @@ fun ExerciseDetailScreen(
                         OutlinedButton(
                             onClick = {
                                 selectedExercise?.let {
-                                    workoutViewModel.toggleExerciseCompletion(currentExerciseName, true)
+                                    workoutViewModel.toggleExerciseCompletion(exerciseKey, true)
                                 }
                             },
                             modifier = Modifier.fillMaxWidth()
@@ -513,7 +545,7 @@ fun ExerciseDetailScreen(
 
                         OutlinedButton(
                             onClick = {
-                                workoutViewModel.toggleExerciseCompletion(currentExerciseName, false)
+                                workoutViewModel.toggleExerciseCompletion(exerciseKey, false)
                             },
                             modifier = Modifier.fillMaxWidth(),
                             colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)

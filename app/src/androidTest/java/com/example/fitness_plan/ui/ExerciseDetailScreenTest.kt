@@ -104,6 +104,7 @@ class ExerciseDetailScreenTest {
         composeTestRule.setContent {
             ExerciseDetailScreen(
                 exerciseName = "Приседания",
+                dayIndex = 0,
                 onBackClick = {},
                 workoutViewModel = mockWorkoutViewModel,
                 isAdmin = false
@@ -121,6 +122,7 @@ class ExerciseDetailScreenTest {
         composeTestRule.setContent {
             ExerciseDetailScreen(
                 exerciseName = "Беговая дорожка",
+                dayIndex = 0,
                 onBackClick = {},
                 workoutViewModel = mockWorkoutViewModel,
                 isAdmin = false
@@ -129,7 +131,7 @@ class ExerciseDetailScreenTest {
 
         composeTestRule.onNodeWithText("Статус выполнения").assertIsDisplayed()
         composeTestRule.onNodeWithText("Отметить как выполненное").assertIsDisplayed()
-        
+
         composeTestRule.onNodeWithText("Вес (кг)").assertDoesNotExist()
         composeTestRule.onNodeWithText("Повторения").assertDoesNotExist()
         composeTestRule.onNodeWithText("Записать результат").assertDoesNotExist()
@@ -141,6 +143,7 @@ class ExerciseDetailScreenTest {
         composeTestRule.setContent {
             ExerciseDetailScreen(
                 exerciseName = "Растяжка ног",
+                dayIndex = 0,
                 onBackClick = {},
                 workoutViewModel = mockWorkoutViewModel,
                 isAdmin = false
@@ -149,7 +152,7 @@ class ExerciseDetailScreenTest {
 
         composeTestRule.onNodeWithText("Статус выполнения").assertIsDisplayed()
         composeTestRule.onNodeWithText("Отметить как выполненное").assertIsDisplayed()
-        
+
         composeTestRule.onNodeWithText("Вес (кг)").assertDoesNotExist()
         composeTestRule.onNodeWithText("Повторения").assertDoesNotExist()
         composeTestRule.onNodeWithText("Записать результат").assertDoesNotExist()
@@ -161,6 +164,7 @@ class ExerciseDetailScreenTest {
         composeTestRule.setContent {
             ExerciseDetailScreen(
                 exerciseName = "Беговая дорожка",
+                dayIndex = 0,
                 onBackClick = {},
                 workoutViewModel = mockWorkoutViewModel,
                 isAdmin = false
@@ -175,6 +179,7 @@ class ExerciseDetailScreenTest {
         composeTestRule.setContent {
             ExerciseDetailScreen(
                 exerciseName = "Растяжка ног",
+                dayIndex = 0,
                 onBackClick = {},
                 workoutViewModel = mockWorkoutViewModel,
                 isAdmin = false
@@ -186,50 +191,53 @@ class ExerciseDetailScreenTest {
 
     @Test
     fun exerciseDetailScreen_completedCardioExercise_shouldShowCompletionMessage() {
-        val updatedCompletedFlow = MutableStateFlow(setOf("Беговая дорожка"))
+        val updatedCompletedFlow = MutableStateFlow(setOf("0_Беговая дорожка"))
         every { mockWorkoutViewModel.completedExercises } returns updatedCompletedFlow as StateFlow<Set<String>>
 
         composeTestRule.setContent {
             ExerciseDetailScreen(
                 exerciseName = "Беговая дорожка",
+                dayIndex = 0,
                 onBackClick = {},
                 workoutViewModel = mockWorkoutViewModel,
                 isAdmin = false
             )
         }
 
-        composeTestRule.onNodeWithText("Упражнение выполнено!").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Выполнено!").assertIsDisplayed()
         composeTestRule.onNodeWithText("Упражнение выполнено").assertIsDisplayed()
         composeTestRule.onNodeWithText("Отменить выполнение").assertIsDisplayed()
     }
 
     @Test
     fun exerciseDetailScreen_completedStretchingExercise_shouldShowCompletionMessage() {
-        val updatedCompletedFlow = MutableStateFlow(setOf("Растяжка ног"))
+        val updatedCompletedFlow = MutableStateFlow(setOf("0_Растяжка ног"))
         every { mockWorkoutViewModel.completedExercises } returns updatedCompletedFlow as StateFlow<Set<String>>
 
         composeTestRule.setContent {
             ExerciseDetailScreen(
                 exerciseName = "Растяжка ног",
+                dayIndex = 0,
                 onBackClick = {},
                 workoutViewModel = mockWorkoutViewModel,
                 isAdmin = false
             )
         }
 
-        composeTestRule.onNodeWithText("Упражнение выполнено!").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Выполнено!").assertIsDisplayed()
         composeTestRule.onNodeWithText("Упражнение выполнено").assertIsDisplayed()
         composeTestRule.onNodeWithText("Отменить выполнение").assertIsDisplayed()
     }
 
     @Test
     fun exerciseDetailScreen_onCancelCardioCompletion_shouldToggleCompletion() {
-        val updatedCompletedFlow = MutableStateFlow(setOf("Беговая дорожка"))
+        val updatedCompletedFlow = MutableStateFlow(setOf("0_Беговая дорожка"))
         every { mockWorkoutViewModel.completedExercises } returns updatedCompletedFlow as StateFlow<Set<String>>
 
         composeTestRule.setContent {
             ExerciseDetailScreen(
                 exerciseName = "Беговая дорожка",
+                dayIndex = 0,
                 onBackClick = {},
                 workoutViewModel = mockWorkoutViewModel,
                 isAdmin = false
@@ -241,12 +249,13 @@ class ExerciseDetailScreenTest {
 
     @Test
     fun exerciseDetailScreen_completedCardioExercise_shouldShowCancelButton() {
-        val updatedCompletedFlow = MutableStateFlow(setOf("Беговая дорожка"))
+        val updatedCompletedFlow = MutableStateFlow(setOf("0_Беговая дорожка"))
         every { mockWorkoutViewModel.completedExercises } returns updatedCompletedFlow as StateFlow<Set<String>>
 
         composeTestRule.setContent {
             ExerciseDetailScreen(
                 exerciseName = "Беговая дорожка",
+                dayIndex = 0,
                 onBackClick = {},
                 workoutViewModel = mockWorkoutViewModel,
                 isAdmin = false

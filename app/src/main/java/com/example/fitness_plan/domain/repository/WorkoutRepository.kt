@@ -27,6 +27,7 @@ interface ExerciseCompletionRepository {
     fun getAllCompletedExercises(username: String): Flow<Set<String>>
     suspend fun setExerciseCompleted(username: String, exerciseName: String, completed: Boolean)
     suspend fun clearCompletion(username: String)
+    suspend fun migrateOldFormatExercises(username: String, workoutPlan: com.example.fitness_plan.domain.model.WorkoutPlan)
 }
 
 interface WorkoutScheduleRepository {
