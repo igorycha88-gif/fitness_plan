@@ -84,6 +84,7 @@ class StatisticsViewModelTest {
         assertThat(viewModel.currentUsername.value).isEqualTo("testuser")
         assertThat(viewModel.selectedTimeFilter.value).isEqualTo(TimeFilter.MONTH)
         assertThat(viewModel.showWeightDialog.value).isFalse()
+        assertThat(viewModel.selectedVolumeFilter.value).isEqualTo(VolumeTimeFilter.WEEK)
     }
 
     @Test
@@ -394,8 +395,8 @@ class StatisticsViewModelTest {
     }
 
     @Test
-    fun `initial volume filter should be MONTH`() {
-        assertThat(viewModel.selectedVolumeFilter.value).isEqualTo(VolumeTimeFilter.MONTH)
+    fun `initial volume filter should be WEEK`() {
+        assertThat(viewModel.selectedVolumeFilter.value).isEqualTo(VolumeTimeFilter.WEEK)
     }
 
     @Test

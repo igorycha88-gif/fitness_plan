@@ -19,6 +19,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -76,11 +77,11 @@ class StatisticsViewModel @Inject constructor(
     private val _showWeightDialog = MutableStateFlow(false)
     val showWeightDialog: StateFlow<Boolean> = _showWeightDialog.asStateFlow()
 
-    private val _selectedVolumeFilter = MutableStateFlow(VolumeTimeFilter.MONTH)
+    private val _selectedVolumeFilter = MutableStateFlow(VolumeTimeFilter.WEEK)
     val selectedVolumeFilter: StateFlow<VolumeTimeFilter> = _selectedVolumeFilter.asStateFlow()
 
-    private val _volumeData = MutableStateFlow<List<VolumeEntry>>(emptyList())
-    val volumeData: StateFlow<List<VolumeEntry>> = _volumeData.asStateFlow()
+    private val _volumeData = MutableStateFlow<List<ExerciseStats>>(emptyList())
+    val volumeData: StateFlow<List<ExerciseStats>> = _volumeData.asStateFlow()
 
 
 
@@ -160,51 +161,31 @@ class StatisticsViewModel @Inject constructor(
 
     private fun loadVolumeData() {
         viewModelScope.launch {
-            _exerciseStats.collect { stats ->
-                updateVolumeData(stats)
-            }
-        }
-
-        viewModelScope.launch {
-            _selectedExercise.collect {
-                val stats = _exerciseStats.value
-                updateVolumeData(stats)
+            combine(
+                _exerciseStats,
+                _selectedExercise,
+                _selectedVolumeFilter
+            ) { stats, selectedExercise, filter ->
+                Triple(stats, selectedExercise, filter)
+            }.collect { (stats, selectedExercise, filter) ->
+                updateVolumeData(stats, selectedExercise, filter)
             }
         }
     }
 
-    private fun updateVolumeData(stats: List<ExerciseStats>) {
-        val filter = _selectedVolumeFilter.value
-        val selectedExercise = _selectedExercise.value
+    private fun updateVolumeData(
+        stats: List<ExerciseStats>,
+        selectedExercise: String?,
+        filter: VolumeTimeFilter
+    ) {
         val cutoffTime = System.currentTimeMillis() - (filter.days.toLong() * 24 * 60 * 60 * 1000)
 
         val filteredStats = stats
             .filter { it.date >= cutoffTime }
             .filter { selectedExercise == null || it.exerciseName == selectedExercise }
             .sortedBy { it.date }
-        val volumeEntries = mutableMapOf<Long, VolumeEntry>()
 
-        for (stat in filteredStats) {
-            val volume = stat.volume
-            val existing = volumeEntries[stat.date]
-
-            if (existing != null) {
-                volumeEntries[stat.date] = existing.copy(
-                    volume = existing.volume + volume,
-                    exerciseCount = existing.exerciseCount + 1,
-                    stats = existing.stats + stat
-                )
-            } else {
-                volumeEntries[stat.date] = VolumeEntry(
-                    date = stat.date,
-                    volume = volume,
-                    exerciseCount = 1,
-                    stats = listOf(stat)
-                )
-            }
-        }
-
-        _volumeData.value = volumeEntries.values.toList().sortedBy { it.date }
+        _volumeData.value = filteredStats
     }
 
     private suspend fun loadCycleData() {
@@ -304,29 +285,29 @@ class StatisticsViewModel @Inject constructor(
 
     fun getFilteredVolumeData(): List<VolumeEntry> {
         val filter = _selectedVolumeFilter.value
-        val volumeEntries = _volumeData.value
+        val exerciseStats = _volumeData.value
 
         return when (filter) {
-            VolumeTimeFilter.WEEK -> {
-                volumeEntries.groupBy { getStartOfDay(it.date) }
-                    .map { (day, entries) ->
+            VolumeTimeFilter.WEEK, VolumeTimeFilter.MONTH -> {
+                exerciseStats.groupBy { getStartOfDay(it.date) }
+                    .map { (day, stats) ->
                         VolumeEntry(
                             date = day,
-                            volume = entries.sumOf { it.volume },
-                            exerciseCount = entries.sumOf { it.exerciseCount },
-                            stats = entries.flatMap { it.stats }
+                            volume = stats.sumOf { it.volume },
+                            exerciseCount = stats.size,
+                            stats = stats
                         )
                     }
                     .sortedBy { it.date }
             }
-            VolumeTimeFilter.MONTH, VolumeTimeFilter.YEAR -> {
-                volumeEntries.groupBy { getStartOfWeek(it.date) }
-                    .map { (week, entries) ->
+            VolumeTimeFilter.YEAR -> {
+                exerciseStats.groupBy { getStartOfWeek(it.date) }
+                    .map { (week, stats) ->
                         VolumeEntry(
                             date = week,
-                            volume = entries.sumOf { it.volume },
-                            exerciseCount = entries.sumOf { it.exerciseCount },
-                            stats = entries.flatMap { it.stats }
+                            volume = stats.sumOf { it.volume },
+                            exerciseCount = stats.size,
+                            stats = stats
                         )
                     }
                     .sortedBy { it.date }

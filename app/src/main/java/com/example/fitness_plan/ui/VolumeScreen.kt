@@ -12,6 +12,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -27,8 +28,9 @@ fun VolumeScreen(viewModel: StatisticsViewModel = hiltViewModel()) {
     val selectedExercise by viewModel.selectedExercise.collectAsState()
 
     var expanded by remember { mutableStateOf(false) }
+    var showExerciseDetail by remember { mutableStateOf(false) }
 
-    val filteredVolumeData = remember(selectedFilter, selectedExercise, volumeData) {
+    val filteredVolumeData = remember(selectedFilter, volumeData) {
         viewModel.getFilteredVolumeData()
     }
 
@@ -41,6 +43,19 @@ fun VolumeScreen(viewModel: StatisticsViewModel = hiltViewModel()) {
     }
 
     var selectedVolumeEntry by remember { mutableStateOf<com.example.fitness_plan.domain.model.VolumeEntry?>(null) }
+
+    val exerciseProgress = remember(selectedExercise, volumeData) {
+        if (selectedExercise != null) {
+            val exerciseStats = volumeData.filter { it.exerciseName == selectedExercise }
+            if (exerciseStats.size >= 2) {
+                val firstWeight = exerciseStats.first().weight
+                val lastWeight = exerciseStats.last().weight
+                if (firstWeight > 0) {
+                    ((lastWeight - firstWeight) / firstWeight) * 100
+                } else 0.0
+            } else 0.0
+        } else 0.0
+    }
 
     Column(
         modifier = Modifier
@@ -74,6 +89,59 @@ fun VolumeScreen(viewModel: StatisticsViewModel = hiltViewModel()) {
             )
 
             Spacer(modifier = Modifier.height(16.dp))
+
+            if (selectedExercise != null && exerciseProgress != 0.0) {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 8.dp),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = if (exerciseProgress > 0) {
+                            Color(0xFF2DD4BF).copy(alpha = 0.1f)
+                        } else {
+                            Color(0xFFE55C5C).copy(alpha = 0.1f)
+                        }
+                    ),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(
+                            text = "Прогресс: $selectedExercise",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        Text(
+                            text = if (exerciseProgress > 0) "+%.1f%%".format(exerciseProgress) else "%.1f%%".format(exerciseProgress),
+                            style = MaterialTheme.typography.headlineMedium,
+                            color = if (exerciseProgress > 0) {
+                                Color(0xFF2DD4BF)
+                            } else {
+                                Color(0xFFE55C5C)
+                            },
+                            fontWeight = FontWeight.Bold
+                        )
+
+                        Spacer(modifier = Modifier.height(4.dp))
+
+                        Text(
+                            text = if (exerciseProgress > 0) "Улучшение" else "Понижение",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+            }
         }
 
         Card(
