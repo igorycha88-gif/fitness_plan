@@ -43,12 +43,20 @@ fun VolumeScreen(viewModel: StatisticsViewModel = hiltViewModel()) {
         viewModel.getAverageVolume()
     }
 
-    val noDataReason = remember(volumeData, selectedFilter, selectedExercise) {
+    val noDataReason = remember(volumeData, selectedFilter, selectedExercise, exerciseStats) {
         when {
             exerciseStats.isEmpty() -> "Нет выполненных упражнений. Запишите вес и повторения в тренажёрном зале."
             selectedExercise != null && exerciseStats.none { it.exerciseName == selectedExercise } -> "Нет данных для выбранного упражнения. Попробуйте выбрать другое упражнение или 'Все упражнения'."
-            selectedExercise == null && selectedFilter != VolumeTimeFilter.ALL && volumeData.isEmpty() && exerciseStats.isNotEmpty() -> "Нет данных за выбранный период. Попробуйте выбрать 'Всё время'."
-            selectedExercise != null && selectedFilter != VolumeTimeFilter.ALL && volumeData.isEmpty() -> "Нет данных для выбранного упражнения за этот период. Попробуйте выбрать 'Всё время'."
+            selectedExercise != null && selectedFilter != VolumeTimeFilter.ALL && volumeData.isEmpty() -> {
+                val exerciseHasData = exerciseStats.any { it.exerciseName == selectedExercise }
+                if (exerciseHasData) {
+                    "Все данные для '$selectedExercise' старше выбранного периода. Попробуйте выбрать 'Всё время' или более долгий период."
+                } else {
+                    "Нет данных для выбранного упражнения. Попробуйте выбрать другое упражнение."
+                }
+            }
+            selectedExercise == null && selectedFilter != VolumeTimeFilter.ALL && volumeData.isEmpty() && exerciseStats.isNotEmpty() -> "Все данные старше выбранного периода. Попробуйте выбрать 'Всё время'."
+            volumeData.isEmpty() && exerciseStats.isNotEmpty() -> "Нет данных за выбранный период. Попробуйте выбрать 'Всё время'."
             volumeData.isEmpty() -> "Нет данных за выбранный период."
             else -> null
         }
@@ -57,13 +65,13 @@ fun VolumeScreen(viewModel: StatisticsViewModel = hiltViewModel()) {
     var selectedVolumeEntry by remember { mutableStateOf<com.example.fitness_plan.domain.model.VolumeEntry?>(null) }
 
     val exerciseProgress = remember(selectedExercise, volumeData) {
-        if (selectedExercise != null) {
+        if (selectedExercise != null && volumeData.isNotEmpty()) {
             val exerciseStats = volumeData.filter { it.exerciseName == selectedExercise }
             if (exerciseStats.size >= 2) {
-                val firstWeight = exerciseStats.first().weight
-                val lastWeight = exerciseStats.last().weight
-                if (firstWeight > 0) {
-                    ((lastWeight - firstWeight) / firstWeight) * 100
+                val firstVolume = exerciseStats.first().volume
+                val lastVolume = exerciseStats.last().volume
+                if (firstVolume > 0) {
+                    ((lastVolume - firstVolume).toDouble() / firstVolume) * 100
                 } else 0.0
             } else 0.0
         } else 0.0
@@ -124,7 +132,7 @@ fun VolumeScreen(viewModel: StatisticsViewModel = hiltViewModel()) {
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         Text(
-                            text = "Прогресс: $selectedExercise",
+                            text = "Изменение объёма: $selectedExercise",
                             style = MaterialTheme.typography.titleMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -145,7 +153,7 @@ fun VolumeScreen(viewModel: StatisticsViewModel = hiltViewModel()) {
                         Spacer(modifier = Modifier.height(4.dp))
 
                         Text(
-                            text = if (exerciseProgress > 0) "Улучшение" else "Понижение",
+                            text = if (exerciseProgress > 0) "Рост объёма" else "Снижение объёма",
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
