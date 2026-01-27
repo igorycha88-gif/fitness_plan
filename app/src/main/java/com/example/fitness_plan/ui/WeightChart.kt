@@ -387,10 +387,7 @@ fun WeightChart(
         drawPath(
             path = path,
             color = primaryColor,
-            style = Stroke(
-                width = 4.dp.toPx(),
-                pathEffect = PathEffect.dashPathEffect(floatArrayOf(0f), 0f)
-            )
+            style = Stroke(width = 4.dp.toPx())
         )
 
         weightHistory.forEachIndexed { index, entry ->
