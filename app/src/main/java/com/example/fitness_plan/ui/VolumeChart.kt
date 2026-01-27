@@ -188,6 +188,9 @@ fun VolumeChart(
             }
 
             val labelText = when (selectedFilter) {
+                VolumeTimeFilter.DAY -> {
+                    formatVolumeDateHour(entry.date)
+                }
                 VolumeTimeFilter.WEEK -> {
                     formatVolumeDateShort(entry.date)
                 }
@@ -251,6 +254,13 @@ fun formatVolume(volume: Long): String {
 fun formatVolumeDateShort(timestamp: Long): String {
     val sdf = SimpleDateFormat("d MMM", Locale("ru"))
     return sdf.format(Date(timestamp))
+}
+
+fun formatVolumeDateHour(timestamp: Long): String {
+    val calendar = Calendar.getInstance()
+    calendar.timeInMillis = timestamp
+    val hour = calendar.get(Calendar.HOUR_OF_DAY)
+    return "${hour}:00"
 }
 
 fun formatVolumeDateWeek(timestamp: Long): String {

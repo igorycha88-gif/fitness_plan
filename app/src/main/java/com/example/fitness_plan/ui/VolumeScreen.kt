@@ -26,6 +26,7 @@ fun VolumeScreen(viewModel: StatisticsViewModel = hiltViewModel()) {
     val selectedFilter by viewModel.selectedVolumeFilter.collectAsState()
     val availableExercises by viewModel.availableExercises.collectAsState()
     val selectedExercise by viewModel.selectedExercise.collectAsState()
+    val exerciseStats by viewModel.exerciseStats.collectAsState()
 
     var expanded by remember { mutableStateOf(false) }
     var showExerciseDetail by remember { mutableStateOf(false) }
@@ -40,6 +41,15 @@ fun VolumeScreen(viewModel: StatisticsViewModel = hiltViewModel()) {
 
     val averageVolume = remember(filteredVolumeData) {
         viewModel.getAverageVolume()
+    }
+
+    val noDataReason = remember(volumeData, selectedFilter, selectedExercise) {
+        when {
+            exerciseStats.isEmpty() -> "Нет выполненных упражнений. Запишите вес и повторения в тренажёрном зале."
+            selectedExercise != null && volumeData.none { it.exerciseName == selectedExercise } -> "Нет данных для выбранного упражнения. Попробуйте выбрать другое упражнение или 'Все упражнения'."
+            volumeData.isEmpty() -> "Нет данных за выбранный период. Попробуйте выбрать другой период или выполните упражнения."
+            else -> null
+        }
     }
 
     var selectedVolumeEntry by remember { mutableStateOf<com.example.fitness_plan.domain.model.VolumeEntry?>(null) }
@@ -205,13 +215,23 @@ fun VolumeScreen(viewModel: StatisticsViewModel = hiltViewModel()) {
                     containerColor = MaterialTheme.colorScheme.surfaceVariant
                 )
             ) {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
                 ) {
                     Text(
-                        text = "Нет данных за выбранный период",
-                        style = MaterialTheme.typography.bodyLarge,
+                        text = "Нет данных",
+                        style = MaterialTheme.typography.titleLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = noDataReason ?: "Нет данных за выбранный период",
+                        style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }

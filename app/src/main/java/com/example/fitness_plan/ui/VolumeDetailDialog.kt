@@ -190,6 +190,13 @@ fun getVolumeDetailTitle(
     selectedFilter: VolumeTimeFilter
 ): String {
     return when (selectedFilter) {
+        VolumeTimeFilter.DAY -> {
+            val calendar = Calendar.getInstance()
+            calendar.timeInMillis = volumeEntry.date
+            val hour = calendar.get(Calendar.HOUR_OF_DAY)
+            val minute = calendar.get(Calendar.MINUTE)
+            "$hour:${minute.toString().padStart(2, '0')}"
+        }
         VolumeTimeFilter.WEEK -> {
             val sdf = SimpleDateFormat("d MMMM yyyy", Locale("ru"))
             sdf.format(Date(volumeEntry.date))

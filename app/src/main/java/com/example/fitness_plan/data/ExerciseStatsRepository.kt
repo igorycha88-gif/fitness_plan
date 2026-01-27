@@ -1,6 +1,7 @@
 package com.example.fitness_plan.data
 
 import android.content.Context
+import android.util.Log
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.*
 import androidx.datastore.preferences.preferencesDataStore
@@ -13,6 +14,8 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 import javax.inject.Singleton
+
+private const val TAG = "ExerciseStatsRepo"
 
 private val Context.exerciseStatsDataStore: DataStore<Preferences> by preferencesDataStore(name = "exercise_stats")
 
@@ -28,6 +31,7 @@ class ExerciseStatsRepository @Inject constructor(
     }
 
     override suspend fun saveExerciseStats(username: String, stats: ExerciseStats) {
+        Log.d(TAG, "Saving exercise stats: username=$username, exercise=${stats.exerciseName}, weight=${stats.weight}, reps=${stats.reps}, volume=${stats.volume}")
         val key = getStatsKey(username)
         context.exerciseStatsDataStore.edit { preferences ->
             val json = preferences[key] ?: "[]"
@@ -35,10 +39,12 @@ class ExerciseStatsRepository @Inject constructor(
             val currentList: MutableList<ExerciseStats> = try {
                 gson.fromJson(json, type) ?: mutableListOf()
             } catch (e: Exception) {
+                Log.e(TAG, "Error parsing existing stats", e)
                 mutableListOf()
             }
             currentList.add(stats)
             preferences[key] = gson.toJson(currentList)
+            Log.d(TAG, "Saved stats. Total records for user: ${currentList.size}")
         }
     }
 

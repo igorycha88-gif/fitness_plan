@@ -35,6 +35,7 @@ enum class TimeFilter(val days: Int, val label: String) {
 }
 
 enum class VolumeTimeFilter(val days: Int, val label: String) {
+    DAY(1, "День"),
     WEEK(7, "Неделя"),
     MONTH(30, "Месяц"),
     YEAR(365, "Год")
@@ -77,7 +78,7 @@ class StatisticsViewModel @Inject constructor(
     private val _showWeightDialog = MutableStateFlow(false)
     val showWeightDialog: StateFlow<Boolean> = _showWeightDialog.asStateFlow()
 
-    private val _selectedVolumeFilter = MutableStateFlow(VolumeTimeFilter.WEEK)
+    private val _selectedVolumeFilter = MutableStateFlow(VolumeTimeFilter.DAY)
     val selectedVolumeFilter: StateFlow<VolumeTimeFilter> = _selectedVolumeFilter.asStateFlow()
 
     private val _volumeData = MutableStateFlow<List<ExerciseStats>>(emptyList())
@@ -148,6 +149,7 @@ class StatisticsViewModel @Inject constructor(
     private fun loadExerciseStats() {
         viewModelScope.launch {
             exerciseStatsRepository.getExerciseStats(_currentUsername.value).collect { stats ->
+                Log.d(TAG, "Loaded ${stats.size} exercise stats for user ${_currentUsername.value}")
                 _exerciseStats.value = stats.sortedBy { it.date }
                 updateAvailableExercises(stats)
             }
@@ -179,12 +181,15 @@ class StatisticsViewModel @Inject constructor(
         filter: VolumeTimeFilter
     ) {
         val cutoffTime = System.currentTimeMillis() - (filter.days.toLong() * 24 * 60 * 60 * 1000)
+        Log.d(TAG, "updateVolumeData: filter=${filter.label}, days=${filter.days}, selectedExercise=$selectedExercise, totalStats=${stats.size}")
 
+        val beforeFilterCount = stats.size
         val filteredStats = stats
             .filter { it.date >= cutoffTime }
             .filter { selectedExercise == null || it.exerciseName == selectedExercise }
             .sortedBy { it.date }
 
+        Log.d(TAG, "updateVolumeData: filtered from $beforeFilterCount to ${filteredStats.size} records")
         _volumeData.value = filteredStats
     }
 
@@ -288,6 +293,18 @@ class StatisticsViewModel @Inject constructor(
         val exerciseStats = _volumeData.value
 
         return when (filter) {
+            VolumeTimeFilter.DAY -> {
+                exerciseStats.groupBy { getStartOfHour(it.date) }
+                    .map { (hour, stats) ->
+                        VolumeEntry(
+                            date = hour,
+                            volume = stats.sumOf { it.volume },
+                            exerciseCount = stats.size,
+                            stats = stats
+                        )
+                    }
+                    .sortedBy { it.date }
+            }
             VolumeTimeFilter.WEEK, VolumeTimeFilter.MONTH -> {
                 exerciseStats.groupBy { getStartOfDay(it.date) }
                     .map { (day, stats) ->
@@ -328,6 +345,15 @@ class StatisticsViewModel @Inject constructor(
         val calendar = java.util.Calendar.getInstance()
         calendar.timeInMillis = timestamp
         calendar.set(java.util.Calendar.HOUR_OF_DAY, 0)
+        calendar.set(java.util.Calendar.MINUTE, 0)
+        calendar.set(java.util.Calendar.SECOND, 0)
+        calendar.set(java.util.Calendar.MILLISECOND, 0)
+        return calendar.timeInMillis
+    }
+
+    private fun getStartOfHour(timestamp: Long): Long {
+        val calendar = java.util.Calendar.getInstance()
+        calendar.timeInMillis = timestamp
         calendar.set(java.util.Calendar.MINUTE, 0)
         calendar.set(java.util.Calendar.SECOND, 0)
         calendar.set(java.util.Calendar.MILLISECOND, 0)
