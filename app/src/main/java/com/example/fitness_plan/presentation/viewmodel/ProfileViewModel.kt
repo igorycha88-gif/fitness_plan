@@ -61,8 +61,56 @@ class ProfileViewModel @Inject constructor(
     private val _logoutTrigger = MutableStateFlow(false)
     val logoutTrigger: StateFlow<Boolean> = _logoutTrigger.asStateFlow()
 
+    private val _isEditingProfile = MutableStateFlow(false)
+    val isEditingProfile: StateFlow<Boolean> = _isEditingProfile.asStateFlow()
+
+    private val _profileChangeDetected = MutableStateFlow(false)
+    val profileChangeDetected: StateFlow<Boolean> = _profileChangeDetected.asStateFlow()
+
     init {
         checkUserSession()
+    }
+
+    fun setIsEditingProfile(isEditing: Boolean) {
+        _isEditingProfile.value = isEditing
+    }
+
+    fun clearProfileChangeDetected() {
+        _profileChangeDetected.value = false
+    }
+
+    suspend fun checkProfileChangeRequiresConfirmation(profile: UserProfile): Boolean {
+        val currentProfile = userRepository.getUserProfile().first()
+        return currentProfile != null &&
+                (currentProfile.goal != profile.goal ||
+                currentProfile.level != profile.level ||
+                currentProfile.frequency != profile.frequency)
+    }
+
+    fun saveProfileWithConfirmation(profile: UserProfile, requireConfirmation: Boolean = true) {
+        viewModelScope.launch {
+            val currentProfile = userRepository.getUserProfile().first()
+            val goalOrLevelChanged = currentProfile == null ||
+                    currentProfile.goal != profile.goal ||
+                    currentProfile.level != profile.level ||
+                    currentProfile.frequency != profile.frequency
+
+            if (requireConfirmation && goalOrLevelChanged && currentProfile != null) {
+                _profileChangeDetected.value = true
+                return@launch
+            }
+
+            saveUserProfile(profile)
+            _isEditingProfile.value = false
+        }
+    }
+
+    fun confirmAndSaveProfile(profile: UserProfile) {
+        viewModelScope.launch {
+            saveUserProfile(profile)
+            _isEditingProfile.value = false
+            _profileChangeDetected.value = false
+        }
     }
 
     private fun checkUserSession() {
@@ -118,6 +166,37 @@ class ProfileViewModel @Inject constructor(
             }
 
             _isProfileChecked.value = true
+        }
+    }
+
+    fun updateProfile(
+        newUsername: String? = null,
+        goal: String? = null,
+        level: String? = null,
+        frequency: String? = null,
+        weight: Double? = null,
+        height: Double? = null,
+        gender: String? = null,
+        targetWeight: Double? = null,
+        photo: String? = null
+    ) {
+        viewModelScope.launch {
+            val currentProfile = userRepository.getUserProfile().first()
+            currentProfile ?: return@launch
+
+            val updatedProfile = currentProfile.copy(
+                username = newUsername ?: currentProfile.username,
+                goal = goal ?: currentProfile.goal,
+                level = level ?: currentProfile.level,
+                frequency = frequency ?: currentProfile.frequency,
+                weight = weight ?: currentProfile.weight,
+                height = height ?: currentProfile.height,
+                gender = gender ?: currentProfile.gender,
+                targetWeight = targetWeight,
+                photo = photo ?: currentProfile.photo
+            )
+
+            userRepository.saveUserProfile(updatedProfile)
         }
     }
 
