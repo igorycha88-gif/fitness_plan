@@ -98,11 +98,7 @@ fun MainScreen(
                       startDestination = "statistics_main"
                   ) {
                       composable("statistics_main") {
-                          StatisticsScreen(
-                              onMuscleGroupDetail = { muscleGroup ->
-                                  statsNavController.navigate("muscle_group_detail/${muscleGroup.name}")
-                              }
-                          )
+                          StatisticsScreen()
                       }
                       composable("muscle_group_detail/{muscleGroupName}") { backStackEntry ->
                           val muscleGroupName = backStackEntry.arguments?.getString("muscleGroupName")
