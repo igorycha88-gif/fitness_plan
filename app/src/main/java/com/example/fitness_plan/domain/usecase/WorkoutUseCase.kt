@@ -53,6 +53,9 @@ class WorkoutUseCase @Inject constructor(
 
         if (exerciseKey.contains("_")) {
             exerciseCompletionRepository.setExerciseCompleted(username, exerciseKey, completed)
+            if (completed) {
+                saveExerciseStatsForCompletedExercise(username, exerciseName, currentPlan)
+            }
         } else {
             val exerciseKeysToToggle = mutableSetOf<String>()
             currentPlan?.days?.forEachIndexed { dayIndex, day ->
@@ -64,11 +67,66 @@ class WorkoutUseCase @Inject constructor(
             exerciseKeysToToggle.forEach { key ->
                 exerciseCompletionRepository.setExerciseCompleted(username, key, completed)
             }
+            if (completed) {
+                saveExerciseStatsForCompletedExercise(username, exerciseName, currentPlan)
+            }
         }
 
         val allCompleted = exerciseCompletionRepository.getAllCompletedExercises(username).first()
         val status = calculateCompletedDays(allCompleted, currentPlan)
         return status.fullyCompletedDays
+    }
+
+    private suspend fun saveExerciseStatsForCompletedExercise(
+        username: String,
+        exerciseName: String,
+        currentPlan: WorkoutPlan?
+    ) {
+        val existingStats = exerciseStatsRepository.getExerciseStats(username).first()
+            .filter { it.exerciseName == exerciseName }
+            .sortedByDescending { it.date }
+
+        if (existingStats.isNotEmpty()) {
+            return
+        }
+
+        val exercise = currentPlan?.days?.flatMap { it.exercises }
+            ?.find { it.name == exerciseName }
+
+        if (exercise != null) {
+            val totalSets = exercise.sets
+            val repsList = parseRepsString(exercise.reps)
+            val defaultWeight = exercise.recommendedWeight?.toDouble() ?: 1.0
+
+            for (setNumber in 1..totalSets) {
+                val reps = repsList.getOrElse(setNumber - 1) { repsList.lastOrNull() ?: 1 }
+                val stats = ExerciseStats(
+                    exerciseName = exerciseName,
+                    date = System.currentTimeMillis(),
+                    weight = defaultWeight,
+                    reps = reps,
+                    setNumber = setNumber,
+                    sets = totalSets
+                )
+                exerciseStatsRepository.saveExerciseStats(username, stats)
+            }
+            android.util.Log.d("WorkoutUseCase", "✅ Автоматически сохранена статистика для '$exerciseName': $totalSets подходов")
+        }
+    }
+
+    private fun parseRepsString(repsString: String): List<Int> {
+        return try {
+            if (repsString.contains("-")) {
+                repsString.split("-").map { it.trim().toInt() }
+            } else if (repsString.contains(",")) {
+                repsString.split(",").map { it.trim().toInt() }
+            } else {
+                listOf(repsString.trim().toInt())
+            }
+        } catch (e: Exception) {
+            android.util.Log.w("WorkoutUseCase", "Ошибка парсинга повторений '$repsString': ${e.message}")
+            listOf(1)
+        }
     }
 
     private fun calculateCompletedDays(

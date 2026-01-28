@@ -385,4 +385,181 @@ class WorkoutUseCaseTest {
 
         assertThat(result).containsExactly(1)
     }
+
+    @Test
+    fun `toggleExerciseCompletion should automatically save stats when exercise is completed`() = runTest {
+        val username = "testuser"
+        val exerciseKey = "0_Squats"
+
+        val plan = WorkoutPlan(
+            id = "test_plan",
+            name = "Test Plan",
+            description = "Test Description",
+            muscleGroups = listOf("Legs"),
+            goal = "Test",
+            level = "Test",
+            days = listOf(
+                com.example.fitness_plan.domain.model.WorkoutDay(
+                    id = 0,
+                    dayName = "Day 1",
+                    exercises = listOf(
+                        Exercise(
+                            id = "ex1",
+                            name = "Squats",
+                            sets = 3,
+                            reps = "12-15",
+                            weight = null,
+                            recommendedWeight = 20.0f,
+                            imageRes = null,
+                            isCompleted = false,
+                            alternatives = emptyList()
+                        )
+                    ),
+                    muscleGroups = emptyList()
+                )
+            )
+        )
+
+        coEvery { mockExerciseStatsRepository.getExerciseStats(username) } returns flowOf(emptyList())
+        coEvery { mockExerciseCompletionRepository.setExerciseCompleted(any(), any(), any()) } just runs
+        coEvery { mockExerciseStatsRepository.saveExerciseStats(any(), any()) } just runs
+        every { mockExerciseCompletionRepository.getAllCompletedExercises(any()) } returns flowOf(emptySet())
+
+        workoutUseCase.toggleExerciseCompletion(username, exerciseKey, true, plan)
+
+        coVerify(exactly = 3) { mockExerciseStatsRepository.saveExerciseStats(username, any()) }
+        val statsSlot = mutableListOf<ExerciseStats>()
+        coVerify(exactly = 3) { mockExerciseStatsRepository.saveExerciseStats(username, capture(statsSlot)) }
+
+        assertThat(statsSlot[0].exerciseName).isEqualTo("Squats")
+        assertThat(statsSlot[0].weight).isEqualTo(20.0)
+        assertThat(statsSlot[0].reps).isEqualTo(12)
+        assertThat(statsSlot[0].setNumber).isEqualTo(1)
+        assertThat(statsSlot[0].sets).isEqualTo(3)
+
+        assertThat(statsSlot[1].exerciseName).isEqualTo("Squats")
+        assertThat(statsSlot[1].weight).isEqualTo(20.0)
+        assertThat(statsSlot[1].reps).isEqualTo(15)
+        assertThat(statsSlot[1].setNumber).isEqualTo(2)
+        assertThat(statsSlot[1].sets).isEqualTo(3)
+
+        assertThat(statsSlot[2].exerciseName).isEqualTo("Squats")
+        assertThat(statsSlot[2].weight).isEqualTo(20.0)
+        assertThat(statsSlot[2].reps).isEqualTo(15)
+        assertThat(statsSlot[2].setNumber).isEqualTo(3)
+        assertThat(statsSlot[2].sets).isEqualTo(3)
+    }
+
+    @Test
+    fun `toggleExerciseCompletion should not save stats if exercise already has stats`() = runTest {
+        val username = "testuser"
+        val exerciseKey = "0_Squats"
+
+        val plan = WorkoutPlan(
+            id = "test_plan",
+            name = "Test Plan",
+            description = "Test Description",
+            muscleGroups = listOf("Legs"),
+            goal = "Test",
+            level = "Test",
+            days = listOf(
+                com.example.fitness_plan.domain.model.WorkoutDay(
+                    id = 0,
+                    dayName = "Day 1",
+                    exercises = listOf(
+                        Exercise(
+                            id = "ex1",
+                            name = "Squats",
+                            sets = 3,
+                            reps = "12-15",
+                            weight = null,
+                            recommendedWeight = 20.0f,
+                            imageRes = null,
+                            isCompleted = false,
+                            alternatives = emptyList()
+                        )
+                    ),
+                    muscleGroups = emptyList()
+                )
+            )
+        )
+
+        val existingStats = listOf(
+            ExerciseStats(
+                exerciseName = "Squats",
+                date = System.currentTimeMillis(),
+                weight = 25.0,
+                reps = 10,
+                setNumber = 1,
+                sets = 3
+            )
+        )
+
+        coEvery { mockExerciseStatsRepository.getExerciseStats(username) } returns flowOf(existingStats)
+        coEvery { mockExerciseCompletionRepository.setExerciseCompleted(any(), any(), any()) } just runs
+        coEvery { mockExerciseStatsRepository.saveExerciseStats(any(), any()) } just runs
+        every { mockExerciseCompletionRepository.getAllCompletedExercises(any()) } returns flowOf(emptySet())
+
+        workoutUseCase.toggleExerciseCompletion(username, exerciseKey, true, plan)
+
+        coVerify(exactly = 0) { mockExerciseStatsRepository.saveExerciseStats(username, any()) }
+    }
+
+    @Test
+    fun `toggleExerciseCompletion should use default weight when recommendedWeight is null`() = runTest {
+        val username = "testuser"
+        val exerciseKey = "0_Squats"
+
+        val plan = WorkoutPlan(
+            id = "test_plan",
+            name = "Test Plan",
+            description = "Test Description",
+            muscleGroups = listOf("Legs"),
+            goal = "Test",
+            level = "Test",
+            days = listOf(
+                com.example.fitness_plan.domain.model.WorkoutDay(
+                    id = 0,
+                    dayName = "Day 1",
+                    exercises = listOf(
+                        Exercise(
+                            id = "ex1",
+                            name = "Squats",
+                            sets = 2,
+                            reps = "10",
+                            weight = null,
+                            recommendedWeight = null,
+                            imageRes = null,
+                            isCompleted = false,
+                            alternatives = emptyList()
+                        )
+                    ),
+                    muscleGroups = emptyList()
+                )
+            )
+        )
+
+        coEvery { mockExerciseStatsRepository.getExerciseStats(username) } returns flowOf(emptyList())
+        coEvery { mockExerciseCompletionRepository.setExerciseCompleted(any(), any(), any()) } just runs
+        coEvery { mockExerciseStatsRepository.saveExerciseStats(any(), any()) } just runs
+        every { mockExerciseCompletionRepository.getAllCompletedExercises(any()) } returns flowOf(emptySet())
+
+        workoutUseCase.toggleExerciseCompletion(username, exerciseKey, true, plan)
+
+        coVerify(exactly = 2) { mockExerciseStatsRepository.saveExerciseStats(username, any()) }
+        val statsSlot = mutableListOf<ExerciseStats>()
+        coVerify(exactly = 2) { mockExerciseStatsRepository.saveExerciseStats(username, capture(statsSlot)) }
+
+        assertThat(statsSlot[0].exerciseName).isEqualTo("Squats")
+        assertThat(statsSlot[0].weight).isEqualTo(1.0)
+        assertThat(statsSlot[0].reps).isEqualTo(10)
+        assertThat(statsSlot[0].setNumber).isEqualTo(1)
+        assertThat(statsSlot[0].sets).isEqualTo(2)
+
+        assertThat(statsSlot[1].exerciseName).isEqualTo("Squats")
+        assertThat(statsSlot[1].weight).isEqualTo(1.0)
+        assertThat(statsSlot[1].reps).isEqualTo(10)
+        assertThat(statsSlot[1].setNumber).isEqualTo(2)
+        assertThat(statsSlot[1].sets).isEqualTo(2)
+    }
 }

@@ -152,6 +152,9 @@ class StatisticsViewModel @Inject constructor(
         viewModelScope.launch {
             exerciseStatsRepository.getExerciseStats(_currentUsername.value).collect { stats ->
                 Log.d(TAG, "Loaded ${stats.size} exercise stats for user ${_currentUsername.value}")
+                val withVolume = stats.count { it.volume > 0L }
+                val withoutVolume = stats.count { it.volume == 0L }
+                Log.d(TAG, "Stats breakdown: $withVolume with volume > 0, $withoutVolume with volume = 0")
                 _exerciseStats.value = stats.sortedBy { it.date }
                 updateAvailableExercises(stats)
             }
@@ -198,9 +201,10 @@ class StatisticsViewModel @Inject constructor(
         val filteredStats = stats
             .filter { it.date >= cutoffTime }
             .filter { selectedExercise == null || it.exerciseName == selectedExercise }
+            .filter { it.volume > 0 }
             .sortedBy { it.date }
 
-        Log.d(TAG, "updateVolumeData: filtered from $beforeFilterCount to ${filteredStats.size} records")
+        Log.d(TAG, "updateVolumeData: filtered from $beforeFilterCount to ${filteredStats.size} records (volume > 0)")
         if (filteredStats.isNotEmpty()) {
             val totalVolume = filteredStats.sumOf { it.volume }
             val uniqueExercises = filteredStats.map { it.exerciseName }.distinct()
