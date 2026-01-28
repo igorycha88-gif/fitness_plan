@@ -7,7 +7,6 @@ import com.example.fitness_plan.domain.model.Cycle
 import com.example.fitness_plan.domain.model.CycleHistoryEntry
 import com.example.fitness_plan.domain.model.ExerciseStats
 import com.example.fitness_plan.domain.model.UserProfile
-import com.example.fitness_plan.domain.model.VolumeEntry
 import com.example.fitness_plan.domain.model.WeightEntry
 import com.example.fitness_plan.domain.repository.ICredentialsRepository
 import com.example.fitness_plan.domain.repository.CycleRepository
@@ -19,7 +18,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.stateIn
@@ -29,14 +27,6 @@ import javax.inject.Inject
 private const val TAG = "StatisticsViewModel"
 
 enum class TimeFilter(val days: Int, val label: String) {
-    WEEK(7, "Неделя"),
-    MONTH(30, "Месяц"),
-    YEAR(365, "Год"),
-    ALL(0, "Всё время")
-}
-
-enum class VolumeTimeFilter(val days: Int, val label: String) {
-    DAY(1, "День"),
     WEEK(7, "Неделя"),
     MONTH(30, "Месяц"),
     YEAR(365, "Год"),
@@ -80,22 +70,6 @@ class StatisticsViewModel @Inject constructor(
     private val _showWeightDialog = MutableStateFlow(false)
     val showWeightDialog: StateFlow<Boolean> = _showWeightDialog.asStateFlow()
 
-    private val _selectedVolumeFilter = MutableStateFlow(VolumeTimeFilter.WEEK)
-    val selectedVolumeFilter: StateFlow<VolumeTimeFilter> = _selectedVolumeFilter.asStateFlow()
-
-    private val _volumeData = MutableStateFlow<List<ExerciseStats>>(emptyList())
-    val volumeData: StateFlow<List<ExerciseStats>> = _volumeData.asStateFlow()
-
-
-
-
-
-    private val _availableExercises = MutableStateFlow<List<String>>(emptyList())
-    val availableExercises: StateFlow<List<String>> = _availableExercises.asStateFlow()
-
-    private val _selectedExercise = MutableStateFlow<String?>(null)
-    val selectedExercise: StateFlow<String?> = _selectedExercise.asStateFlow()
-
     init {
         viewModelScope.launch {
             val username = credentialsRepository.getUsername() ?: ""
@@ -108,7 +82,6 @@ class StatisticsViewModel @Inject constructor(
         loadWeightHistory()
         loadExerciseStats()
         loadCycleData()
-        loadVolumeData()
     }
 
     fun setTimeFilter(filter: TimeFilter) {
@@ -117,18 +90,6 @@ class StatisticsViewModel @Inject constructor(
 
     fun setShowWeightDialog(show: Boolean) {
         _showWeightDialog.value = show
-    }
-
-    fun setVolumeFilter(filter: VolumeTimeFilter) {
-        _selectedVolumeFilter.value = filter
-    }
-
-    fun setSelectedExercise(exerciseName: String?) {
-        _selectedExercise.value = exerciseName
-    }
-
-    fun getSelectedExercise(): String? {
-        return _selectedExercise.value
     }
 
     fun saveWeight(weight: Double, date: Long = System.currentTimeMillis()) {
@@ -156,68 +117,8 @@ class StatisticsViewModel @Inject constructor(
                 val withoutVolume = stats.count { it.volume == 0L }
                 Log.d(TAG, "Stats breakdown: $withVolume with volume > 0, $withoutVolume with volume = 0")
                 _exerciseStats.value = stats.sortedBy { it.date }
-                updateAvailableExercises(stats)
             }
         }
-    }
-
-    private fun updateAvailableExercises(stats: List<ExerciseStats>) {
-        val exercises = stats.map { it.exerciseName }.distinct().sorted()
-        _availableExercises.value = exercises
-    }
-
-    private fun loadVolumeData() {
-        combine(
-            _exerciseStats,
-            _selectedExercise,
-            _selectedVolumeFilter
-        ) { stats, selectedExercise, filter ->
-            updateVolumeData(stats, selectedExercise, filter)
-        }.launchIn(viewModelScope)
-    }
-
-    private fun updateVolumeData(
-        stats: List<ExerciseStats>,
-        selectedExercise: String?,
-        filter: VolumeTimeFilter
-    ) {
-        val cutoffTime = if (filter.days > 0) {
-            System.currentTimeMillis() - (filter.days.toLong() * 24 * 60 * 60 * 1000)
-        } else {
-            0L
-        }
-        val currentTime = System.currentTimeMillis()
-        Log.d(TAG, "updateVolumeData: filter=${filter.label}, days=${filter.days}, selectedExercise=$selectedExercise, totalStats=${stats.size}")
-        Log.d(TAG, "updateVolumeData: currentTime=$currentTime, cutoffTime=$cutoffTime")
-
-        if (stats.isNotEmpty()) {
-            val oldestStat = stats.minByOrNull { it.date }
-            val newestStat = stats.maxByOrNull { it.date }
-            Log.d(TAG, "updateVolumeData: oldestDate=${oldestStat?.date}, newestDate=${newestStat?.date}")
-            Log.d(TAG, "updateVolumeData: dateRangeInStats=$((newestStat?.date ?: 0) - (oldestStat?.date ?: 0)) ms")
-        }
-
-        val beforeFilterCount = stats.size
-        val filteredStats = stats
-            .filter { it.date >= cutoffTime }
-            .filter { selectedExercise == null || it.exerciseName == selectedExercise }
-            .filter { it.volume > 0 }
-            .sortedBy { it.date }
-
-        Log.d(TAG, "updateVolumeData: filtered from $beforeFilterCount to ${filteredStats.size} records (volume > 0)")
-        if (filteredStats.isNotEmpty()) {
-            val totalVolume = filteredStats.sumOf { it.volume }
-            val uniqueExercises = filteredStats.map { it.exerciseName }.distinct()
-            Log.d(TAG, "updateVolumeData: totalVolume=$totalVolume, uniqueExercises=${uniqueExercises.size}, exercises=${uniqueExercises}")
-            val oldestDate = filteredStats.first().date
-            val newestDate = filteredStats.last().date
-            val dateRange = (newestDate - oldestDate) / (24 * 60 * 60 * 1000L)
-            Log.d(TAG, "updateVolumeData: dateRange=$dateRange days")
-            Log.d(TAG, "updateVolumeData: firstDate=${oldestDate}, lastDate=${newestDate}")
-            val uniqueDates = filteredStats.map { it.date }.distinct().size
-            Log.d(TAG, "updateVolumeData: uniqueDates=$uniqueDates")
-        }
-        _volumeData.value = filteredStats
     }
 
     private suspend fun loadCycleData() {
@@ -266,16 +167,6 @@ class StatisticsViewModel @Inject constructor(
         return maxOf(1, days)
     }
 
-    fun getFilteredExerciseStats(): List<ExerciseStats> {
-        val days = TimeFilter.MONTH.days // Default to month
-        val cutoffTime = System.currentTimeMillis() - (days * 24 * 60 * 60 * 1000L)
-        val exerciseName = _availableExercises.value.firstOrNull() ?: ""
-
-        return _exerciseStats.value
-            .filter { it.date >= cutoffTime && it.exerciseName == exerciseName }
-            .sortedBy { it.date }
-    }
-
     fun getCycleProgress(): Float {
         return _currentCycle.value?.progress ?: 0f
     }
@@ -296,23 +187,6 @@ class StatisticsViewModel @Inject constructor(
     fun getWeightChangeText(): String {
         val change = getWeightChange()
         return if (change > 0) "+%.1f кг".format(change) else "%.1f кг".format(change)
-    }
-
-    fun getStrengthProgress(): Double {
-        val stats = getFilteredExerciseStats()
-        if (stats.size < 2) return 0.0
-
-        val firstMaxWeight = stats.first().weight
-        val lastMaxWeight = stats.last().weight
-
-        return if (firstMaxWeight > 0) {
-            ((lastMaxWeight - firstMaxWeight) / firstMaxWeight) * 100
-        } else 0.0
-    }
-
-    fun getStrengthProgressText(): String {
-        val progress = getStrengthProgress()
-        return if (progress > 0) "+%.1f%%".format(progress) else "%.1f%%".format(progress)
     }
 
     fun getExerciseStatsSummary(): ExerciseStatsSummary {
@@ -339,196 +213,6 @@ class StatisticsViewModel @Inject constructor(
             )
         }
     }
-
-    fun getVolumeDataSummary(): VolumeDataSummary {
-        val volumeData = _volumeData.value
-        val filter = _selectedVolumeFilter.value
-        val selectedExercise = _selectedExercise.value
-        val allStats = _exerciseStats.value
-
-        Log.d(TAG, "getVolumeDataSummary: allStats=${allStats.size}, volumeData=${volumeData.size}, filter=${filter.label}, selectedExercise=$selectedExercise")
-
-        return if (volumeData.isEmpty()) {
-            val reason = when {
-                allStats.isEmpty() -> "Нет выполненных упражнений"
-                selectedExercise != null && allStats.none { it.exerciseName == selectedExercise } -> "Нет данных для выбранного упражнения"
-                filter != VolumeTimeFilter.ALL && allStats.isNotEmpty() -> {
-                    val cutoffTime = System.currentTimeMillis() - (filter.days.toLong() * 24 * 60 * 60 * 1000)
-                    val filteredByDate = allStats.filter { it.date >= cutoffTime }
-                    val filteredByExercise = if (selectedExercise != null) {
-                        filteredByDate.filter { it.exerciseName == selectedExercise }
-                    } else {
-                        filteredByDate
-                    }
-                    Log.d(TAG, "getVolumeDataSummary: cutoffTime=$cutoffTime, filteredByDate=${filteredByDate.size}, filteredByExercise=${filteredByExercise.size}")
-                    "Данные отфильтрованы: ${allStats.size} → ${filteredByExercise.size}"
-                }
-                else -> "Нет данных за выбранный период"
-            }
-            Log.d(TAG, "getVolumeDataSummary: reason=$reason")
-            VolumeDataSummary(
-                totalCount = 0,
-                filterLabel = filter.label,
-                selectedExercise = selectedExercise,
-                reason = reason
-            )
-        } else {
-            Log.d(TAG, "getVolumeDataSummary: OK - ${volumeData.size} records")
-            VolumeDataSummary(
-                totalCount = volumeData.size,
-                filterLabel = filter.label,
-                selectedExercise = selectedExercise,
-                reason = "OK"
-            )
-        }
-    }
-
-    fun getVolumeAnalytics(): VolumeAnalytics {
-        val allStats = _exerciseStats.value
-        val filter = _selectedVolumeFilter.value
-        val selectedExercise = _selectedExercise.value
-
-        if (allStats.isEmpty()) {
-            return VolumeAnalytics(
-                totalRecords = 0,
-                uniqueExercises = 0,
-                dateRangeDays = 0L,
-                oldestDate = 0L,
-                newestDate = 0L,
-                uniqueDates = 0,
-                allDates = emptyList()
-            )
-        }
-
-        val oldestDate = allStats.minOfOrNull { it.date } ?: 0L
-        val newestDate = allStats.maxOfOrNull { it.date } ?: 0L
-        val dateRangeDays = (newestDate - oldestDate) / (24 * 60 * 60 * 1000L)
-        val uniqueExercises = allStats.map { it.exerciseName }.distinct().size
-        val uniqueDates = allStats.map { it.date }.distinct().size
-        val allDates = allStats.map { it.date }.distinct().sorted()
-
-        val exerciseStats = if (selectedExercise != null) {
-            allStats.filter { it.exerciseName == selectedExercise }
-        } else {
-            allStats
-        }
-
-        val cutoffTime = if (filter.days > 0) {
-            System.currentTimeMillis() - (filter.days.toLong() * 24 * 60 * 60 * 1000)
-        } else {
-            0L
-        }
-
-        val filteredByPeriod = exerciseStats.filter { it.date >= cutoffTime }
-
-        return VolumeAnalytics(
-            totalRecords = allStats.size,
-            uniqueExercises = uniqueExercises,
-            dateRangeDays = dateRangeDays,
-            oldestDate = oldestDate,
-            newestDate = newestDate,
-            uniqueDates = uniqueDates,
-            allDates = allDates,
-            exerciseRecords = exerciseStats.size,
-            filteredRecords = filteredByPeriod.size,
-            cutoffTime = cutoffTime
-        )
-    }
-
-    fun getFilteredVolumeData(): List<VolumeEntry> {
-        val filter = _selectedVolumeFilter.value
-        val exerciseStats = _volumeData.value
-
-        return when (filter) {
-            VolumeTimeFilter.DAY -> {
-                exerciseStats.groupBy { getStartOfHour(it.date) }
-                    .map { (hour, stats) ->
-                        VolumeEntry(
-                            date = hour,
-                            volume = stats.sumOf { it.volume },
-                            exerciseCount = stats.size,
-                            stats = stats
-                        )
-                    }
-                    .sortedBy { it.date }
-            }
-            VolumeTimeFilter.WEEK, VolumeTimeFilter.MONTH -> {
-                exerciseStats.groupBy { getStartOfDay(it.date) }
-                    .map { (day, stats) ->
-                        VolumeEntry(
-                            date = day,
-                            volume = stats.sumOf { it.volume },
-                            exerciseCount = stats.size,
-                            stats = stats
-                        )
-                    }
-                    .sortedBy { it.date }
-            }
-            VolumeTimeFilter.YEAR -> {
-                exerciseStats.groupBy { getStartOfWeek(it.date) }
-                    .map { (week, stats) ->
-                        VolumeEntry(
-                            date = week,
-                            volume = stats.sumOf { it.volume },
-                            exerciseCount = stats.size,
-                            stats = stats
-                        )
-                    }
-                    .sortedBy { it.date }
-            }
-            VolumeTimeFilter.ALL -> {
-                exerciseStats.groupBy { getStartOfDay(it.date) }
-                    .map { (day, stats) ->
-                        VolumeEntry(
-                            date = day,
-                            volume = stats.sumOf { it.volume },
-                            exerciseCount = stats.size,
-                            stats = stats
-                        )
-                    }
-                    .sortedBy { it.date }
-            }
-        }
-    }
-
-    fun getTotalVolume(): Long {
-        return getFilteredVolumeData().sumOf { it.volume }
-    }
-
-    fun getAverageVolume(): Long {
-        val data = getFilteredVolumeData()
-        return if (data.isNotEmpty()) data.sumOf { it.volume } / data.size else 0L
-    }
-
-    private fun getStartOfDay(timestamp: Long): Long {
-        val calendar = java.util.Calendar.getInstance()
-        calendar.timeInMillis = timestamp
-        calendar.set(java.util.Calendar.HOUR_OF_DAY, 0)
-        calendar.set(java.util.Calendar.MINUTE, 0)
-        calendar.set(java.util.Calendar.SECOND, 0)
-        calendar.set(java.util.Calendar.MILLISECOND, 0)
-        return calendar.timeInMillis
-    }
-
-    private fun getStartOfHour(timestamp: Long): Long {
-        val calendar = java.util.Calendar.getInstance()
-        calendar.timeInMillis = timestamp
-        calendar.set(java.util.Calendar.MINUTE, 0)
-        calendar.set(java.util.Calendar.SECOND, 0)
-        calendar.set(java.util.Calendar.MILLISECOND, 0)
-        return calendar.timeInMillis
-    }
-
-    private fun getStartOfWeek(timestamp: Long): Long {
-        val calendar = java.util.Calendar.getInstance()
-        calendar.timeInMillis = timestamp
-        calendar.set(java.util.Calendar.DAY_OF_WEEK, java.util.Calendar.MONDAY)
-        calendar.set(java.util.Calendar.HOUR_OF_DAY, 0)
-        calendar.set(java.util.Calendar.MINUTE, 0)
-        calendar.set(java.util.Calendar.SECOND, 0)
-        calendar.set(java.util.Calendar.MILLISECOND, 0)
-        return calendar.timeInMillis
-    }
 }
 
 data class ExerciseStatsSummary(
@@ -538,24 +222,4 @@ data class ExerciseStatsSummary(
     val sampleDates: List<Long>,
     val totalVolume: Long,
     val dateRange: String
-)
-
-data class VolumeDataSummary(
-    val totalCount: Int,
-    val filterLabel: String,
-    val selectedExercise: String?,
-    val reason: String
-)
-
-data class VolumeAnalytics(
-    val totalRecords: Int,
-    val uniqueExercises: Int,
-    val dateRangeDays: Long,
-    val oldestDate: Long,
-    val newestDate: Long,
-    val uniqueDates: Int,
-    val allDates: List<Long>,
-    val exerciseRecords: Int = 0,
-    val filteredRecords: Int = 0,
-    val cutoffTime: Long = 0L
 )
