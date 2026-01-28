@@ -15,6 +15,7 @@ import com.example.fitness_plan.domain.repository.CycleRepository
 import com.example.fitness_plan.domain.repository.ExerciseCompletionRepository
 import com.example.fitness_plan.domain.repository.ExerciseStatsRepository
 import com.example.fitness_plan.domain.repository.ExerciseLibraryRepository
+import com.example.fitness_plan.domain.repository.MuscleGroupStatsRepository
 import com.example.fitness_plan.domain.repository.ReferenceDataRepository
 import com.example.fitness_plan.domain.repository.UserRepository as DomainUserRepository
 import com.example.fitness_plan.domain.repository.WeightRepository as DomainWeightRepository
@@ -59,6 +60,12 @@ object AppModule {
     @Singleton
     fun provideExerciseStatsRepository(@ApplicationContext context: android.content.Context): ExerciseStatsRepository {
         return ExerciseStatsRepository(context)
+    }
+
+    @Provides
+    @Singleton
+    fun provideMuscleGroupStatsRepository(@ApplicationContext context: android.content.Context): MuscleGroupStatsRepository {
+        return MuscleGroupStatsRepository(context)
     }
 
     @Provides
@@ -161,12 +168,22 @@ object AppModule {
 
     @Provides
     @Singleton
+    fun provideMuscleGroupStatsUseCase(
+        muscleGroupStatsRepository: MuscleGroupStatsRepository,
+        exerciseLibraryRepository: ExerciseLibraryRepository
+    ): com.example.fitness_plan.domain.usecase.MuscleGroupStatsUseCase {
+        return com.example.fitness_plan.domain.usecase.MuscleGroupStatsUseCase(muscleGroupStatsRepository, exerciseLibraryRepository)
+    }
+
+    @Provides
+    @Singleton
     fun provideWorkoutUseCase(
         workoutRepository: WorkoutRepository,
         exerciseStatsRepository: ExerciseStatsRepository,
-        exerciseCompletionRepository: ExerciseCompletionRepository
+        exerciseCompletionRepository: ExerciseCompletionRepository,
+        muscleGroupStatsUseCase: com.example.fitness_plan.domain.usecase.MuscleGroupStatsUseCase
     ): WorkoutUseCase {
-        return WorkoutUseCase(workoutRepository, exerciseStatsRepository, exerciseCompletionRepository)
+        return WorkoutUseCase(workoutRepository, exerciseStatsRepository, exerciseCompletionRepository, muscleGroupStatsUseCase)
     }
 
     @Provides

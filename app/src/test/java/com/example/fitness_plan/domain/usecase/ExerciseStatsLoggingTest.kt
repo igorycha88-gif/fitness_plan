@@ -19,17 +19,20 @@ class ExerciseStatsLoggingTest {
     private lateinit var mockWorkoutRepository: WorkoutRepository
     private lateinit var mockExerciseStatsRepository: ExerciseStatsRepository
     private lateinit var mockExerciseCompletionRepository: ExerciseCompletionRepository
+    private lateinit var mockMuscleGroupStatsUseCase: MuscleGroupStatsUseCase
 
     @org.junit.Before
     fun setup() {
         mockWorkoutRepository = mockk(relaxed = true)
         mockExerciseStatsRepository = mockk(relaxed = true)
         mockExerciseCompletionRepository = mockk(relaxed = true)
+        mockMuscleGroupStatsUseCase = mockk(relaxed = true)
 
         workoutUseCase = WorkoutUseCase(
             mockWorkoutRepository,
             mockExerciseStatsRepository,
-            mockExerciseCompletionRepository
+            mockExerciseCompletionRepository,
+            mockMuscleGroupStatsUseCase
         )
     }
 

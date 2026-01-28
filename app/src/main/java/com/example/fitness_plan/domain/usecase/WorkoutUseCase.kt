@@ -14,7 +14,8 @@ import javax.inject.Inject
 class WorkoutUseCase @Inject constructor(
     private val workoutRepository: WorkoutRepository,
     private val exerciseStatsRepository: ExerciseStatsRepository,
-    private val exerciseCompletionRepository: ExerciseCompletionRepository
+    private val exerciseCompletionRepository: ExerciseCompletionRepository,
+    private val muscleGroupStatsUseCase: MuscleGroupStatsUseCase
 ) {
     data class WorkoutState(
         val workoutPlan: WorkoutPlan,
@@ -182,6 +183,14 @@ class WorkoutUseCase @Inject constructor(
         exerciseStatsRepository.saveExerciseStats(username, stats)
 
         android.util.Log.d("WorkoutUseCase", "✅ Статистика упражнения успешно сохранена через UseCase")
+
+        muscleGroupStatsUseCase.saveMuscleGroupStatsForExercise(
+            username,
+            exerciseName,
+            weight,
+            reps,
+            setNumber
+        )
     }
 
     fun getExerciseSummaries(

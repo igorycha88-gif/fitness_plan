@@ -9,9 +9,12 @@ import com.example.fitness_plan.presentation.viewmodel.StatisticsViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun StatisticsScreen(viewModel: StatisticsViewModel = hiltViewModel()) {
+fun StatisticsScreen(
+    onMuscleGroupDetail: (com.example.fitness_plan.domain.model.MuscleGroup) -> Unit,
+    viewModel: StatisticsViewModel = hiltViewModel()
+) {
     var selectedTab by remember { mutableIntStateOf(0) }
-    val tabs = listOf("Вес", "Прогресс")
+    val tabs = listOf("Вес", "Прогресс", "Мышцы")
 
     Scaffold(
         topBar = {
@@ -60,6 +63,7 @@ fun StatisticsScreen(viewModel: StatisticsViewModel = hiltViewModel()) {
             when (selectedTab) {
                 0 -> WeightScreen(viewModel = viewModel)
                 1 -> ProgressScreen(viewModel = viewModel)
+                2 -> MuscleGroupStatsScreen(onMuscleGroupDetail = onMuscleGroupDetail)
             }
         }
     }
