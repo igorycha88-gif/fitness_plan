@@ -298,6 +298,49 @@ class ExerciseLibraryViewModelTest {
     }
 
     @Test
+    fun `filteredExercises with cardio filter should show only cardio exercises`() = runTest {
+        val exercisesWithCardio = sampleExercises + listOf(
+            ExerciseLibrary(
+                id = "running",
+                name = "Бег",
+                description = "Кардио упражнение",
+                exerciseType = ExerciseType.CARDIO,
+                equipment = listOf(EquipmentType.TREADMILL),
+                muscleGroups = listOf(MuscleGroup.QUADS),
+                difficulty = "Любой",
+                stepByStepInstructions = "Бегайте",
+                animationUrl = null,
+                tipsAndAdvice = null,
+                progressionAdvice = null
+            ),
+            ExerciseLibrary(
+                id = "squat",
+                name = "Приседания",
+                description = "Кардио упражнение для ног",
+                exerciseType = ExerciseType.CARDIO,
+                equipment = listOf(EquipmentType.BODYWEIGHT),
+                muscleGroups = listOf(MuscleGroup.QUADS, MuscleGroup.GLUTES),
+                difficulty = "Начальный",
+                stepByStepInstructions = "Приседайте",
+                animationUrl = null,
+                tipsAndAdvice = null,
+                progressionAdvice = null
+            )
+        )
+
+        every { mockExerciseLibraryUseCase.getAllExercises() } returns flowOf(exercisesWithCardio)
+        viewModel.initialize()
+        advanceUntilIdle()
+
+        viewModel.setTypeFilter(ExerciseType.CARDIO)
+        advanceUntilIdle()
+
+        val filtered = viewModel.filteredExercises.first()
+        assertEquals(2, filtered.size)
+        assertTrue(filtered.all { it.exerciseType == ExerciseType.CARDIO })
+    }
+
+    @Test
     fun `filteredExercises with multiple muscles should show exercises matching any muscle`() = runTest {
         viewModel.initialize()
         advanceUntilIdle()

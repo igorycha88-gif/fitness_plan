@@ -132,19 +132,26 @@ class ExerciseLibraryRepositoryImpl @Inject constructor(
         }
     }
 
+    override suspend fun reloadDefaultExercises() {
+        val defaultExercises = getDefaultExerciseLibrary()
+        context.exerciseLibraryDataStore.edit { preferences ->
+            preferences[exercisesKey] = gson.toJson(defaultExercises)
+        }
+    }
+
     private fun getDefaultExerciseLibrary(): List<ExerciseLibrary> {
         return listOf(
             ExerciseLibrary(
                 id = "squat",
                 name = "Приседания",
-                description = "Базовое упражнение для ног и ягодиц. Встаньте прямо, ноги на ширине плеч. Сгибайте колени, опускаясь вниз, пока бедра не станут параллельны полу.",
-                exerciseType = ExerciseType.STRENGTH,
+                description = "Кардио упражнение для ног и ягодиц с высоким темпом выполнения. Встаньте прямо, ноги на ширине плеч. Сгибайте колени, опускаясь вниз, пока бедра не станут параллельны полу.",
+                exerciseType = ExerciseType.CARDIO,
                 equipment = listOf(EquipmentType.BODYWEIGHT),
                 muscleGroups = listOf(MuscleGroup.QUADS, MuscleGroup.GLUTES, MuscleGroup.HAMSTRINGS, MuscleGroup.CALVES),
                 difficulty = "Начальный",
                 stepByStepInstructions = "1. Встаньте прямо, ноги на ширине плеч\n2. Спина прямая, грудь вперед\n3. Медленно опускайтесь, сгибая колени\n4. Опуститесь до параллели с полом\n5. Поднимитесь в исходное положение",
-                tipsAndAdvice = "• Держите пятки на полу\n• Не скругляйте спину\n• Колени не должны выходить за носки\n• Держите грудь в расправленном состоянии\n• Дышите: вдох при опускании, выдох при подъеме",
-                progressionAdvice = "1. Добавьте отягощение (гантели, штанга)\n2. Увеличьте глубину приседания\n3. Уменьшите отдых между подходами\n4. Попробуйте приседания на одной ноге\n5. Используйте темповые приседания"
+                tipsAndAdvice = "• Держите пятки на полу\n• Не скругляйте спину\n• Колени не должны выходить за носки\n• Держите грудь в расправленном состоянии\n• Дышите: вдох при опускании, выдох при подъеме\n• Выполняйте с высоким темпом для кардио-эффекта",
+                progressionAdvice = "1. Увеличьте количество повторений\n2. Увеличьте темп выполнения\n3. Уменьшите отдых между подходами\n4. Попробуйте приседания с выпрыгиванием\n5. Выполняйте в интервальном режиме"
             ),
             ExerciseLibrary(
                 id = "goblet_squat",
@@ -507,18 +514,6 @@ class ExerciseLibraryRepositoryImpl @Inject constructor(
                 progressionAdvice = "1. Увеличьте вес\n2. Попробуйте нейтральный хват\n3. Попробуйте с паузой\n4. Уменьшите время отдыха"
             ),
             ExerciseLibrary(
-                id = "overhead_press",
-                name = "Армейский жим",
-                description = "Базовое упражнение для плеч. Жмите штангу или гантели вверх из положения стоя или сидя.",
-                exerciseType = ExerciseType.STRENGTH,
-                equipment = listOf(EquipmentType.BARBELL, EquipmentType.DUMBBELLS, EquipmentType.WEIGHT_PLATES, EquipmentType.SPECIAL_BENCH),
-                muscleGroups = listOf(MuscleGroup.SHOULDERS, MuscleGroup.TRICEPS, MuscleGroup.TRAPS),
-                difficulty = "Начальный",
-                stepByStepInstructions = "1. Встаньте прямо или сядьте на скамью\n2. Возьмите штангу на уровне плеч\n3. Выжмите штангу вверх\n4. Опустите в исходное положение",
-                tipsAndAdvice = "• Держите корпус напряжённым\n• Взгляд направлен вперёд\n• Локти слегка вперёд вверху\n• Не прогибайте поясницу\n• Контролируйте движение вниз",
-                progressionAdvice = "1. Увеличьте вес\n2. Попробуйте жим гантелей\n3. Попробуйте с паузой\n4. Попробуйте стоя на одной ноге"
-            ),
-            ExerciseLibrary(
                 id = "dumbbell_press",
                 name = "Жим гантелей сидя",
                 description = "Изолированное упражнение для плеч. Жмите гантели вверх из положения сидя.",
@@ -829,6 +824,246 @@ class ExerciseLibraryRepositoryImpl @Inject constructor(
                 stepByStepInstructions = "1. Разминка 5 минут\n2. Высокая интенсивность 30 сек\n3. Низкая интенсивность 30 сек\n4. Повторите 10-15 раз\n5. Заминка 5 минут",
                 tipsAndAdvice = "• Следите за пульсом\n• Не перегружайтесь\n• Дышите ритмично\n• Пейте воду\n• Не делайте рывков",
                 progressionAdvice = "1. Увеличьте количество интервалов\n2. Увеличьте время высокой интенсивности\n3. Попробуйте разные упражнения\n4. Уменьшите время отдыха"
+            ),
+            ExerciseLibrary(
+                id = "machine_chest_press",
+                name = "Жим на тренажёре для груди",
+                description = "Изолированное упражнение для грудных мышц на тренажёре.",
+                exerciseType = ExerciseType.STRENGTH,
+                equipment = listOf(EquipmentType.LEVER_MACHINE),
+                muscleGroups = listOf(MuscleGroup.CHEST, MuscleGroup.TRICEPS, MuscleGroup.SHOULDERS),
+                difficulty = "Начальный",
+                stepByStepInstructions = "1. Сядьте в тренажёр\n2. Возьмите рукоятки\n3. Выжмите вес вверх\n4. Вернитесь в исходное положение",
+                tipsAndAdvice = "• Контролируйте движение вниз\n• Не отрывайте спину\n• Сжимайте грудь вверху\n• Взгляд направлен вперёд\n• Не делайте рывков",
+                progressionAdvice = "1. Увеличьте вес\n2. Попробуйте разную ширину хвата\n3. Попробуйте с паузой\n4. Уменьшите время отдыха"
+            ),
+            ExerciseLibrary(
+                id = "chest_flyes",
+                name = "Разведение на тренажёре",
+                description = "Изолированное упражнение для грудных мышц на тренажёре.",
+                exerciseType = ExerciseType.STRENGTH,
+                equipment = listOf(EquipmentType.LEVER_MACHINE),
+                muscleGroups = listOf(MuscleGroup.CHEST),
+                difficulty = "Начальный",
+                stepByStepInstructions = "1. Сядьте в тренажёр\n2. Возьмите рукоятки\n3. Сведите руки вместе\n4. Вернитесь в исходное положение",
+                tipsAndAdvice = "• Контролируйте движение назад\n• Сжимайте грудь в точке слияния\n• Не отрывайте спину от спинки\n• Взгляд направлен вперёд\n• Не делайте рывков",
+                progressionAdvice = "1. Увеличьте вес\n2. Попробуйте с паузой\n3. Попробуйте поочерёдное сведение\n4. Уменьшите время отдыха"
+            ),
+            ExerciseLibrary(
+                id = "cable_crossovers",
+                name = "Кроссоверы на блоке",
+                description = "Изолированное упражнение для грудных мышц на верхнем блоке.",
+                exerciseType = ExerciseType.STRENGTH,
+                equipment = listOf(EquipmentType.CABLE_MACHINE),
+                muscleGroups = listOf(MuscleGroup.CHEST),
+                difficulty = "Средний",
+                stepByStepInstructions = "1. Возьмите рукоятки с верхних блоков\n2. Наклонитесь немного вперёд\n3. Сведите руки вниз\n4. Вернитесь в исходное положение",
+                tipsAndAdvice = "• Небольшой наклон корпуса\n• Контролируйте движение назад\n• Сжимайте грудь в точке слияния\n• Взгляд направлен вперёд\n• Не делайте рывков",
+                progressionAdvice = "1. Увеличьте вес\n2. Попробуйте с паузой внизу\n3. Попробуйте разные углы\n4. Уменьшите время отдыха"
+            ),
+            ExerciseLibrary(
+                id = "chin_ups",
+                name = "Подтягивания обратным хватом",
+                description = "Базовое упражнение для спины и бицепсов обратным хватом.",
+                exerciseType = ExerciseType.STRENGTH,
+                equipment = listOf(EquipmentType.BODYWEIGHT),
+                muscleGroups = listOf(MuscleGroup.LATS, MuscleGroup.BICEPS, MuscleGroup.FOREARMS, MuscleGroup.TRAPS),
+                difficulty = "Средний",
+                stepByStepInstructions = "1. Повисните на турнике обратным хватом\n2. Подтяните подбородок к перекладине\n3. Медленно опуститесь в исходное положение",
+                tipsAndAdvice = "• Полная амплитуда\n• Не раскачивайтесь\n• Лопатки сведите вверху\n• Контролируйте движение вниз\n• Взгляд направлен вверх",
+                progressionAdvice = "1. Попробуйте с отягощением\n2. Попробуйте разные хваты\n3. Попробуйте с паузой\n4. Попробуйте эксцентрические подтягивания"
+            ),
+            ExerciseLibrary(
+                id = "wide_grip_lat_pulldown",
+                name = "Тяга верхнего блока широким хватом",
+                description = "Изолированное упражнение для широчайших мышц.",
+                exerciseType = ExerciseType.STRENGTH,
+                equipment = listOf(EquipmentType.CABLE_MACHINE),
+                muscleGroups = listOf(MuscleGroup.LATS, MuscleGroup.BICEPS, MuscleGroup.FOREARMS),
+                difficulty = "Начальный",
+                stepByStepInstructions = "1. Сядьте на тренажёр\n2. Возьмите рукоятку широким хватом\n3. Тяните к верхней части груди\n4. Вернитесь в исходное положение",
+                tipsAndAdvice = "• Локти направлены вниз\n• Сжимайте лопатки вверху\n• Контролируйте движение назад\n• Не отклоняйтесь сильно\n• Взгляд направлен вперёд",
+                progressionAdvice = "1. Увеличьте вес\n2. Попробуйте с паузой\n3. Попробуйте нейтральный хват\n4. Уменьшите время отдыха"
+            ),
+            ExerciseLibrary(
+                id = "incline_row",
+                name = "Тяга штанги в наклоне на скамье",
+                description = "Упражнение для спины с опорой на скамью.",
+                exerciseType = ExerciseType.STRENGTH,
+                equipment = listOf(EquipmentType.BARBELL, EquipmentType.WEIGHT_PLATES, EquipmentType.SPECIAL_BENCH),
+                muscleGroups = listOf(MuscleGroup.LATS, MuscleGroup.BICEPS, MuscleGroup.TRAPS, MuscleGroup.FOREARMS),
+                difficulty = "Начальный",
+                stepByStepInstructions = "1. Положите грудь на скамью под углом 45 градусов\n2. Возьмите штангу снизу\n3. Тяните штангу к поясу\n4. Медленно опустите",
+                tipsAndAdvice = "• Грудь плотно прижата\n• Спина прямая\n• Сжимайте лопатки вверху\n• Контролируйте движение вниз\n• Взгляд направлен вперёд",
+                progressionAdvice = "1. Увеличьте вес\n2. Попробуйте узкий хват\n3. Попробуйте с паузой\n4. Уменьшите время отдыха"
+            ),
+            ExerciseLibrary(
+                id = "upright_row",
+                name = "Тяга штанги к подбородку",
+                description = "Упражнение для плеч и трапеций.",
+                exerciseType = ExerciseType.STRENGTH,
+                equipment = listOf(EquipmentType.BARBELL, EquipmentType.DUMBBELLS, EquipmentType.EZ_BARBELL, EquipmentType.WEIGHT_PLATES),
+                muscleGroups = listOf(MuscleGroup.SHOULDERS, MuscleGroup.TRAPS),
+                difficulty = "Начальный",
+                stepByStepInstructions = "1. Встаньте прямо, штанга в руках\n2. Поднимайте штангу к подбородку\n3. Локти направлены в стороны\n4. Медленно опустите",
+                tipsAndAdvice = "• Локти выше рук\n• Контролируйте движение вниз\n• Не поднимайте слишком высоко\n• Взгляд направлен вперёд\n• Не делайте рывков",
+                progressionAdvice = "1. Увеличьте вес\n2. Попробуйте с гантелями\n3. Попробуйте узкий хват\n4. Попробуйте с паузой"
+            ),
+            ExerciseLibrary(
+                id = "rear_delt_flyes",
+                name = "Махи гантелями в наклоне для задней дельты",
+                description = "Изолированное упражнение для задних пучков дельт.",
+                exerciseType = ExerciseType.STRENGTH,
+                equipment = listOf(EquipmentType.DUMBBELLS, EquipmentType.SPECIAL_BENCH),
+                muscleGroups = listOf(MuscleGroup.SHOULDERS, MuscleGroup.TRAPS),
+                difficulty = "Средний",
+                stepByStepInstructions = "1. Наклонитесь корпусом к полу\n2. Разведите гантели в стороны\n3. Сожмите лопатки\n4. Медленно вернитесь",
+                tipsAndAdvice = "• Спина прямая и параллельна полу\n• Руки чуть согнуты\n• Сжимайте лопатки вверху\n• Контролируйте движение вниз\n• Не делайте рывков",
+                progressionAdvice = "1. Увеличьте вес\n2. Попробуйте с паузой\n3. Уменьшите время отдыха\n4. Попробуйте на тренажёре"
+            ),
+            ExerciseLibrary(
+                id = "behind_neck_press",
+                name = "Жим из-за головы",
+                description = "Жим штанги из-за головы для плеч.",
+                exerciseType = ExerciseType.STRENGTH,
+                equipment = listOf(EquipmentType.BARBELL, EquipmentType.DUMBBELLS, EquipmentType.WEIGHT_PLATES, EquipmentType.SPECIAL_BENCH),
+                muscleGroups = listOf(MuscleGroup.SHOULDERS, MuscleGroup.TRICEPS, MuscleGroup.TRAPS),
+                difficulty = "Продвинутый",
+                stepByStepInstructions = "1. Сядьте на скамью\n2. Возьмите штангу на уровне плеч\n3. Выжмите штангу вверх\n4. Опустите за голову\n5. Вернитесь в исходное положение",
+                tipsAndAdvice = "• Контролируйте движение вниз\n• Не прогибайте поясницу\n• Локти направлены вперёд\n• Взгляд направлен вперёд\n• Не делайте рывков",
+                progressionAdvice = "1. Увеличьте вес\n2. Попробуйте жим гантелей\n3. Попробуйте с паузой\n4. Уменьшите время отдыха"
+            ),
+            ExerciseLibrary(
+                id = "preacher_curl",
+                name = "Сгибания на скамье Скотта",
+                description = "Изолированное упражнение для бицепсов на наклонной скамье.",
+                exerciseType = ExerciseType.STRENGTH,
+                equipment = listOf(EquipmentType.EZ_BARBELL, EquipmentType.DUMBBELLS, EquipmentType.SPECIAL_BENCH),
+                muscleGroups = listOf(MuscleGroup.BICEPS, MuscleGroup.FOREARMS),
+                difficulty = "Начальный",
+                stepByStepInstructions = "1. Сядьте на скамью Скотта\n2. Возьмите отягощение\n3. Сгибайте руки к плечам\n4. Медленно разгибайте",
+                tipsAndAdvice = "• Руки плотно на подушке\n• Локти зафиксированы\n• Контролируйте движение вниз\n• Взгляд направлен вперёд\n• Не делайте рывков",
+                progressionAdvice = "1. Увеличьте вес\n2. Попробуйте разные хваты\n3. Попробуйте с паузой\n4. Уменьшите время отдыха"
+            ),
+            ExerciseLibrary(
+                id = "resistance_band_curl",
+                name = "Сгибания с эспандером",
+                description = "Упражнение для бицепсов с эспандером.",
+                exerciseType = ExerciseType.STRENGTH,
+                equipment = listOf(EquipmentType.EXPANDER),
+                muscleGroups = listOf(MuscleGroup.BICEPS, MuscleGroup.FOREARMS),
+                difficulty = "Начальный",
+                stepByStepInstructions = "1. Наступите на эспандер\n2. Возьмите концы в руки\n3. Сгибайте руки к плечам\n4. Медленно разгибайте",
+                tipsAndAdvice = "• Контролируйте движение вниз\n• Не раскачивайтесь\n• Взгляд направлен вперёд\n• Держите напряжение\n• Не делайте рывков",
+                progressionAdvice = "1. Увеличьте сопротивление\n2. Попробуйте разные хваты\n3. Попробуйте с паузой\n4. Уменьшите время отдыха"
+            ),
+            ExerciseLibrary(
+                id = "standing_concentration_curl",
+                name = "Концентрированные сгибания стоя",
+                description = "Изолированное упражнение для бицепсов стоя.",
+                exerciseType = ExerciseType.STRENGTH,
+                equipment = listOf(EquipmentType.DUMBBELLS),
+                muscleGroups = listOf(MuscleGroup.BICEPS, MuscleGroup.FOREARMS),
+                difficulty = "Средний",
+                stepByStepInstructions = "1. Встаньте прямо\n2. Упритесь локтем в сторону тела\n3. Сгибайте руку\n4. Медленно разгибайте\n5. Повторите на другую руку",
+                tipsAndAdvice = "• Спина прямая\n• Не раскачивайтесь\n• Полная амплитуда\n• Контролируйте движение вниз\n• Взгляд направлен на бицепс",
+                progressionAdvice = "1. Увеличьте вес\n2. Попробуйте с паузой\n3. Попробуйте медленные повторения\n4. Уменьшите время отдыха"
+            ),
+            ExerciseLibrary(
+                id = "rope_pushdown",
+                name = "Разгибания на блоке канаты",
+                description = "Изолированное упражнение для трицепсов с канатной рукояткой.",
+                exerciseType = ExerciseType.STRENGTH,
+                equipment = listOf(EquipmentType.CABLE_MACHINE),
+                muscleGroups = listOf(MuscleGroup.TRICEPS, MuscleGroup.FOREARMS),
+                difficulty = "Начальный",
+                stepByStepInstructions = "1. Возьмите канатную рукоятку\n2. Локти прижаты к корпусу\n3. Разгибайте руки вниз\n4. Разводите концы в стороны\n5. Медленно вернитесь",
+                tipsAndAdvice = "• Локти прижаты к корпусу\n• Разводите концы внизу\n• Контролируйте движение вверх\n• Взгляд направлен вперёд\n• Не делайте рывков",
+                progressionAdvice = "1. Увеличьте вес\n2. Попробуйте с паузой внизу\n3. Попробуйте разные рукоятки\n4. Уменьшите время отдыха"
+            ),
+            ExerciseLibrary(
+                id = "seated_french_press",
+                name = "Французский жим сидя",
+                description = "Разгибания рук сидя для трицепсов.",
+                exerciseType = ExerciseType.STRENGTH,
+                equipment = listOf(EquipmentType.EZ_BARBELL, EquipmentType.DUMBBELLS, EquipmentType.SPECIAL_BENCH),
+                muscleGroups = listOf(MuscleGroup.TRICEPS, MuscleGroup.FOREARMS),
+                difficulty = "Средний",
+                stepByStepInstructions = "1. Сядьте на скамью\n2. Возьмите отягощение над головой\n3. Сгибайте руки за голову\n4. Разгибайте руки вверх\n5. Локти зафиксированы",
+                tipsAndAdvice = "• Локти зафиксированы\n• Контролируйте движение вниз\n• Не раскачивайтесь\n• Взгляд направлен вперёд\n• Не делайте рывков",
+                progressionAdvice = "1. Увеличьте вес\n2. Попробуйте с гантелями\n3. Попробуйте EZ-штангу\n4. Попробуйте с паузой"
+            ),
+            ExerciseLibrary(
+                id = "inclined_dips",
+                name = "Отжимания на брусьях с наклоном",
+                description = "Упражнение для нижней части груди и трицепсов.",
+                exerciseType = ExerciseType.STRENGTH,
+                equipment = listOf(EquipmentType.BODYWEIGHT),
+                muscleGroups = listOf(MuscleGroup.CHEST, MuscleGroup.TRICEPS, MuscleGroup.SHOULDERS),
+                difficulty = "Продвинутый",
+                stepByStepInstructions = "1. Повисните на брусьях\n2. Наклоните корпус вперёд\n3. Опуститесь вниз\n4. Поднимитесь вверх\n5. Выпрямите руки полностью",
+                tipsAndAdvice = "• Корпус наклонён вперёд\n• Локти направлены в стороны\n• Контролируйте движение вниз\n• Взгляд направлен вперёд\n• Не раскачивайтесь",
+                progressionAdvice = "1. Попробуйте с отягощением\n2. Попробуйте медленные повторения\n3. Попробуйте с паузой внизу\n4. Уменьшите время отдыха"
+            ),
+            ExerciseLibrary(
+                id = "jump_squat",
+                name = "Приседания с выпрыгиванием",
+                description = "Плиометрическое упражнение для ног и ягодиц.",
+                exerciseType = ExerciseType.STRENGTH,
+                equipment = listOf(EquipmentType.BODYWEIGHT),
+                muscleGroups = listOf(MuscleGroup.QUADS, MuscleGroup.GLUTES, MuscleGroup.HAMSTRINGS, MuscleGroup.CALVES),
+                difficulty = "Продвинутый",
+                stepByStepInstructions = "1. Встаньте прямо, ноги на ширине плеч\n2. Присядьте до параллели с полом\n3. Выпрыгните вверх\n4. Приземлитесь мягко на пол\n5. Немедленно переходите к следующему повторению",
+                tipsAndAdvice = "• Мягко приземляйтесь\n• Держите спину прямо\n• Используйте руки для инерции\n• Контролируйте приземление\n• Не делайте рывков",
+                progressionAdvice = "1. Добавьте вес в руках\n2. Увеличьте высоту прыжка\n3. Попробуйте на одной ноге\n4. Увеличьте количество повторений"
+            ),
+            ExerciseLibrary(
+                id = "single_leg_press",
+                name = "Жим ногами на одной ноге",
+                description = "Изолированное упражнение для ног на одной ноге.",
+                exerciseType = ExerciseType.STRENGTH,
+                equipment = listOf(EquipmentType.LEVER_MACHINE),
+                muscleGroups = listOf(MuscleGroup.QUADS, MuscleGroup.GLUTES, MuscleGroup.HAMSTRINGS),
+                difficulty = "Продвинутый",
+                stepByStepInstructions = "1. Сядьте в машину жима ногами\n2. Ногу поставьте на платформу\n3. Опустите платформу к груди\n4. Выжмите платформу вверх\n5. Повторите на другую ногу",
+                tipsAndAdvice = "• Другая нога расслаблена\n• Не закрывайте ногу полностью\n• Контролируйте амплитуду\n• Пятка плотно на платформе\n• Не давите коленом внутрь",
+                progressionAdvice = "1. Увеличивайте вес постепенно\n2. Попробуйте высокую постановку\n3. Попробуйте низкую постановку\n4. Уменьшите время отдыха"
+            ),
+            ExerciseLibrary(
+                id = "standing_romanian_deadlift",
+                name = "Румынская тяга с гантелями стоя",
+                description = "Упражнение для задней поверхности бедра и ягодиц.",
+                exerciseType = ExerciseType.STRENGTH,
+                equipment = listOf(EquipmentType.DUMBBELLS),
+                muscleGroups = listOf(MuscleGroup.HAMSTRINGS, MuscleGroup.GLUTES, MuscleGroup.LATS, MuscleGroup.FOREARMS),
+                difficulty = "Средний",
+                stepByStepInstructions = "1. Встаньте прямо, гантели в руках\n2. Наклонитесь вперёд, сгибая ноги чуть-чуть\n3. Ощутите растяжение задней поверхности\n4. Поднимитесь, сжимая ягодицы",
+                tipsAndAdvice = "• Ноги чуть согнуты\n• Спина прямая\n• Гантели близко к ногам\n• Сжимайте ягодицы вверху\n• Контролируйте движение вниз",
+                progressionAdvice = "1. Увеличьте вес\n2. Попробуйте разные хваты\n3. Уменьшите время отдыха\n4. Попробуйте на одной ноге"
+            ),
+            ExerciseLibrary(
+                id = "weighted_crunches",
+                name = "Скручивания с отягощением",
+                description = "Упражнение для пресса с дополнительным весом.",
+                exerciseType = ExerciseType.STRENGTH,
+                equipment = listOf(EquipmentType.DUMBBELLS, EquipmentType.WEIGHT_PLATES),
+                muscleGroups = listOf(MuscleGroup.ABS),
+                difficulty = "Средний",
+                stepByStepInstructions = "1. Лягте на спину, ноги согнуты\n2. Возьмите вес к груди\n3. Поднимите корпус вверх\n4. Сожмите пресс\n5. Медленно опуститесь",
+                tipsAndAdvice = "• Держите вес близко к груди\n• Поднимайтесь только за счёт пресса\n• Не тяните шеей\n• Дышите ритмично\n• Контролируйте движение вниз",
+                progressionAdvice = "1. Увеличьте вес\n2. Попробуйте на наклонной скамье\n3. Попробуйте скручивания в стороны\n4. Уменьшите время отдыха"
+            ),
+            ExerciseLibrary(
+                id = "bicycle_crunches",
+                name = "Велосипед",
+                description = "Упражнение для пресса с имитацией велосипеда.",
+                exerciseType = ExerciseType.STRENGTH,
+                equipment = listOf(EquipmentType.BODYWEIGHT),
+                muscleGroups = listOf(MuscleGroup.ABS),
+                difficulty = "Начальный",
+                stepByStepInstructions = "1. Лягте на спину\n2. Поднимите ноги и согните колени\n3. Одновременно коснитесь локтем противоположного колена\n4. Продолжайте чередовать стороны",
+                tipsAndAdvice = "• Не отрывайте поясницу от пола\n• Контролируйте движение\n• Дышите ритмично\n• Не делайте рывков\n• Поднимайте плечи, а не шею",
+                progressionAdvice = "1. Увеличьте количество повторений\n2. Попробуйте с замедлением\n3. Попробуйте задержку в верхней точке\n4. Уменьшите время отдыха"
             ),
             ExerciseLibrary(
                 id = "incline_press",

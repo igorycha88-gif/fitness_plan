@@ -58,4 +58,8 @@ class ExerciseLibraryUseCase @Inject constructor(
             limit
         )
     }
+
+    suspend fun reloadDefaultExercises() {
+        exerciseLibraryRepository.reloadDefaultExercises()
+    }
 }
