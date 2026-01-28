@@ -1,6 +1,5 @@
 package com.example.fitness_plan.ui
 
-import androidx.compose.animation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -18,6 +17,8 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.fitness_plan.presentation.viewmodel.StatisticsViewModel
 import com.example.fitness_plan.presentation.viewmodel.VolumeTimeFilter
+import java.text.SimpleDateFormat
+import java.util.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -29,7 +30,6 @@ fun VolumeScreen(viewModel: StatisticsViewModel = hiltViewModel()) {
     val exerciseStats by viewModel.exerciseStats.collectAsState()
 
     var expanded by remember { mutableStateOf(false) }
-    var showExerciseDetail by remember { mutableStateOf(false) }
 
     val filteredVolumeData = remember(selectedFilter, volumeData) {
         viewModel.getFilteredVolumeData()
@@ -64,6 +64,14 @@ fun VolumeScreen(viewModel: StatisticsViewModel = hiltViewModel()) {
 
     var selectedVolumeEntry by remember { mutableStateOf<com.example.fitness_plan.domain.model.VolumeEntry?>(null) }
 
+    val latestDate = remember(filteredVolumeData) {
+        if (filteredVolumeData.isNotEmpty()) {
+            filteredVolumeData.last().date
+        } else {
+            System.currentTimeMillis()
+        }
+    }
+
     val exerciseProgress = remember(selectedExercise, volumeData) {
         if (selectedExercise != null && volumeData.isNotEmpty()) {
             val exerciseStats = volumeData.filter { it.exerciseName == selectedExercise }
@@ -75,6 +83,14 @@ fun VolumeScreen(viewModel: StatisticsViewModel = hiltViewModel()) {
                 } else 0.0
             } else 0.0
         } else 0.0
+    }
+
+    val volumeChangeText = remember(exerciseProgress) {
+        if (exerciseProgress > 0) "+%.1f%%".format(exerciseProgress) else "%.1f%%".format(exerciseProgress)
+    }
+
+    val volumeChangeColor = remember(exerciseProgress) {
+        if (exerciseProgress > 0) Color(0xFF2DD4BF) else if (exerciseProgress < 0) Color(0xFFE55C5C) else Color(0xFF6B7280)
     }
 
     Column(
@@ -109,59 +125,6 @@ fun VolumeScreen(viewModel: StatisticsViewModel = hiltViewModel()) {
             )
 
             Spacer(modifier = Modifier.height(16.dp))
-
-            if (selectedExercise != null && exerciseProgress != 0.0) {
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 8.dp),
-                    shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(
-                        containerColor = if (exerciseProgress > 0) {
-                            Color(0xFF2DD4BF).copy(alpha = 0.1f)
-                        } else {
-                            Color(0xFFE55C5C).copy(alpha = 0.1f)
-                        }
-                    ),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-                ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Text(
-                            text = "Изменение объёма: $selectedExercise",
-                            style = MaterialTheme.typography.titleMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-
-                        Spacer(modifier = Modifier.height(8.dp))
-
-                        Text(
-                            text = if (exerciseProgress > 0) "+%.1f%%".format(exerciseProgress) else "%.1f%%".format(exerciseProgress),
-                            style = MaterialTheme.typography.headlineMedium,
-                            color = if (exerciseProgress > 0) {
-                                Color(0xFF2DD4BF)
-                            } else {
-                                Color(0xFFE55C5C)
-                            },
-                            fontWeight = FontWeight.Bold
-                        )
-
-                        Spacer(modifier = Modifier.height(4.dp))
-
-                        Text(
-                            text = if (exerciseProgress > 0) "Рост объёма" else "Снижение объёма",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(16.dp))
-            }
         }
 
         Card(
@@ -194,6 +157,16 @@ fun VolumeScreen(viewModel: StatisticsViewModel = hiltViewModel()) {
                     style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
+
+                if (filteredVolumeData.isNotEmpty()) {
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Text(
+                        text = formatVolumeDate(latestDate),
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             }
         }
 
@@ -225,25 +198,26 @@ fun VolumeScreen(viewModel: StatisticsViewModel = hiltViewModel()) {
                     containerColor = MaterialTheme.colorScheme.surfaceVariant
                 )
             ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(16.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
                 ) {
-                    Text(
-                        text = "Нет данных",
-                        style = MaterialTheme.typography.titleLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = noDataReason ?: "Нет данных за выбранный период",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(
+                            text = "Нет данных",
+                            style = MaterialTheme.typography.titleLarge,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = noDataReason ?: "Нет данных за выбранный период",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                 }
             }
         }
@@ -261,6 +235,14 @@ fun VolumeScreen(viewModel: StatisticsViewModel = hiltViewModel()) {
                 value = formatVolumeCompact(totalVolume),
                 color = MaterialTheme.colorScheme.primary
             )
+
+            if (selectedExercise != null && exerciseProgress != 0.0) {
+                VolumeProgressItem(
+                    label = "Изменение",
+                    value = volumeChangeText,
+                    color = volumeChangeColor
+                )
+            }
 
             VolumeProgressItem(
                 label = "Среднее",
@@ -356,6 +338,11 @@ fun formatVolumeCompact(volume: Long): String {
     } else {
         "$volume"
     }
+}
+
+fun formatVolumeDate(timestamp: Long): String {
+    val sdf = SimpleDateFormat("d MMMM", Locale("ru"))
+    return sdf.format(Date(timestamp))
 }
 
 @OptIn(ExperimentalMaterial3Api::class)

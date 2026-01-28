@@ -98,6 +98,14 @@ class WorkoutUseCase @Inject constructor(
         setNumber: Int,
         sets: Int
     ) {
+        android.util.Log.d("WorkoutUseCase", "=== Сохранение статистики упражнения (UseCase уровень) ===")
+        android.util.Log.d("WorkoutUseCase", "Пользователь: $username")
+        android.util.Log.d("WorkoutUseCase", "Упражнение: $exerciseName")
+        android.util.Log.d("WorkoutUseCase", "Вес: $weight кг")
+        android.util.Log.d("WorkoutUseCase", "Повторения: $reps")
+        android.util.Log.d("WorkoutUseCase", "Номер подхода: $setNumber")
+        android.util.Log.d("WorkoutUseCase", "Количество подходов: $sets")
+        
         val stats = ExerciseStats(
             exerciseName = exerciseName,
             date = System.currentTimeMillis(),
@@ -106,7 +114,13 @@ class WorkoutUseCase @Inject constructor(
             setNumber = setNumber,
             sets = sets
         )
+        
+        android.util.Log.d("WorkoutUseCase", "Создан объект ExerciseStats: $stats")
+        android.util.Log.d("WorkoutUseCase", "Вызов repository.saveExerciseStats...")
+        
         exerciseStatsRepository.saveExerciseStats(username, stats)
+        
+        android.util.Log.d("WorkoutUseCase", "✅ Статистика упражнения успешно сохранена через UseCase")
     }
 
     fun getExerciseSummaries(

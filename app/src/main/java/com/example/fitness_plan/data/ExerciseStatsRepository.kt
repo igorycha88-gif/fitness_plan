@@ -31,7 +31,16 @@ class ExerciseStatsRepository @Inject constructor(
     }
 
     override suspend fun saveExerciseStats(username: String, stats: ExerciseStats) {
-        Log.d(TAG, "Saving exercise stats: username=$username, exercise=${stats.exerciseName}, weight=${stats.weight}, reps=${stats.reps}, volume=${stats.volume}")
+        Log.d(TAG, "=== Сохранение данных о выполненной тренировке ===")
+        Log.d(TAG, "Пользователь: $username")
+        Log.d(TAG, "Название упражнения: ${stats.exerciseName}")
+        Log.d(TAG, "Вес: ${stats.weight} кг")
+        Log.d(TAG, "Повторения: ${stats.reps}")
+        Log.d(TAG, "Номер подхода: ${stats.setNumber}")
+        Log.d(TAG, "Количество подходов: ${stats.sets}")
+        Log.d(TAG, "Объём (вес × повт): ${stats.volume} кг")
+        Log.d(TAG, "Дата записи: ${java.text.SimpleDateFormat("dd.MM.yyyy HH:mm:ss", java.util.Locale("ru")).format(java.util.Date(stats.date))}")
+
         val key = getStatsKey(username)
         context.exerciseStatsDataStore.edit { preferences ->
             val json = preferences[key] ?: "[]"
@@ -39,12 +48,16 @@ class ExerciseStatsRepository @Inject constructor(
             val currentList: MutableList<ExerciseStats> = try {
                 gson.fromJson(json, type) ?: mutableListOf()
             } catch (e: Exception) {
-                Log.e(TAG, "Error parsing existing stats", e)
+                Log.e(TAG, "Ошибка при чтении существующих данных", e)
                 mutableListOf()
             }
+            val previousSize = currentList.size
             currentList.add(stats)
             preferences[key] = gson.toJson(currentList)
-            Log.d(TAG, "Saved stats. Total records for user: ${currentList.size}")
+            Log.d(TAG, "✅ Данные успешно сохранены!")
+            Log.d(TAG, "Количество записей до: $previousSize")
+            Log.d(TAG, "Количество записей после: ${currentList.size}")
+            Log.d(TAG, "Новая запись добавлена: ${stats.exerciseName} - ${stats.weight}кг × ${stats.reps} = ${stats.volume}кг")
         }
     }
 
