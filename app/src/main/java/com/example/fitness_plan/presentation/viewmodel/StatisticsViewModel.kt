@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.example.fitness_plan.domain.model.Cycle
 import com.example.fitness_plan.domain.model.CycleHistoryEntry
 import com.example.fitness_plan.domain.model.ExerciseStats
+import com.example.fitness_plan.domain.model.ProgressTimeFilter
 import com.example.fitness_plan.domain.model.UserProfile
 import com.example.fitness_plan.domain.model.WeightEntry
 import com.example.fitness_plan.domain.repository.ICredentialsRepository
@@ -70,6 +71,15 @@ class StatisticsViewModel @Inject constructor(
     private val _showWeightDialog = MutableStateFlow(false)
     val showWeightDialog: StateFlow<Boolean> = _showWeightDialog.asStateFlow()
 
+    private val _selectedProgressTimeFilter = MutableStateFlow(ProgressTimeFilter.MONTH)
+    val selectedProgressTimeFilter: StateFlow<ProgressTimeFilter> = _selectedProgressTimeFilter.asStateFlow()
+
+    private val _selectedProgressExercise = MutableStateFlow<String?>(null)
+    val selectedProgressExercise: StateFlow<String?> = _selectedProgressExercise.asStateFlow()
+
+    private val _progressChartData = MutableStateFlow<List<com.example.fitness_plan.domain.model.ProgressChartData>>(emptyList())
+    val progressChartData: StateFlow<List<com.example.fitness_plan.domain.model.ProgressChartData>> = _progressChartData.asStateFlow()
+
     init {
         viewModelScope.launch {
             val username = credentialsRepository.getUsername() ?: ""
@@ -90,6 +100,16 @@ class StatisticsViewModel @Inject constructor(
 
     fun setShowWeightDialog(show: Boolean) {
         _showWeightDialog.value = show
+    }
+
+    fun setProgressTimeFilter(filter: ProgressTimeFilter) {
+        _selectedProgressTimeFilter.value = filter
+        updateProgressChartData()
+    }
+
+    fun setProgressExercise(exerciseName: String?) {
+        _selectedProgressExercise.value = exerciseName
+        updateProgressChartData()
     }
 
     fun saveWeight(weight: Double, date: Long = System.currentTimeMillis()) {
@@ -212,6 +232,94 @@ class StatisticsViewModel @Inject constructor(
                 dateRange = "$dateRangeDays дней"
             )
         }
+    }
+
+    fun getAvailableExercises(): List<String> {
+        return _exerciseStats.value.map { it.exerciseName }.distinct().sorted()
+    }
+
+    private fun updateProgressChartData() {
+        viewModelScope.launch {
+            val exerciseName = _selectedProgressExercise.value
+            val days = _selectedProgressTimeFilter.value.days
+
+            if (exerciseName == null) {
+                _progressChartData.value = emptyList()
+                return@launch
+            }
+
+            val stats = if (days == 0) {
+                _exerciseStats.value
+            } else {
+                val cutoffTime = System.currentTimeMillis() - (days * 24 * 60 * 60 * 1000L)
+                _exerciseStats.value.filter { it.date >= cutoffTime }
+            }.filter { it.exerciseName == exerciseName }
+
+            if (stats.isEmpty()) {
+                _progressChartData.value = emptyList()
+                return@launch
+            }
+
+            val dailyStats = aggregateByDay(stats)
+            val chartData = dailyStats.map { daily ->
+                com.example.fitness_plan.domain.model.ProgressChartData(
+                    date = daily.date,
+                    xValue = if (daily.exerciseType == com.example.fitness_plan.domain.model.ExerciseType.STRENGTH) {
+                        daily.averageWeight
+                    } else {
+                        daily.duration.toDouble()
+                    },
+                    xLabel = if (daily.exerciseType == com.example.fitness_plan.domain.model.ExerciseType.STRENGTH) {
+                        "%.1f кг".format(daily.averageWeight)
+                    } else {
+                        "%d мин".format(daily.duration)
+                    },
+                    yValue = if (daily.exerciseType == com.example.fitness_plan.domain.model.ExerciseType.STRENGTH) {
+                        daily.averageReps.toDouble()
+                    } else {
+                        daily.duration.toDouble()
+                    },
+                    exerciseName = daily.exerciseName
+                )
+            }.sortedBy { it.date }
+
+            _progressChartData.value = chartData
+        }
+    }
+
+    private fun aggregateByDay(stats: List<ExerciseStats>): List<com.example.fitness_plan.domain.model.DailyExerciseStats> {
+        return stats.groupBy { stat ->
+            val calendar = java.util.Calendar.getInstance()
+            calendar.timeInMillis = stat.date
+            calendar.set(java.util.Calendar.HOUR_OF_DAY, 0)
+            calendar.set(java.util.Calendar.MINUTE, 0)
+            calendar.set(java.util.Calendar.SECOND, 0)
+            calendar.set(java.util.Calendar.MILLISECOND, 0)
+            calendar.timeInMillis
+        }.map { (date, dayStats) ->
+            val exerciseType = determineExerciseType(dayStats.first().exerciseName)
+            com.example.fitness_plan.domain.model.DailyExerciseStats(
+                exerciseName = dayStats.first().exerciseName,
+                date = date,
+                averageWeight = if (exerciseType == com.example.fitness_plan.domain.model.ExerciseType.STRENGTH) {
+                    dayStats.filter { it.weight > 0 }.map { it.weight }.average()
+                } else {
+                    0.0
+                },
+                averageReps = if (exerciseType == com.example.fitness_plan.domain.model.ExerciseType.STRENGTH) {
+                    dayStats.filter { it.reps > 0 }.map { it.reps }.average().toInt()
+                } else {
+                    0
+                },
+                totalSets = dayStats.size,
+                exerciseType = exerciseType,
+                duration = dayStats.sumOf { it.duration }
+            )
+        }.sortedBy { it.date }
+    }
+
+    private fun determineExerciseType(exerciseName: String): com.example.fitness_plan.domain.model.ExerciseType {
+        return com.example.fitness_plan.domain.model.ExerciseType.STRENGTH
     }
 }
 

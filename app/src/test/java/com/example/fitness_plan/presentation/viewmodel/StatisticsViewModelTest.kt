@@ -1,6 +1,7 @@
 package com.example.fitness_plan.presentation.viewmodel
 
 import com.example.fitness_plan.domain.model.ExerciseStats
+import com.example.fitness_plan.domain.model.ProgressTimeFilter
 import com.example.fitness_plan.domain.model.UserProfile
 import com.example.fitness_plan.domain.model.WeightEntry
 import com.example.fitness_plan.domain.repository.CycleRepository
@@ -410,5 +411,127 @@ class StatisticsViewModelTest {
         assertThat(summary.uniqueCount).isEqualTo(2)
         assertThat(summary.exerciseNames).containsExactly("Жим лёжа", "Приседания")
         assertThat(summary.totalVolume).isEqualTo(1640L + 1100L)
+    }
+
+    @Test
+    fun `getAvailableExercises should return distinct sorted exercise names`() = runTest {
+        val now = System.currentTimeMillis()
+
+        val stats = listOf(
+            ExerciseStats("Жим лёжа", now, 100.0, 10, 1, 1),
+            ExerciseStats("Приседания", now, 80.0, 8, 1, 1),
+            ExerciseStats("Жим лёжа", now + 1000, 110.0, 10, 1, 1),
+            ExerciseStats("Тяга", now + 2000, 60.0, 12, 1, 1)
+        )
+
+        mutableStatsFlow.value = stats
+
+        val exercises = viewModel.getAvailableExercises()
+
+        assertThat(exercises).hasSize(3)
+        assertThat(exercises).containsExactly("Жим лёжа", "Приседания", "Тяга")
+    }
+
+    @Test
+    fun `getAvailableExercises should return empty list when no stats`() = runTest {
+        mutableStatsFlow.value = emptyList()
+
+        val exercises = viewModel.getAvailableExercises()
+
+        assertThat(exercises).isEmpty()
+    }
+
+    @Test
+    fun `setProgressTimeFilter should update selected filter`() {
+        viewModel.setProgressTimeFilter(ProgressTimeFilter.DAY)
+
+        assertThat(viewModel.selectedProgressTimeFilter.value).isEqualTo(ProgressTimeFilter.DAY)
+
+        viewModel.setProgressTimeFilter(ProgressTimeFilter.MONTH)
+
+        assertThat(viewModel.selectedProgressTimeFilter.value).isEqualTo(ProgressTimeFilter.MONTH)
+    }
+
+    @Test
+    fun `setProgressExercise should update selected exercise`() {
+        viewModel.setProgressExercise("Жим лёжа")
+
+        assertThat(viewModel.selectedProgressExercise.value).isEqualTo("Жим лёжа")
+
+        viewModel.setProgressExercise(null)
+
+        assertThat(viewModel.selectedProgressExercise.value).isNull()
+    }
+
+    @Test
+    fun `initial state should have correct progress defaults`() = runTest {
+        assertThat(viewModel.selectedProgressTimeFilter.value).isEqualTo(ProgressTimeFilter.MONTH)
+        assertThat(viewModel.selectedProgressExercise.value).isNull()
+        assertThat(viewModel.progressChartData.value).isEmpty()
+    }
+
+    @Test
+    fun `aggregateByDay should correctly group stats by date`() = runTest {
+        val now = System.currentTimeMillis()
+        val dayInMillis = 24 * 60 * 60 * 1000L
+
+        val stats = listOf(
+            ExerciseStats("Жим лёжа", now, 100.0, 10, 1, 1),
+            ExerciseStats("Жим лёжа", now + 1000, 105.0, 8, 2, 1),
+            ExerciseStats("Жим лёжа", now + dayInMillis, 110.0, 10, 1, 1),
+            ExerciseStats("Жим лёжа", now + dayInMillis + 1000, 115.0, 8, 2, 1)
+        )
+
+        mutableStatsFlow.value = stats
+        viewModel.setProgressExercise("Жим лёжа")
+
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        val chartData = viewModel.progressChartData.value
+
+        assertThat(chartData).isNotEmpty()
+    }
+
+    @Test
+    fun `aggregateByDay should calculate correct averages`() = runTest {
+        val now = System.currentTimeMillis()
+
+        val stats = listOf(
+            ExerciseStats("Жим лёжа", now, 100.0, 10, 1, 1),
+            ExerciseStats("Жим лёжа", now + 1000, 110.0, 12, 2, 1)
+        )
+
+        mutableStatsFlow.value = stats
+        viewModel.setProgressExercise("Жим лёжа")
+
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        val chartData = viewModel.progressChartData.value
+
+        assertThat(chartData).hasSize(1)
+        assertThat(chartData.first().xValue).isEqualTo(105.0)
+        assertThat(chartData.first().yValue).isEqualTo(11.0)
+    }
+
+    @Test
+    fun `progressChartData should filter by time period`() = runTest {
+        val now = System.currentTimeMillis()
+        val dayInMillis = 24 * 60 * 60 * 1000L
+
+        val stats = listOf(
+            ExerciseStats("Жим лёжа", now - 5 * dayInMillis, 100.0, 10, 1, 1),
+            ExerciseStats("Жим лёжа", now - 15 * dayInMillis, 105.0, 10, 1, 1),
+            ExerciseStats("Жим лёжа", now - 35 * dayInMillis, 110.0, 10, 1, 1)
+        )
+
+        mutableStatsFlow.value = stats
+        viewModel.setProgressExercise("Жим лёжа")
+        viewModel.setProgressTimeFilter(ProgressTimeFilter.MONTH)
+
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        val chartData = viewModel.progressChartData.value
+
+        assertThat(chartData).hasSize(2)
     }
 }

@@ -110,6 +110,7 @@ fun ExerciseDetailScreen(
     var timerSeconds by remember { mutableStateOf(0) }
     var weight by remember { mutableStateOf("") }
     var reps by remember { mutableStateOf("") }
+    var duration by remember { mutableStateOf("") }
 
     LaunchedEffect(isTimerRunning) {
         while (isTimerRunning) {
@@ -359,6 +360,38 @@ fun ExerciseDetailScreen(
 
                 if (isCardioOrStretching) {
                     Text(
+                        text = "Записать результат",
+                        style = MaterialTheme.typography.titleMedium,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    val durationValue = duration.toIntOrNull()
+                    val isDurationValid = durationValue != null && durationValue > 0
+
+                    OutlinedTextField(
+                        value = duration,
+                        onValueChange = { duration = it },
+                        label = { Text("Длительность (мин)") },
+                        placeholder = {
+                            Text(
+                                "Например: 30",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                            )
+                        },
+                        isError = duration.isNotEmpty() && !isDurationValid,
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                            keyboardType = androidx.compose.ui.text.input.KeyboardType.Number
+                        )
+                    )
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    Text(
                         text = "Статус выполнения",
                         style = MaterialTheme.typography.titleMedium,
                         modifier = Modifier.fillMaxWidth()
@@ -369,14 +402,22 @@ fun ExerciseDetailScreen(
                     Button(
                         onClick = {
                             selectedExercise?.let {
-                                if (!allSetsCompleted) {
+                                if (!allSetsCompleted && isDurationValid) {
+                                    workoutViewModel.saveExerciseStats(
+                                        exerciseName = currentExerciseName,
+                                        weight = 0.0,
+                                        reps = 0,
+                                        setNumber = 1,
+                                        sets = 1,
+                                        duration = durationValue!!
+                                    )
                                     workoutViewModel.toggleExerciseCompletion(exerciseKey, true)
                                 }
                             }
                         },
                         modifier = Modifier.fillMaxWidth(),
                         colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
-                        enabled = !allSetsCompleted
+                        enabled = !allSetsCompleted && isDurationValid
                     ) {
                         Icon(Icons.Filled.Check, contentDescription = null)
                         Spacer(modifier = Modifier.width(8.dp))
@@ -384,19 +425,15 @@ fun ExerciseDetailScreen(
                     }
 
                     if (!allSetsCompleted) {
-                        Spacer(modifier = Modifier.height(8.dp))
+                        if (!isDurationValid) {
+                            Spacer(modifier = Modifier.height(8.dp))
 
-                        OutlinedButton(
-                            onClick = {
-                                selectedExercise?.let {
-                                    workoutViewModel.toggleExerciseCompletion(exerciseKey, true)
-                                }
-                            },
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Icon(Icons.Filled.Check, contentDescription = null)
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text("Отметить как выполненное")
+                            Text(
+                                text = "Введите длительность для сохранения",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.error,
+                                modifier = Modifier.fillMaxWidth()
+                            )
                         }
                     } else {
                         Spacer(modifier = Modifier.height(8.dp))

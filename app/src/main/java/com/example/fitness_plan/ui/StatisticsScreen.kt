@@ -11,7 +11,7 @@ import com.example.fitness_plan.presentation.viewmodel.StatisticsViewModel
 @Composable
 fun StatisticsScreen(viewModel: StatisticsViewModel = hiltViewModel()) {
     var selectedTab by remember { mutableIntStateOf(0) }
-    val tabs = listOf("Вес")
+    val tabs = listOf("Вес", "Прогресс")
 
     Scaffold(
         topBar = {
@@ -59,6 +59,7 @@ fun StatisticsScreen(viewModel: StatisticsViewModel = hiltViewModel()) {
 
             when (selectedTab) {
                 0 -> WeightScreen(viewModel = viewModel)
+                1 -> ProgressScreen(viewModel = viewModel)
             }
         }
     }

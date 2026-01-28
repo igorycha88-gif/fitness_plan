@@ -320,7 +320,8 @@ class WorkoutViewModel @Inject constructor(
         weight: Double,
         reps: Int,
         setNumber: Int,
-        sets: Int
+        sets: Int,
+        duration: Int = 0
     ) {
         Log.d(TAG, "=== Сохранение статистики упражнения (ViewModel уровень) ===")
         Log.d(TAG, "Упражнение: $exerciseName")
@@ -328,11 +329,12 @@ class WorkoutViewModel @Inject constructor(
         Log.d(TAG, "Повторения: $reps")
         Log.d(TAG, "Номер подхода: $setNumber")
         Log.d(TAG, "Количество подходов: $sets")
-        
+        Log.d(TAG, "Длительность: $duration мин")
+
         viewModelScope.launch {
             val username = _currentUsername.value
             Log.d(TAG, "Текущий пользователь: $username")
-            
+
             if (username.isNotEmpty()) {
                 Log.d(TAG, "Вызов workoutUseCase.saveExerciseStats...")
                 workoutUseCase.saveExerciseStats(
@@ -341,7 +343,8 @@ class WorkoutViewModel @Inject constructor(
                     weight,
                     reps,
                     setNumber,
-                    sets
+                    sets,
+                    duration
                 )
                 Log.d(TAG, "✅ Статистика упражнения успешно сохранена через ViewModel")
             } else {

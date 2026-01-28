@@ -6,10 +6,38 @@ data class ExerciseStats(
     val weight: Double,
     val reps: Int,
     val setNumber: Int = 1,
-    val sets: Int = 1
+    val sets: Int = 1,
+    val duration: Int = 0
 ) {
     val volume: Long
         get() = (weight * reps).toLong()
+}
+
+data class DailyExerciseStats(
+    val exerciseName: String,
+    val date: Long,
+    val averageWeight: Double,
+    val averageReps: Int,
+    val totalSets: Int,
+    val exerciseType: ExerciseType,
+    val duration: Int = 0
+) {
+    val volume: Long
+        get() = (averageWeight * averageReps * totalSets).toLong()
+}
+
+data class ProgressChartData(
+    val date: Long,
+    val xValue: Double,
+    val xLabel: String,
+    val yValue: Double,
+    val exerciseName: String
+)
+
+enum class ProgressTimeFilter(val days: Int, val label: String) {
+    DAY(1, "День"),
+    MONTH(30, "Месяц"),
+    THREE_MONTHS(90, "3 месяца")
 }
 
 data class ExerciseProgress(
