@@ -1,15 +1,21 @@
 package com.example.fitness_plan.ui
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.fitness_plan.domain.model.MuscleGroupStatsFilter
 import com.example.fitness_plan.presentation.viewmodel.MuscleGroupStatsViewModel
+import java.text.DecimalFormat
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -32,32 +38,42 @@ fun MuscleGroupStatsScreen(
             )
         }
     ) { paddingValues ->
-        Column(
+        LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .padding(paddingValues)
+                .padding(paddingValues),
+            contentPadding = PaddingValues(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            FilterChipsRow(
-                selectedFilter = selectedFilter,
-                onFilterSelected = { viewModel.setFilter(it) }
-            )
+            item {
+                FilterChipsRow(
+                    selectedFilter = selectedFilter,
+                    onFilterSelected = { viewModel.setFilter(it) }
+                )
+            }
 
             if (isLoading) {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = androidx.compose.ui.Alignment.Center
-                ) {
-                    CircularProgressIndicator()
+                item {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(300.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator()
+                    }
                 }
             } else if (summaries.isEmpty()) {
-                EmptyStateMessage()
+                item {
+                    EmptyStateMessage()
+                }
             } else {
-                MuscleGroupList(
-                    summaries = summaries,
-                    onMuscleGroupClick = onMuscleGroupDetail,
-                    modifier = Modifier.fillMaxWidth()
-                )
+                items(summaries) { summary ->
+                    MuscleGroupItem(
+                        summary = summary,
+                        onClick = { onMuscleGroupDetail(summary.muscleGroup) }
+                    )
+                }
             }
         }
     }
@@ -88,11 +104,13 @@ private fun FilterChipsRow(
 @Composable
 private fun EmptyStateMessage() {
     Box(
-        modifier = Modifier.fillMaxSize(),
-        contentAlignment = androidx.compose.ui.Alignment.Center
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(300.dp),
+        contentAlignment = Alignment.Center
     ) {
         Column(
-            horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally,
+            horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             Text(
@@ -107,4 +125,140 @@ private fun EmptyStateMessage() {
             )
         }
     }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun MuscleGroupItem(
+    summary: com.example.fitness_plan.domain.model.MuscleGroupSummary,
+    onClick: () -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick),
+        shape = RoundedCornerShape(16.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = summary.muscleGroup.displayName,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+
+                StatusIndicator(daysSinceLastWorkout = summary.daysSinceLastWorkout)
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                MetricItem(
+                    label = "Объём",
+                    value = formatVolume(summary.totalVolume)
+                )
+
+                MetricItem(
+                    label = "Подходы",
+                    value = summary.totalSets.toString()
+                )
+
+                MetricItem(
+                    label = "Упражнения",
+                    value = summary.exerciseCount.toString()
+                )
+
+                MetricItem(
+                    label = "Макс. вес",
+                    value = "${formatWeight(summary.maxWeight)} кг"
+                )
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            LinearProgressIndicator(
+                progress = summary.percentage / 100f,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(6.dp),
+                trackColor = MaterialTheme.colorScheme.surfaceVariant,
+                color = MaterialTheme.colorScheme.primary
+            )
+        }
+    }
+}
+
+@Composable
+private fun MetricItem(
+    label: String,
+    value: String
+) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text(
+            text = value,
+            style = MaterialTheme.typography.titleSmall,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.primary
+        )
+
+        Spacer(modifier = Modifier.height(4.dp))
+
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
+
+@Composable
+private fun StatusIndicator(daysSinceLastWorkout: Int) {
+    val (text, color) = when {
+        daysSinceLastWorkout <= 3 -> "Свежая" to MaterialTheme.colorScheme.primary
+        daysSinceLastWorkout <= 7 -> "Норма" to MaterialTheme.colorScheme.tertiary
+        daysSinceLastWorkout <= 14 -> "Внимание" to MaterialTheme.colorScheme.secondary
+        else -> "Давно" to MaterialTheme.colorScheme.error
+    }
+
+    Surface(
+        color = color.copy(alpha = 0.1f),
+        shape = RoundedCornerShape(12.dp)
+    ) {
+        Text(
+            text = if (daysSinceLastWorkout == Int.MAX_VALUE) "Никогда" else "$daysSinceLastWorkout дн.",
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+            style = MaterialTheme.typography.labelSmall,
+            color = color,
+            fontWeight = FontWeight.Medium
+        )
+    }
+}
+
+private fun formatVolume(volume: Long): String {
+    return when {
+        volume >= 1_000_000 -> String.format("%.1fM", volume / 1_000_000.0)
+        volume >= 1_000 -> String.format("%.1fK", volume / 1_000.0)
+        else -> volume.toString()
+    }
+}
+
+private fun formatWeight(weight: Double): String {
+    return DecimalFormat("#.#").format(weight)
 }
