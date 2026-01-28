@@ -13,6 +13,8 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -50,14 +52,13 @@ class MuscleGroupStatsViewModel @Inject constructor(
             val username = credentialsRepository.getUsername() ?: ""
             _currentUsername.value = username
             if (username.isNotEmpty()) {
-                loadData()
+                observeData()
             }
         }
     }
 
     fun setFilter(filter: MuscleGroupStatsFilter) {
         _selectedFilter.value = filter
-        loadData()
     }
 
     fun selectMuscleGroup(muscleGroup: com.example.fitness_plan.domain.model.MuscleGroup?) {
@@ -69,31 +70,37 @@ class MuscleGroupStatsViewModel @Inject constructor(
         }
     }
 
-    private fun loadData() {
+    private fun observeData() {
         viewModelScope.launch {
             _isLoading.value = true
-            try {
-                val username = _currentUsername.value
-                val filter = _selectedFilter.value
+            Log.d(TAG, "Starting to observe data")
 
-                muscleGroupStatsUseCase.getMuscleGroupSummariesFlow(username).collect { summaries ->
-                    _summaries.value = summaries
-                    generateInsights()
+            combine(_currentUsername, _selectedFilter) { username, filter ->
+                username to filter
+            }.collect { (username, filter) ->
+                if (username.isNotEmpty()) {
+                    Log.d(TAG, "Loading data: username=$username, filter=$filter")
+                    try {
+                        val summaries = muscleGroupStatsUseCase.getMuscleGroupSummaries(username, filter).first()
+                        Log.d(TAG, "Received ${summaries.size} summaries")
+                        _summaries.value = summaries
+                        _isLoading.value = false
+                        generateInsights(username, filter)
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Error loading data", e)
+                        _isLoading.value = false
+                    }
                 }
-            } catch (e: Exception) {
-                Log.e(TAG, "Error loading data", e)
-            } finally {
-                _isLoading.value = false
             }
         }
     }
 
-    private suspend fun generateInsights() {
-        val username = _currentUsername.value
-        val filter = _selectedFilter.value
+    private suspend fun generateInsights(username: String, filter: MuscleGroupStatsFilter) {
+        Log.d(TAG, "Generating insights for username=$username, filter=$filter")
         try {
             val insights = muscleGroupStatsUseCase.generateInsights(username, filter)
             _insights.value = insights
+            Log.d(TAG, "Generated ${insights.size} insights")
         } catch (e: Exception) {
             Log.e(TAG, "Error generating insights", e)
         }
@@ -120,6 +127,5 @@ class MuscleGroupStatsViewModel @Inject constructor(
     }
 
     fun refreshData() {
-        loadData()
     }
 }
