@@ -51,23 +51,6 @@ data class MuscleGroupProgress(
     val maxWeight: Double
 )
 
-data class MuscleGroupInsight(
-    val type: InsightType,
-    val message: String,
-    val muscleGroups: List<MuscleGroup>,
-    val value: Double? = null
-)
-
-enum class InsightType {
-    MOST_TRAINED,
-    LEAST_TRAINED,
-    NEEDS_ATTENTION,
-    PROGRESS_INCREASE,
-    PROGRESS_DECREASE,
-    BALANCED,
-    GENERAL
-}
-
 data class MuscleGroupTimeSeries(
     val date: Long,
     val volume: Long,

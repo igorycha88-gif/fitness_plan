@@ -4,7 +4,6 @@ import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.fitness_plan.domain.model.MuscleGroupDetail
-import com.example.fitness_plan.domain.model.MuscleGroupInsight
 import com.example.fitness_plan.domain.model.MuscleGroupStatsFilter
 import com.example.fitness_plan.domain.model.MuscleGroupSummary
 import com.example.fitness_plan.domain.repository.ICredentialsRepository
@@ -34,9 +33,6 @@ class MuscleGroupStatsViewModel @Inject constructor(
 
     private val _summaries = MutableStateFlow<List<MuscleGroupSummary>>(emptyList())
     val summaries: StateFlow<List<MuscleGroupSummary>> = _summaries.asStateFlow()
-
-    private val _insights = MutableStateFlow<List<MuscleGroupInsight>>(emptyList())
-    val insights: StateFlow<List<MuscleGroupInsight>> = _insights.asStateFlow()
 
     private val _selectedMuscleGroup = MutableStateFlow<com.example.fitness_plan.domain.model.MuscleGroup?>(null)
     val selectedMuscleGroup: StateFlow<com.example.fitness_plan.domain.model.MuscleGroup?> = _selectedMuscleGroup.asStateFlow()
@@ -85,24 +81,12 @@ class MuscleGroupStatsViewModel @Inject constructor(
                         Log.d(TAG, "Received ${summaries.size} summaries")
                         _summaries.value = summaries
                         _isLoading.value = false
-                        generateInsights(username, filter)
                     } catch (e: Exception) {
                         Log.e(TAG, "Error loading data", e)
                         _isLoading.value = false
                     }
                 }
             }
-        }
-    }
-
-    private suspend fun generateInsights(username: String, filter: MuscleGroupStatsFilter) {
-        Log.d(TAG, "Generating insights for username=$username, filter=$filter")
-        try {
-            val insights = muscleGroupStatsUseCase.generateInsights(username, filter)
-            _insights.value = insights
-            Log.d(TAG, "Generated ${insights.size} insights")
-        } catch (e: Exception) {
-            Log.e(TAG, "Error generating insights", e)
         }
     }
 

@@ -19,7 +19,6 @@ fun MuscleGroupStatsScreen(
 ) {
     val selectedFilter by viewModel.selectedFilter.collectAsState()
     val summaries by viewModel.summaries.collectAsState()
-    val insights by viewModel.insights.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
 
     Scaffold(
@@ -36,6 +35,7 @@ fun MuscleGroupStatsScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .verticalScroll(rememberScrollState())
                 .padding(paddingValues)
         ) {
             FilterChipsRow(
@@ -53,26 +53,11 @@ fun MuscleGroupStatsScreen(
             } else if (summaries.isEmpty()) {
                 EmptyStateMessage()
             } else {
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .verticalScroll(rememberScrollState())
-                ) {
-                    MuscleGroupInsightsCard(
-                        insights = insights,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp)
-                    )
-
-                    MuscleGroupList(
-                        summaries = summaries,
-                        onMuscleGroupClick = onMuscleGroupDetail,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .weight(1f)
-                    )
-                }
+                MuscleGroupList(
+                    summaries = summaries,
+                    onMuscleGroupClick = onMuscleGroupDetail,
+                    modifier = Modifier.fillMaxWidth()
+                )
             }
         }
     }
