@@ -4,9 +4,11 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -476,71 +478,26 @@ fun ExerciseDetailScreen(
 
                     Spacer(modifier = Modifier.height(8.dp))
 
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        val baseRecommendedWeight = selectedExercise?.recommendedWeight
-                        val recommendedReps = selectedExercise?.recommendedRepsPerSet
+                    val baseRecommendedWeight = selectedExercise?.recommendedWeight
+                    val recommendedRepsPerSet = selectedExercise?.recommendedRepsPerSet
+                    val finalRecommendedWeight = adaptiveWeight ?: baseRecommendedWeight
 
-                        val finalRecommendedWeight = adaptiveWeight ?: baseRecommendedWeight
+                    Spacer(modifier = Modifier.height(8.dp))
 
-                        val weightPlaceholder = if (weight.isEmpty() && finalRecommendedWeight != null) {
-                            val prefix = if (adaptiveWeight != null) "Адаптивно (история)" else "Рекомендуется"
-                            "$prefix: ${String.format("%.1f", finalRecommendedWeight)} кг"
-                        } else {
-                            null
-                        }
+                    WeightSelectorDropdown(
+                        selectedWeight = weight,
+                        onWeightSelected = { weight = it },
+                        recommendedWeight = finalRecommendedWeight
+                    )
 
-                        OutlinedTextField(
-                            value = weight,
-                            onValueChange = { weight = it },
-                            label = { Text("Вес (кг)") },
-                            placeholder = if (weightPlaceholder != null) {
-                                {
-                                    Text(
-                                        weightPlaceholder,
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
-                                    )
-                                }
-                            } else null,
-                            modifier = Modifier.weight(1f),
-                            singleLine = true,
-                            keyboardOptions = KeyboardOptions(
-                                keyboardType = KeyboardType.Number,
-                                imeAction = ImeAction.Done
-                            )
-                        )
+                    Spacer(modifier = Modifier.height(8.dp))
 
-                        val currentSetReps = recommendedReps?.split(",")?.getOrNull(currentSetNumber - 1)
-                        val repsPlaceholder = if (reps.isEmpty() && recommendedReps != null && currentSetReps != null) {
-                            "Рекомендуется: $currentSetReps"
-                        } else {
-                            null
-                        }
-
-                        OutlinedTextField(
-                            value = reps,
-                            onValueChange = { reps = it },
-                            label = { Text("Повторения") },
-                            placeholder = if (repsPlaceholder != null) {
-                                {
-                                    Text(
-                                        repsPlaceholder,
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
-                                    )
-                                }
-                            } else null,
-                            modifier = Modifier.weight(1f),
-                            singleLine = true,
-                            keyboardOptions = KeyboardOptions(
-                                keyboardType = KeyboardType.Number,
-                                imeAction = ImeAction.Done
-                            )
-                        )
-                    }
+                    val currentSetReps = recommendedRepsPerSet?.split(",")?.getOrNull(currentSetNumber - 1)?.toIntOrNull()
+                    RepSelectorDropdown(
+                        selectedReps = reps,
+                        onRepsSelected = { reps = it },
+                        recommendedReps = currentSetReps
+                    )
 
                     Spacer(modifier = Modifier.height(16.dp))
 
@@ -629,6 +586,194 @@ private fun InfoChip(label: String, value: String) {
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
+        }
+    }
+}
+
+private fun generateWeightValues(): List<Double> {
+    val values = mutableListOf<Double>()
+    var current = 1.0
+    while (current <= 150.0) {
+        values.add(current)
+        current += 0.5
+    }
+    return values
+}
+
+private fun generateRepValues(): List<Int> {
+    return (0..30).toList()
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun WeightSelectorDropdown(
+    selectedWeight: String,
+    onWeightSelected: (String) -> Unit,
+    recommendedWeight: Float?
+) {
+    var expanded by remember { mutableStateOf(false) }
+    val weightValues = remember { generateWeightValues() }
+    val recommendedWeightDouble = recommendedWeight?.toDouble()
+    val fillWidthModifier = Modifier.fillMaxWidth()
+
+    ExposedDropdownMenuBox(
+        expanded = expanded,
+        onExpandedChange = { expanded = !expanded }
+    ) {
+        OutlinedTextField(
+            value = if (selectedWeight.isEmpty()) "" else "$selectedWeight кг",
+            onValueChange = {},
+            readOnly = true,
+            label = { Text("Вес (кг)") },
+            placeholder = {
+                if (recommendedWeightDouble != null) {
+                    Text(
+                        "Рекомендуется: ${String.format("%.1f", recommendedWeightDouble)} кг",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                    )
+                }
+            },
+            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+            modifier = Modifier
+                .menuAnchor(type = MenuAnchorType.PrimaryNotEditable)
+                .fillMaxWidth(),
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedBorderColor = MaterialTheme.colorScheme.primary,
+                unfocusedBorderColor = MaterialTheme.colorScheme.outline
+            ),
+            shape = RoundedCornerShape(12.dp)
+        )
+
+        ExposedDropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false },
+            modifier = Modifier.heightIn(max = 300.dp)
+        ) {
+            weightValues.forEach { weightValue ->
+                val weightStr = String.format("%.1f", weightValue)
+                val isRecommended = recommendedWeightDouble != null && 
+                    kotlin.math.abs(weightValue - recommendedWeightDouble) < 0.01
+
+                DropdownMenuItem(
+                    text = {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(weightStr)
+                            if (isRecommended) {
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Icon(
+                                    Icons.Filled.Star,
+                                    contentDescription = "Рекомендуемое значение",
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            }
+                        }
+                    },
+                    onClick = {
+                        onWeightSelected(weightStr)
+                        expanded = false
+                    },
+                    leadingIcon = if (isRecommended) {
+                        {
+                            Icon(
+                                Icons.Filled.Star,
+                                contentDescription = "Рекомендуемое значение",
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+                    } else null
+                )
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun RepSelectorDropdown(
+    selectedReps: String,
+    onRepsSelected: (String) -> Unit,
+    recommendedReps: Int?
+) {
+    var expanded by remember { mutableStateOf(false) }
+    val repValues = remember { generateRepValues() }
+
+    ExposedDropdownMenuBox(
+        expanded = expanded,
+        onExpandedChange = { expanded = !expanded }
+    ) {
+        OutlinedTextField(
+            value = if (selectedReps.isEmpty()) "" else selectedReps,
+            onValueChange = {},
+            readOnly = true,
+            label = { Text("Повторения") },
+            placeholder = {
+                if (recommendedReps != null) {
+                    Text(
+                        "Рекомендуется: $recommendedReps",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                    )
+                }
+            },
+            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+            modifier = Modifier
+                .menuAnchor(type = MenuAnchorType.PrimaryNotEditable)
+                .fillMaxWidth(),
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedBorderColor = MaterialTheme.colorScheme.primary,
+                unfocusedBorderColor = MaterialTheme.colorScheme.outline
+            ),
+            shape = RoundedCornerShape(12.dp)
+        )
+
+        ExposedDropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false },
+            modifier = Modifier.heightIn(max = 300.dp)
+        ) {
+            repValues.forEach { repValue ->
+                val isRecommended = recommendedReps != null && repValue == recommendedReps
+
+                DropdownMenuItem(
+                    text = {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(repValue.toString())
+                            if (isRecommended) {
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Icon(
+                                    Icons.Filled.Star,
+                                    contentDescription = "Рекомендуемое значение",
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            }
+                        }
+                    },
+                    onClick = {
+                        onRepsSelected(repValue.toString())
+                        expanded = false
+                    },
+                    leadingIcon = if (isRecommended) {
+                        {
+                            Icon(
+                                Icons.Filled.Star,
+                                contentDescription = "Рекомендуемое значение",
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+                    } else null
+                )
+            }
         }
     }
 }
