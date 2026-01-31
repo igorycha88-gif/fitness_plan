@@ -79,8 +79,10 @@ fun ExerciseGuideScreen(
             ) {
                 ExerciseImageCard(
                     imageUrl = exercise.imageUrl,
+                    imageRes = exercise.imageRes,
                     exerciseName = exercise.name,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
+                    contentDescription = "Изображение упражнения: ${exercise.name}"
                 )
 
                 DifficultyBadge(difficulty = exercise.difficulty)

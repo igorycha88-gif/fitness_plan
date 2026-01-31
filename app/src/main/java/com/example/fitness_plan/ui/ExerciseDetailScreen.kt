@@ -255,7 +255,8 @@ fun ExerciseDetailScreen(
                     imageUrl = selectedExercise?.imageUrl,
                     imageRes = selectedExercise?.imageRes,
                     exerciseName = selectedExercise?.name ?: "",
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
+                    contentDescription = selectedExercise?.let { "Изображение упражнения: ${it.name}" }
                 )
 
                 Spacer(modifier = Modifier.height(16.dp))

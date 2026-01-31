@@ -38,6 +38,7 @@ class ExerciseGuideScreenTest {
         stepByStepInstructions = "Встаньте прямо\nПрисядьте",
         animationUrl = null,
         imageUrl = null,
+        imageRes = null,
         tipsAndAdvice = "Советы\nСледите за осанкой",
         progressionAdvice = "Прогрессия\nУвеличивайте вес"
     )
@@ -53,11 +54,28 @@ class ExerciseGuideScreenTest {
         stepByStepInstructions = "Лягте на скамью\nСнимите штангу",
         animationUrl = null,
         imageUrl = "https://example.com/bench_press.jpg",
+        imageRes = null,
         tipsAndAdvice = null,
         progressionAdvice = null
     )
 
-    private val exercisesFlow = MutableStateFlow(listOf(sampleExercise, sampleExerciseWithImage))
+    private val sampleExerciseWithLocalImage = ExerciseLibrary(
+        id = "3",
+        name = "Жим на тренажёре для груди",
+        description = "Упражнение для груди с локальной картинкой",
+        exerciseType = ExerciseType.STRENGTH,
+        equipment = listOf(EquipmentType.LEVER_MACHINE),
+        muscleGroups = listOf(MuscleGroup.CHEST, MuscleGroup.TRICEPS, MuscleGroup.SHOULDERS),
+        difficulty = "Начальный",
+        stepByStepInstructions = "Сядьте в тренажёр\nВозьмите рукоятки",
+        animationUrl = null,
+        imageUrl = null,
+        imageRes = "chest_press_machine",
+        tipsAndAdvice = null,
+        progressionAdvice = null
+    )
+
+    private val exercisesFlow = MutableStateFlow(listOf(sampleExercise, sampleExerciseWithImage, sampleExerciseWithLocalImage))
     private val favoritesFlow = MutableStateFlow(emptySet<String>())
 
     @Before
@@ -107,7 +125,21 @@ class ExerciseGuideScreenTest {
             )
         }
 
-        composeTestRule.onNodeWithContentDescription("Изображение упражнения").assertIsDisplayed()
+        composeTestRule.onNodeWithContentDescription("Изображение упражнения: Жим лёжа").assertIsDisplayed()
+    }
+
+    @Test
+    fun exerciseGuideScreen_exerciseWithLocalImage_shouldDisplayImage() {
+        composeTestRule.setContent {
+            ExerciseGuideScreen(
+                exerciseId = "3",
+                onBackClick = {},
+                viewModel = mockExerciseLibraryViewModel,
+                profileViewModel = mockProfileViewModel
+            )
+        }
+
+        composeTestRule.onNodeWithContentDescription("Изображение упражнения: Жим на тренажёре для груди").assertIsDisplayed()
     }
 
     @Test

@@ -892,6 +892,7 @@ class ExerciseLibraryRepositoryImpl @Inject constructor(
                 difficulty = "Начальный",
                 stepByStepInstructions = "1. Сядьте в тренажёр\n2. Возьмите рукоятки\n3. Выжмите вес вверх\n4. Вернитесь в исходное положение",
                 imageUrl = null,
+                imageRes = "chest_press_machine",
                 tipsAndAdvice = "• Контролируйте движение вниз\n• Не отрывайте спину\n• Сжимайте грудь вверху\n• Взгляд направлен вперёд\n• Не делайте рывков",
                 progressionAdvice = "1. Увеличьте вес\n2. Попробуйте разную ширину хвата\n3. Попробуйте с паузой\n4. Уменьшите время отдыха"
             ),

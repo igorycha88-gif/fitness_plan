@@ -57,7 +57,15 @@ fun ExerciseImageCard(
                 PlaceholderContent(exerciseName = exerciseName)
             }
         } else if (hasImageRes) {
-            val resId = imageRes?.toIntOrNull() ?: 0
+            val context = LocalContext.current
+            val resId = imageRes?.let { resName ->
+                context.resources.getIdentifier(
+                    resName,
+                    "drawable",
+                    context.packageName
+                )
+            } ?: 0
+
             if (resId != 0) {
                 AsyncImage(
                     model = ImageRequest.Builder(LocalContext.current)

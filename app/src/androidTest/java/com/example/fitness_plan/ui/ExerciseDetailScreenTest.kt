@@ -55,6 +55,17 @@ class ExerciseDetailScreenTest {
         imageUrl = "https://example.com/squat.jpg"
     )
 
+    private val sampleExerciseWithLocalImage = Exercise(
+        id = "4",
+        name = "Жим на тренажёре для груди",
+        sets = 3,
+        reps = "10-12",
+        exerciseType = ExerciseType.STRENGTH,
+        equipment = listOf(EquipmentType.LEVER_MACHINE),
+        muscleGroups = listOf(MuscleGroup.CHEST, MuscleGroup.TRICEPS, MuscleGroup.SHOULDERS),
+        imageRes = "chest_press_machine"
+    )
+
     private val sampleCardioExercise = Exercise(
         id = "2",
         name = "Беговая дорожка",
@@ -327,5 +338,40 @@ class ExerciseDetailScreenTest {
         }
 
         composeTestRule.onNodeWithContentDescription("Изображение упражнения: Приседания с картинкой").assertIsDisplayed()
+    }
+
+    @Test
+    fun exerciseDetailScreen_exerciseWithLocalImage_shouldDisplayImageCard() {
+        val workoutPlanWithLocalImage = WorkoutPlan(
+            id = "plan3",
+            name = "Тестовый план с локальной картинкой",
+            description = "Описание",
+            muscleGroups = listOf(),
+            days = listOf(
+                WorkoutDay(
+                    id = 0,
+                    dayName = "День 1",
+                    exercises = listOf(sampleExerciseWithLocalImage),
+                    muscleGroups = listOf()
+                )
+            ),
+            goal = "Набор массы",
+            level = "Средний"
+        )
+
+        val updatedWorkoutPlanFlow = MutableStateFlow(workoutPlanWithLocalImage)
+        every { mockWorkoutViewModel.currentWorkoutPlan } returns updatedWorkoutPlanFlow as StateFlow<WorkoutPlan?>
+
+        composeTestRule.setContent {
+            ExerciseDetailScreen(
+                exerciseName = "Жим на тренажёре для груди",
+                dayIndex = 0,
+                onBackClick = {},
+                workoutViewModel = mockWorkoutViewModel,
+                isAdmin = false
+            )
+        }
+
+        composeTestRule.onNodeWithContentDescription("Изображение упражнения: Жим на тренажёре для груди").assertIsDisplayed()
     }
 }
