@@ -17,6 +17,7 @@ import com.google.gson.reflect.TypeToken
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import java.io.File
 import java.util.*
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -36,6 +37,24 @@ class WorkoutRepositoryImpl @Inject constructor(
 ) : WorkoutRepository {
 
     private val gson = Gson()
+
+    private fun getDataStorePath(): String {
+        return try {
+            val dataDir = context.dataDir?.absolutePath ?: "N/A"
+            val datastorePath = File(dataDir, "datastore/workout_plans.preferences_pb").absolutePath
+            Log.d(TAG, "DataStore path: $datastorePath")
+            Log.d(TAG, "DataStore exists: ${File(datastorePath).exists()}")
+            datastorePath
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to get DataStore path", e)
+            "Error getting path: ${e.message}"
+        }
+    }
+
+    init {
+        Log.d(TAG, "=== WorkoutRepositoryImpl initialized ===")
+        getDataStorePath()
+    }
 
     private suspend fun findFavoriteExercise(
         favoriteExercises: Set<String>,
@@ -171,23 +190,41 @@ class WorkoutRepositoryImpl @Inject constructor(
     }
 
     override suspend fun saveWorkoutPlan(username: String, plan: WorkoutPlan) {
-        val json = gson.toJson(plan)
-        context.workoutDataStore.edit { preferences ->
-            preferences[stringPreferencesKey("${username}_workout_plan")] = json
+        try {
+            Log.d(TAG, "saveWorkoutPlan: START for username=$username, plan=${plan.name}")
+            Log.d(TAG, "saveWorkoutPlan: days=${plan.days.size}, goal=${plan.goal}, level=${plan.level}")
+
+            val json = gson.toJson(plan)
+            Log.d(TAG, "saveWorkoutPlan: JSON size=${json.length} bytes")
+
+            context.workoutDataStore.edit { preferences ->
+                preferences[stringPreferencesKey("${username}_workout_plan")] = json
+            }
+
+            Log.d(TAG, "saveWorkoutPlan: SUCCESS - saved plan for username=$username")
+        } catch (e: Exception) {
+            Log.e(TAG, "saveWorkoutPlan: FAILED to save plan for username=$username", e)
+            throw e
         }
     }
 
     override fun getWorkoutPlan(username: String): Flow<WorkoutPlan?> {
         val key = stringPreferencesKey("${username}_workout_plan")
+        Log.d(TAG, "getWorkoutPlan: requesting plan for username=$username")
+
         return context.workoutDataStore.data.map { preferences ->
             val json = preferences[key]
             if (json != null) {
                 try {
-                    gson.fromJson(json, WorkoutPlan::class.java)
+                    val plan = gson.fromJson(json, WorkoutPlan::class.java)
+                    Log.d(TAG, "getWorkoutPlan: SUCCESS - loaded plan ${plan.name} with ${plan.days.size} days")
+                    plan
                 } catch (e: Exception) {
+                    Log.e(TAG, "getWorkoutPlan: FAILED to parse plan for username=$username", e)
                     null
                 }
             } else {
+                Log.d(TAG, "getWorkoutPlan: no plan found for username=$username")
                 null
             }
         }
