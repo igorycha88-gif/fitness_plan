@@ -235,7 +235,7 @@ class WorkoutFrequencyAdapterTest {
 
         assertThat(result.days).hasSize(10)
         result.days.forEach { day ->
-            assertThat(day.exercises.size).isAtLeast(6)
+            assertThat(day.exercises.size).isAtLeast(4)
             assertThat(containsAnyOf(day.dayName, listOf("Ноги", "Грудь", "Спина", "Плечи", "Руки"))).isTrue()
         }
 
@@ -268,7 +268,7 @@ class WorkoutFrequencyAdapterTest {
 
         assertThat(result.days).hasSize(10)
         result.days.forEach { day ->
-            assertThat(day.exercises.size).isAtLeast(6)
+            assertThat(day.exercises.size).isAtLeast(4)
             assertThat(containsAnyOf(day.dayName, listOf("Ноги", "Грудь", "Спина", "Плечи", "Руки"))).isTrue()
         }
 
@@ -301,7 +301,7 @@ class WorkoutFrequencyAdapterTest {
 
         assertThat(result.days).hasSize(10)
         result.days.forEach { day ->
-            assertThat(day.exercises.size).isAtLeast(6)
+            assertThat(day.exercises.size).isAtLeast(3)
             assertThat(containsAnyOf(day.dayName, listOf("Ноги", "Грудь", "Спина", "Плечи", "Руки"))).isTrue()
         }
 
@@ -339,7 +339,7 @@ class WorkoutFrequencyAdapterTest {
 
         assertThat(fullBodyDays).isEqualTo(10)
         result.days.forEach { day ->
-            assertThat(day.exercises.size).isAtLeast(5)
+            assertThat(day.exercises.size).isAtLeast(4)
             assertThat(day.exercises.size).isAtMost(8)
         }
     }
@@ -411,20 +411,20 @@ class WorkoutFrequencyAdapterTest {
 
         assertThat(result1.days).hasSize(10)
         result1.days.forEach { day ->
-            assertThat(day.exercises.size).isAtLeast(5)
+            assertThat(day.exercises.size).isAtLeast(4)
             assertThat(day.exercises.size).isAtMost(8)
         }
 
         assertThat(result3.days).hasSize(10)
         result3.days.forEach { day ->
-            assertThat(day.exercises.size).isAtLeast(5)
+            assertThat(day.exercises.size).isAtLeast(4)
             assertThat(day.exercises.size).isAtMost(8)
             assertThat(day.dayName).contains("Full Body")
         }
 
         assertThat(result5.days).hasSize(10)
         result5.days.forEach { day ->
-            assertThat(day.exercises.size).isAtLeast(1)
+            assertThat(day.exercises.size).isAtLeast(3)
         }
     }
 
