@@ -40,7 +40,19 @@ class ExerciseDetailScreenTest {
         reps = "10-12",
         exerciseType = ExerciseType.STRENGTH,
         equipment = listOf(EquipmentType.BARBELL),
-        muscleGroups = listOf(MuscleGroup.QUADS, MuscleGroup.GLUTES)
+        muscleGroups = listOf(MuscleGroup.QUADS, MuscleGroup.GLUTES),
+        imageUrl = null
+    )
+
+    private val sampleStrengthExerciseWithImage = Exercise(
+        id = "1",
+        name = "Приседания с картинкой",
+        sets = 3,
+        reps = "10-12",
+        exerciseType = ExerciseType.STRENGTH,
+        equipment = listOf(EquipmentType.BARBELL),
+        muscleGroups = listOf(MuscleGroup.QUADS, MuscleGroup.GLUTES),
+        imageUrl = "https://example.com/squat.jpg"
     )
 
     private val sampleCardioExercise = Exercise(
@@ -265,5 +277,55 @@ class ExerciseDetailScreenTest {
         composeTestRule.onNodeWithText("Упражнение выполнено").assertIsDisplayed()
         composeTestRule.onNodeWithText("Отменить выполнение").assertIsDisplayed()
         composeTestRule.onNodeWithText("Отметить как выполненное").assertDoesNotExist()
+    }
+
+    @Test
+    fun exerciseDetailScreen_exerciseWithoutImage_shouldDisplayPlaceholderMessage() {
+        composeTestRule.setContent {
+            ExerciseDetailScreen(
+                exerciseName = "Приседания",
+                dayIndex = 0,
+                onBackClick = {},
+                workoutViewModel = mockWorkoutViewModel,
+                isAdmin = false
+            )
+        }
+
+        composeTestRule.onNodeWithText("Картинка скоро будет добавлена").assertIsDisplayed()
+    }
+
+    @Test
+    fun exerciseDetailScreen_exerciseWithImageUrl_shouldDisplayImageCard() {
+        val workoutPlanWithImageExercise = WorkoutPlan(
+            id = "plan2",
+            name = "Тестовый план с картинкой",
+            description = "Описание",
+            muscleGroups = listOf(),
+            days = listOf(
+                WorkoutDay(
+                    id = 0,
+                    dayName = "День 1",
+                    exercises = listOf(sampleStrengthExerciseWithImage),
+                    muscleGroups = listOf()
+                )
+            ),
+            goal = "Набор массы",
+            level = "Средний"
+        )
+
+        val updatedWorkoutPlanFlow = MutableStateFlow(workoutPlanWithImageExercise)
+        every { mockWorkoutViewModel.currentWorkoutPlan } returns updatedWorkoutPlanFlow as StateFlow<WorkoutPlan?>
+
+        composeTestRule.setContent {
+            ExerciseDetailScreen(
+                exerciseName = "Приседания с картинкой",
+                dayIndex = 0,
+                onBackClick = {},
+                workoutViewModel = mockWorkoutViewModel,
+                isAdmin = false
+            )
+        }
+
+        composeTestRule.onNodeWithContentDescription("Изображение упражнения: Приседания с картинкой").assertIsDisplayed()
     }
 }

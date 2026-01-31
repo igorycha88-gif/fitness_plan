@@ -251,13 +251,30 @@ fun ExerciseDetailScreen(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                Row(
+                ExerciseImageCard(
+                    imageUrl = selectedExercise?.imageUrl,
+                    imageRes = selectedExercise?.imageRes,
+                    exerciseName = selectedExercise?.name ?: "",
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Card(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceEvenly
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
                 ) {
-                    InfoChip(label = "Подходы", value = "$totalSets")
-                    InfoChip(label = "Повторения", value = selectedExercise?.reps ?: "10-12")
-                    InfoChip(label = "Отдых", value = "60-90 сек")
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Text(
+                            text = "Описание",
+                            style = MaterialTheme.typography.titleMedium
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = selectedExercise?.let { "Упражнение для тренировки ${it.name.lowercase()}" } ?: "Описание отсутствует",
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                    }
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))
