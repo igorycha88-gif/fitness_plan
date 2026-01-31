@@ -13,6 +13,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.example.fitness_plan.domain.model.Exercise
 import com.example.fitness_plan.domain.model.WorkoutPlan
@@ -502,7 +506,11 @@ fun ExerciseDetailScreen(
                                 }
                             } else null,
                             modifier = Modifier.weight(1f),
-                            singleLine = true
+                            singleLine = true,
+                            keyboardOptions = KeyboardOptions(
+                                keyboardType = KeyboardType.Number,
+                                imeAction = ImeAction.Done
+                            )
                         )
 
                         val currentSetReps = recommendedReps?.split(",")?.getOrNull(currentSetNumber - 1)
@@ -526,7 +534,11 @@ fun ExerciseDetailScreen(
                                 }
                             } else null,
                             modifier = Modifier.weight(1f),
-                            singleLine = true
+                            singleLine = true,
+                            keyboardOptions = KeyboardOptions(
+                                keyboardType = KeyboardType.Number,
+                                imeAction = ImeAction.Done
+                            )
                         )
                     }
 
