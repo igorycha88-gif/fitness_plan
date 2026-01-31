@@ -145,7 +145,7 @@ fun WeightScreen(viewModel: StatisticsViewModel) {
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        WeightFilterRow(
+        WeightFilterDropdown(
             selectedFilter = selectedFilter,
             onFilterSelected = { viewModel.setTimeFilter(it) }
         )
@@ -257,6 +257,82 @@ fun WeightScreen(viewModel: StatisticsViewModel) {
                 viewModel.setShowWeightDialog(false)
             }
         )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun WeightFilterDropdown(
+    selectedFilter: TimeFilter,
+    onFilterSelected: (TimeFilter) -> Unit
+) {
+    var expanded by remember { mutableStateOf(false) }
+
+    ExposedDropdownMenuBox(
+        expanded = expanded,
+        onExpandedChange = { expanded = !expanded },
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 8.dp)
+    ) {
+        OutlinedTextField(
+            value = selectedFilter.label,
+            onValueChange = {},
+            readOnly = true,
+            label = { Text("Период") },
+            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+            modifier = Modifier
+                .menuAnchor(MenuAnchorType.PrimaryNotEditable, enabled = true)
+                .fillMaxWidth(),
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedBorderColor = MaterialTheme.colorScheme.primary,
+                unfocusedBorderColor = MaterialTheme.colorScheme.outline,
+                focusedLabelColor = MaterialTheme.colorScheme.primary,
+                unfocusedLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                focusedContainerColor = MaterialTheme.colorScheme.surface,
+                unfocusedContainerColor = MaterialTheme.colorScheme.surface
+            ),
+            shape = RoundedCornerShape(12.dp),
+            singleLine = true
+        )
+
+        ExposedDropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false },
+            modifier = Modifier
+                .exposedDropdownSize(matchTextFieldWidth = true)
+        ) {
+            TimeFilter.values().forEach { filter ->
+                DropdownMenuItem(
+                    text = {
+                        Text(
+                            text = filter.label,
+                            color = if (filter == selectedFilter) {
+                                MaterialTheme.colorScheme.primary
+                            } else {
+                                MaterialTheme.colorScheme.onSurface
+                            },
+                            fontWeight = if (filter == selectedFilter) {
+                                androidx.compose.ui.text.font.FontWeight.Bold
+                            } else {
+                                androidx.compose.ui.text.font.FontWeight.Normal
+                            }
+                        )
+                    },
+                    onClick = {
+                        onFilterSelected(filter)
+                        expanded = false
+                    },
+                    modifier = Modifier.background(
+                        if (filter == selectedFilter) {
+                            MaterialTheme.colorScheme.primaryContainer
+                        } else {
+                            MaterialTheme.colorScheme.surface
+                        }
+                    )
+                )
+            }
+        }
     }
 }
 
