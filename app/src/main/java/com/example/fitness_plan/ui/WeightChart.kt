@@ -152,36 +152,48 @@ fun WeightScreen(viewModel: StatisticsViewModel) {
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        if (filteredHistory.isNotEmpty()) {
+        val chartData = remember(filteredHistory, userProfile) {
+            if (filteredHistory.isNotEmpty()) {
+                filteredHistory
+            } else {
+                val profileWeight = userProfile?.weight
+                if (profileWeight != null && profileWeight > 0) {
+                    listOf(com.example.fitness_plan.domain.model.WeightEntry(
+                        date = System.currentTimeMillis(),
+                        weight = profileWeight
+                    ))
+                } else {
+                    emptyList()
+                }
+            }
+        }
+
+        if (chartData.isNotEmpty()) {
             WeightChartCard(
-                weightHistory = filteredHistory,
+                weightHistory = chartData,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(250.dp)
             )
         } else {
-            val hasProfileWeight = userProfile?.weight?.let { it > 0 } ?: false
-
-            if (!hasProfileWeight) {
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(250.dp),
-                    shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceVariant
-                    )
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(250.dp),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant
+                )
+            ) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
                 ) {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = "Нет данных за выбранный период",
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
+                    Text(
+                        text = "Нет данных за выбранный период",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
             }
         }
