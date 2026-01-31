@@ -602,18 +602,37 @@ private fun InfoChip(label: String, value: String) {
     }
 }
 
-private fun generateWeightValues(): List<Double> {
+private fun generateWeightValues(recommended: Float?): List<Double> {
     val values = mutableListOf<Double>()
-    var current = 1.0
-    while (current <= 150.0) {
-        values.add(current)
-        current += 0.5
+    
+    if (recommended != null) {
+        val minWeight = maxOf(0.0, (recommended - 10).toDouble())
+        val maxWeight = (recommended + 10).toDouble()
+        
+        var current = minWeight
+        while (current <= maxWeight) {
+            values.add(current)
+            current += 0.5
+        }
+    } else {
+        var current = 1.0
+        while (current <= 150.0) {
+            values.add(current)
+            current += 0.5
+        }
     }
+    
     return values
 }
 
-private fun generateRepValues(): List<Int> {
-    return (0..30).toList()
+private fun generateRepValues(recommended: Int?): List<Int> {
+    return if (recommended != null) {
+        val minReps = maxOf(0, recommended - 10)
+        val maxReps = recommended + 10
+        (minReps..maxReps).toList()
+    } else {
+        (0..30).toList()
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -624,7 +643,7 @@ private fun WeightSelectorDropdown(
     recommendedWeight: Float?
 ) {
     var expanded by remember { mutableStateOf(false) }
-    val weightValues = remember { generateWeightValues() }
+    val weightValues = remember(recommendedWeight) { generateWeightValues(recommendedWeight) }
     val recommendedWeightDouble = recommendedWeight?.toDouble()
     val fillWidthModifier = Modifier.fillMaxWidth()
 
@@ -713,7 +732,7 @@ private fun RepSelectorDropdown(
     recommendedReps: Int?
 ) {
     var expanded by remember { mutableStateOf(false) }
-    val repValues = remember { generateRepValues() }
+    val repValues = remember(recommendedReps) { generateRepValues(recommendedReps) }
 
     ExposedDropdownMenuBox(
         expanded = expanded,
