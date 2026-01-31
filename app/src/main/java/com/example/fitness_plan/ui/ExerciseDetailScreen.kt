@@ -117,11 +117,29 @@ fun ExerciseDetailScreen(
     var weight by remember { mutableStateOf("") }
     var reps by remember { mutableStateOf("") }
     var duration by remember { mutableStateOf("") }
+    var shouldAutoFill by remember { mutableStateOf(true) }
 
     LaunchedEffect(isTimerRunning) {
         while (isTimerRunning) {
             delay(1000)
             timerSeconds++
+        }
+    }
+
+    val baseRecommendedWeight = selectedExercise?.recommendedWeight
+    val recommendedRepsPerSet = selectedExercise?.recommendedRepsPerSet
+    val finalRecommendedWeight = adaptiveWeight ?: baseRecommendedWeight
+    val currentSetReps = recommendedRepsPerSet?.split(",")?.getOrNull(currentSetNumber - 1)?.toIntOrNull()
+
+    LaunchedEffect(currentSetNumber, finalRecommendedWeight, currentSetReps) {
+        if (shouldAutoFill && weight.isEmpty() && reps.isEmpty()) {
+            if (finalRecommendedWeight != null) {
+                weight = String.format("%.1f", finalRecommendedWeight)
+            }
+            if (currentSetReps != null) {
+                reps = currentSetReps.toString()
+            }
+            shouldAutoFill = false
         }
     }
 
@@ -478,12 +496,6 @@ fun ExerciseDetailScreen(
 
                     Spacer(modifier = Modifier.height(8.dp))
 
-                    val baseRecommendedWeight = selectedExercise?.recommendedWeight
-                    val recommendedRepsPerSet = selectedExercise?.recommendedRepsPerSet
-                    val finalRecommendedWeight = adaptiveWeight ?: baseRecommendedWeight
-
-                    Spacer(modifier = Modifier.height(8.dp))
-
                     WeightSelectorDropdown(
                         selectedWeight = weight,
                         onWeightSelected = { weight = it },
@@ -492,7 +504,6 @@ fun ExerciseDetailScreen(
 
                     Spacer(modifier = Modifier.height(8.dp))
 
-                    val currentSetReps = recommendedRepsPerSet?.split(",")?.getOrNull(currentSetNumber - 1)?.toIntOrNull()
                     RepSelectorDropdown(
                         selectedReps = reps,
                         onRepsSelected = { reps = it },
@@ -520,6 +531,7 @@ fun ExerciseDetailScreen(
                                 isTimerRunning = false
                                 weight = ""
                                 reps = ""
+                                shouldAutoFill = true
                             }
                         },
                         modifier = Modifier.fillMaxWidth(),
