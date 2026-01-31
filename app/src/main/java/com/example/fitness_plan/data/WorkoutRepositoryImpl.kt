@@ -272,10 +272,7 @@ class WorkoutRepositoryImpl @Inject constructor(
             val json = preferences[key]
             if (json != null) {
                 try {
-                    val plan = gson.fromJson(json, WorkoutPlan::class.java)
-                    kotlinx.coroutines.runBlocking {
-                        updateWorkoutPlanFromLibrary(plan)
-                    }
+                    gson.fromJson(json, WorkoutPlan::class.java)
                 } catch (e: Exception) {
                     null
                 }

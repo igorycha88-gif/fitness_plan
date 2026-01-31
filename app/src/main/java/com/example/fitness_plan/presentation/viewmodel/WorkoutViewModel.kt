@@ -113,7 +113,12 @@ class WorkoutViewModel @Inject constructor(
             Log.d(TAG, "Cycle state: cycle=${cycleState.cycle?.cycleNumber}, workoutPlan=${cycleState.workoutPlan?.name}, historySize=${cycleState.history.size}")
 
             _currentCycle.value = cycleState.cycle
-            _currentWorkoutPlan.value = cycleState.workoutPlan
+            val updatedWorkoutPlan = if (cycleState.workoutPlan != null) {
+                updateWorkoutPlanFromLibrary(cycleState.workoutPlan)
+            } else {
+                null
+            }
+            _currentWorkoutPlan.value = updatedWorkoutPlan
             _cycleHistory.value = cycleState.history
 
             Log.d(TAG, "Workout plan set: ${_currentWorkoutPlan.value?.name}, days=${_currentWorkoutPlan.value?.days?.size}")
@@ -149,10 +154,43 @@ class WorkoutViewModel @Inject constructor(
         }
     }
 
+    private suspend fun updateExerciseFromLibrary(
+        exercise: com.example.fitness_plan.domain.model.Exercise,
+        exerciseLibrary: List<ExerciseLibrary>
+    ): com.example.fitness_plan.domain.model.Exercise {
+        val libraryExercise = exerciseLibrary.find { it.name == exercise.name }
+
+        return if (libraryExercise != null) {
+            exercise.copy(
+                imageRes = if (exercise.imageRes == null) libraryExercise.imageRes else exercise.imageRes,
+                imageUrl = if (exercise.imageUrl == null) libraryExercise.imageUrl else exercise.imageUrl
+            )
+        } else {
+            exercise
+        }
+    }
+
+    private suspend fun updateWorkoutPlanFromLibrary(
+        plan: WorkoutPlan
+    ): WorkoutPlan {
+        val exerciseLibrary = exerciseLibraryUseCase.getAllExercises().first()
+        val updatedDays = plan.days.map { day ->
+            day.copy(exercises = day.exercises.map { exercise ->
+                updateExerciseFromLibrary(exercise, exerciseLibrary)
+            })
+        }
+        return plan.copy(days = updatedDays)
+    }
+
     private fun loadAdminWorkoutPlan() {
         viewModelScope.launch {
             workoutUseCase.getAdminWorkoutPlan().collect { plan ->
-                _adminWorkoutPlan.value = plan
+                val updatedPlan = if (plan != null) {
+                    updateWorkoutPlanFromLibrary(plan)
+                } else {
+                    null
+                }
+                _adminWorkoutPlan.value = updatedPlan
             }
         }
     }
