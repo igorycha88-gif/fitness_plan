@@ -171,12 +171,12 @@ class StatisticsViewModel @Inject constructor(
 
     fun getCurrentWeight(): Double {
         val filtered = getFilteredWeightHistory()
-        return if (filtered.isNotEmpty()) filtered.last().weight else 0.0
+        return if (filtered.isNotEmpty()) filtered.last().weight else userProfile.value?.weight ?: 0.0
     }
 
     fun getStartWeight(): Double {
         val filtered = getFilteredWeightHistory()
-        return if (filtered.isNotEmpty()) filtered.first().weight else 0.0
+        return if (filtered.isNotEmpty()) filtered.first().weight else userProfile.value?.weight ?: 0.0
     }
 
     fun getDaysFromStart(): Int {

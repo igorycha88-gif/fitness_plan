@@ -232,8 +232,14 @@ class StatisticsViewModelTest {
     }
 
     @Test
-    fun `getCurrentWeight should return 0 when history is empty`() = runTest {
+    fun `getCurrentWeight should return 0 when history is empty and profile is null`() = runTest {
+        clearAllMocks()
+        coEvery { mockCredentialsRepository.getUsername() } returns "testuser"
+        every { mockUserRepository.getUserProfile() } returns flowOf(null)
         every { mockWeightRepository.getWeightHistory(any()) } returns flowOf(emptyList())
+        every { mockExerciseStatsRepository.getExerciseStats(any()) } returns flowOf(emptyList())
+        coEvery { mockCycleRepository.getCurrentCycle(any()) } returns flowOf(null)
+        coEvery { mockCycleRepository.getCycleHistory(any()) } returns flowOf(emptyList())
 
         val testViewModel = StatisticsViewModel(
             mockUserRepository,
@@ -243,9 +249,65 @@ class StatisticsViewModelTest {
             mockExerciseStatsRepository
         )
 
+        testDispatcher.scheduler.advanceUntilIdle()
+
         val currentWeight = testViewModel.getCurrentWeight()
 
         assertThat(currentWeight).isEqualTo(0.0)
+    }
+
+    @Test
+    fun `getCurrentWeight should return profile weight when history is empty`() = runTest {
+        clearAllMocks()
+        coEvery { mockCredentialsRepository.getUsername() } returns "testuser"
+        every { mockUserRepository.getUserProfile() } returns flowOf(testUser)
+        every { mockWeightRepository.getWeightHistory(any()) } returns flowOf(emptyList())
+        every { mockExerciseStatsRepository.getExerciseStats(any()) } returns flowOf(emptyList())
+        coEvery { mockCycleRepository.getCurrentCycle(any()) } returns flowOf(null)
+        coEvery { mockCycleRepository.getCycleHistory(any()) } returns flowOf(emptyList())
+
+        val testViewModel = StatisticsViewModel(
+            mockUserRepository,
+            mockCredentialsRepository,
+            mockCycleRepository,
+            mockWeightRepository,
+            mockExerciseStatsRepository
+        )
+
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        testViewModel.userProfile.first()
+
+        val currentWeight = testViewModel.getCurrentWeight()
+
+        assertThat(currentWeight).isEqualTo(90.0)
+    }
+
+    @Test
+    fun `getStartWeight should return profile weight when history is empty`() = runTest {
+        clearAllMocks()
+        coEvery { mockCredentialsRepository.getUsername() } returns "testuser"
+        every { mockUserRepository.getUserProfile() } returns flowOf(testUser)
+        every { mockWeightRepository.getWeightHistory(any()) } returns flowOf(emptyList())
+        every { mockExerciseStatsRepository.getExerciseStats(any()) } returns flowOf(emptyList())
+        coEvery { mockCycleRepository.getCurrentCycle(any()) } returns flowOf(null)
+        coEvery { mockCycleRepository.getCycleHistory(any()) } returns flowOf(emptyList())
+
+        val testViewModel = StatisticsViewModel(
+            mockUserRepository,
+            mockCredentialsRepository,
+            mockCycleRepository,
+            mockWeightRepository,
+            mockExerciseStatsRepository
+        )
+
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        testViewModel.userProfile.first()
+
+        val startWeight = testViewModel.getStartWeight()
+
+        assertThat(startWeight).isEqualTo(90.0)
     }
 
     @Test
