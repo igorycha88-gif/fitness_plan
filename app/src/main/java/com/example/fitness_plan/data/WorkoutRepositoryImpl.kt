@@ -92,6 +92,8 @@ class WorkoutRepositoryImpl @Inject constructor(
                         exerciseType = favoriteExercise.exerciseType,
                         stepByStepInstructions = favoriteExercise.stepByStepInstructions,
                         animationUrl = favoriteExercise.animationUrl,
+                        imageRes = favoriteExercise.imageRes,
+                        imageUrl = favoriteExercise.imageUrl,
                         isFavoriteSubstitution = true
                     )
                 } else {
@@ -209,6 +211,32 @@ class WorkoutRepositoryImpl @Inject constructor(
         }
     }
 
+    private fun updateExerciseFromLibrary(
+        exercise: Exercise,
+        exerciseLibrary: List<com.example.fitness_plan.domain.model.ExerciseLibrary>
+    ): Exercise {
+        val libraryExercise = exerciseLibrary.find { it.name == exercise.name }
+
+        return if (libraryExercise != null) {
+            exercise.copy(
+                imageRes = if (exercise.imageRes == null) libraryExercise.imageRes else exercise.imageRes,
+                imageUrl = if (exercise.imageUrl == null) libraryExercise.imageUrl else exercise.imageUrl
+            )
+        } else {
+            exercise
+        }
+    }
+
+    private suspend fun updateWorkoutPlanFromLibrary(plan: WorkoutPlan): WorkoutPlan {
+        val exerciseLibrary = exerciseLibraryRepository.getAllExercisesAsList()
+        val updatedDays = plan.days.map { day ->
+            day.copy(exercises = day.exercises.map { exercise ->
+                updateExerciseFromLibrary(exercise, exerciseLibrary)
+            })
+        }
+        return plan.copy(days = updatedDays)
+    }
+
     override fun getWorkoutPlan(username: String): Flow<WorkoutPlan?> {
         val key = stringPreferencesKey("${username}_workout_plan")
         Log.d(TAG, "getWorkoutPlan: requesting plan for username=$username")
@@ -244,7 +272,10 @@ class WorkoutRepositoryImpl @Inject constructor(
             val json = preferences[key]
             if (json != null) {
                 try {
-                    gson.fromJson(json, WorkoutPlan::class.java)
+                    val plan = gson.fromJson(json, WorkoutPlan::class.java)
+                    kotlinx.coroutines.runBlocking {
+                        updateWorkoutPlanFromLibrary(plan)
+                    }
                 } catch (e: Exception) {
                     null
                 }
@@ -283,7 +314,9 @@ class WorkoutRepositoryImpl @Inject constructor(
                 equipment = libExercise.equipment,
                 exerciseType = libExercise.exerciseType,
                 stepByStepInstructions = libExercise.stepByStepInstructions,
-                animationUrl = libExercise.animationUrl
+                animationUrl = libExercise.animationUrl,
+                imageRes = libExercise.imageRes,
+                imageUrl = libExercise.imageUrl
             )
         }
     }
@@ -342,7 +375,7 @@ class WorkoutRepositoryImpl @Inject constructor(
             sets = sets,
             reps = reps,
             weight = null,
-            imageRes = null,
+            imageRes = libExercise?.imageRes,
             isCompleted = false,
             alternatives = emptyList(),
             description = libExercise?.description ?: description,
@@ -352,7 +385,8 @@ class WorkoutRepositoryImpl @Inject constructor(
             equipment = libExercise?.equipment ?: emptyList(),
             exerciseType = libExercise?.exerciseType ?: com.example.fitness_plan.domain.model.ExerciseType.STRENGTH,
             stepByStepInstructions = libExercise?.stepByStepInstructions,
-            animationUrl = libExercise?.animationUrl
+            animationUrl = libExercise?.animationUrl,
+            imageUrl = libExercise?.imageUrl
         )
     }
 
@@ -447,7 +481,8 @@ class WorkoutRepositoryImpl @Inject constructor(
 
         val allStrengthExercises = legExercises + chestExercises + backExercises + shoulderExercises + armExercises
         val strengthPool = ExercisePool(allStrengthExercises)
-        val cardioPool = ExercisePool(cardioExercises)
+        val cardioPoolStart = ExercisePool(cardioExercises)
+        val cardioPoolEnd = ExercisePool(cardioExercises)
 
         val legMuscleGroups = listOf("Квадрицепсы", "Ягодицы", "Бёдра сзади", "Икры")
         val chestMuscleGroups = listOf("Грудь", "Трицепсы", "Плечи")
@@ -467,8 +502,8 @@ class WorkoutRepositoryImpl @Inject constructor(
                 else -> getUniqueExercisesForDay(strengthPool, 4, armMuscleGroups)
             }
 
-            val cardioStartExercises = getUniqueExercisesForDay(cardioPool, 1, null)
-            val cardioEndExercises = getUniqueExercisesForDay(cardioPool, 1, null)
+            val cardioStartExercises = listOfNotNull(cardioExercises.shuffled().firstOrNull())
+            val cardioEndExercises = listOfNotNull(cardioExercises.shuffled().firstOrNull())
 
             val cardioStart = cardioStartExercises.firstOrNull()?.copy(
                 id = "${dayIndex}_cardio_start_${cardioStartExercises.firstOrNull()?.id}",
@@ -934,6 +969,7 @@ class WorkoutRepositoryImpl @Inject constructor(
         val libraryPool = libraryExercises?.let { ExercisePool(it) }
 
         for (i in 0 until totalCount) {
+            val pool = ExercisePool(baseExercises)
             var dayExercises = getUniqueExercisesForDay(pool, exercisesCount, null)
 
             if (dayExercises.size < exercisesCount && libraryPool != null) {
@@ -987,6 +1023,8 @@ class WorkoutRepositoryImpl @Inject constructor(
         val upperMuscleGroups = listOf("Грудь", "Спина", "Плечи", "Трицепсы", "Бицепсы")
 
         for (i in 0 until totalCount) {
+            val pool = ExercisePool(baseExercises)
+
             val cycleIndex = i % 3
             val (targetMuscleGroups, dayName) = when (cycleIndex) {
                 0 -> Pair(legMuscleGroups, "Ноги")
@@ -1053,6 +1091,8 @@ class WorkoutRepositoryImpl @Inject constructor(
         val muscleGroupsList = listOf(legMuscleGroups, chestMuscleGroups, backMuscleGroups, shoulderMuscleGroups, armMuscleGroups)
 
         for (i in 0 until totalCount) {
+            val pool = ExercisePool(baseExercises)
+
             val cycleIndex = i % 5
             val targetMuscleGroups = muscleGroupsList[cycleIndex]
             val dayName = dayNames[cycleIndex]
