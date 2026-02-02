@@ -5,6 +5,9 @@ plugins {
     id("com.google.dagger.hilt.android")
 }
 
+// Hilt version heredity from root project (to unify across modules)
+val hiltVersion = rootProject.extra["hiltVersion"] as String
+
 android {
     namespace = "com.example.fitness_plan"
     compileSdk = 34
@@ -18,7 +21,7 @@ android {
         versionCode = 4
         versionName = "2.2"
 
-        testInstrumentationRunner = "com.example.fitness_plan.FitnessTestRunner"
+        testInstrumentationRunner = "dagger.hilt.android.testing.HiltTestRunner"
         testInstrumentationRunnerArguments["clearPackageData"] = "true"
 
         multiDexEnabled = true
@@ -95,11 +98,11 @@ dependencies {
     implementation("androidx.datastore:datastore-preferences:1.1.1")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.3")
     implementation("com.google.code.gson:gson:2.10.1")
-    implementation("com.google.dagger:hilt-android:2.51")
-    kapt("com.google.dagger:hilt-android-compiler:2.51")
+    implementation("com.google.dagger:hilt-android:$hiltVersion")
+    kapt("com.google.dagger:hilt-android-compiler:$hiltVersion")
     implementation("androidx.hilt:hilt-navigation-compose:1.2.0")
     implementation("androidx.hilt:hilt-work:1.2.0")
-    kapt("com.google.dagger:hilt-android-compiler:2.51")
+    // Removed duplicate compiler dependency; use the versioned one above
     implementation("androidx.work:work-runtime-ktx:2.9.0")
      // Unit Testing Dependencies
     testImplementation("junit:junit:4.13.2")
@@ -110,7 +113,7 @@ dependencies {
     testImplementation("org.jetbrains.kotlin:kotlin-test:1.9.10")
     testImplementation("io.mockk:mockk:1.13.5")
      testImplementation("com.google.truth:truth:1.1.3")
-    testImplementation("com.google.dagger:hilt-android-testing:2.51")
+    testImplementation("com.google.dagger:hilt-android-testing:$hiltVersion")
     testImplementation("androidx.navigation:navigation-testing:2.8.0")
     testImplementation("org.robolectric:robolectric:4.11.1")
     testImplementation("androidx.work:work-testing:2.9.0")
@@ -126,7 +129,7 @@ dependencies {
     androidTestImplementation("androidx.compose.ui:ui-test-junit4")
     androidTestImplementation("io.mockk:mockk-android:1.13.17")
     androidTestImplementation("com.google.truth:truth:1.1.3")
-    androidTestImplementation("com.google.dagger:hilt-android-testing:2.51")
+    androidTestImplementation("com.google.dagger:hilt-android-testing:$hiltVersion")
     androidTestImplementation("androidx.navigation:navigation-compose:2.8.0")
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
