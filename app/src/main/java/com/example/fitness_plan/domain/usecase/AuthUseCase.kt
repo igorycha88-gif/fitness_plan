@@ -16,8 +16,8 @@ class AuthUseCase @Inject constructor(
         data class Error(val message: String) : AuthResult()
     }
 
-    suspend fun login(username: String, plainPassword: String): AuthResult {
-        Log.d(TAG, "login: attempting login for user=$username")
+    suspend fun login(username: String, plainPassword: String, appVersion: String): AuthResult {
+        Log.d(TAG, "login: attempting login for user=$username, appVersion=$appVersion")
 
         if (username.isBlank()) {
             Log.e(TAG, "login: username is blank")
@@ -39,10 +39,12 @@ class AuthUseCase @Inject constructor(
         val profile = userRepository.getUserProfileForUsername(username)
         Log.d(TAG, "login: login successful for user=$username, profile=${profile?.username}")
 
+        credentialsRepository.saveAppVersion(appVersion)
+
         return AuthResult.Success(username, profile)
     }
 
-    suspend fun register(username: String, plainPassword: String): AuthResult {
+    suspend fun register(username: String, plainPassword: String, appVersion: String): AuthResult {
         Log.d(TAG, "register: attempting registration for user=$username")
 
         if (username.isBlank()) {
@@ -67,6 +69,7 @@ class AuthUseCase @Inject constructor(
         }
 
         credentialsRepository.saveCredentials(username, plainPassword)
+        credentialsRepository.saveAppVersion(appVersion)
         Log.d(TAG, "register: registration successful for user=$username")
 
         return AuthResult.Success(username, null)
@@ -85,5 +88,23 @@ class AuthUseCase @Inject constructor(
 
     suspend fun getCurrentUsername(): String? {
         return credentialsRepository.getUsername()
+    }
+
+    suspend fun checkAndUpdateSession(currentAppVersion: String): Boolean {
+        val credentials = credentialsRepository.getCredentials()
+        if (credentials == null) {
+            Log.d(TAG, "checkAndUpdateSession: no credentials found")
+            return false
+        }
+
+        val isVersionMismatch = credentialsRepository.isAppVersionMismatch(currentAppVersion)
+        if (isVersionMismatch) {
+            Log.d(TAG, "checkAndUpdateSession: version mismatch, clearing session")
+            credentialsRepository.clearSession()
+            return false
+        }
+
+        Log.d(TAG, "checkAndUpdateSession: valid session found")
+        return true
     }
 }

@@ -237,6 +237,15 @@ class ProfileViewModel @Inject constructor(
         Log.d(TAG, "saveCredentials: saving for user=$username")
         credentialsRepository.saveCredentials(username, plainPassword)
         _currentUsername.value = username
+
+        try {
+            val packageInfo = context.packageManager.getPackageInfo(context.packageName, 0)
+            val appVersion = packageInfo.versionName
+            credentialsRepository.saveAppVersion(appVersion)
+            Log.d(TAG, "saveCredentials: saved app version=$appVersion")
+        } catch (e: Exception) {
+            Log.e(TAG, "saveCredentials: failed to save app version", e)
+        }
     }
 
     suspend fun updateCredentials(currentUsername: String, newUsername: String, newPassword: String) {
@@ -247,6 +256,10 @@ class ProfileViewModel @Inject constructor(
 
     suspend fun getCurrentUsername(): String {
         return credentialsRepository.getUsername() ?: ""
+    }
+
+    suspend fun checkSession(currentAppVersion: String): Boolean {
+        return authUseCase.checkAndUpdateSession(currentAppVersion)
     }
 
     fun saveWeightEntry(weight: Double, date: Long = System.currentTimeMillis()) {

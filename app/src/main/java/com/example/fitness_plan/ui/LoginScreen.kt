@@ -22,6 +22,7 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -54,6 +55,7 @@ fun LoginScreen(
     val keyboardController = LocalSoftwareKeyboardController.current
     val coroutineScope = rememberCoroutineScope()
     val scrollState = rememberScrollState()
+    val context = LocalContext.current
 
     var hasExistingAccount by remember { mutableStateOf(false) }
 
@@ -250,9 +252,13 @@ fun LoginScreen(
                                 isLoading = false
                             }
                             else -> {
+                                val packageInfo = context.packageManager.getPackageInfo(context.packageName, 0)
+                                val appVersion = packageInfo.versionName
+
                                 val isValid = viewModel.verifyPassword(username, password)
 
                                 if (isValid) {
+                                    viewModel.saveCredentials(username, password)
                                     viewModel.setCurrentUsername(username)
                                     navigateTrigger = true
                                     isLoading = false
