@@ -16,7 +16,6 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import coil.compose.AsyncImage
 import com.example.fitness_plan.domain.model.ExerciseLibrary
 import com.example.fitness_plan.presentation.viewmodel.ExerciseLibraryViewModel
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -77,44 +76,13 @@ fun ExerciseLibraryDetailScreen(
                     .padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                if (exercise.imageUrl != null || exercise.animationUrl != null) {
-                    Card(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .heightIn(min = 150.dp, max = getExerciseImageMaxHeight()),
-                        shape = RoundedCornerShape(16.dp)
-                    ) {
-                        if (exercise.imageUrl != null) {
-                            AsyncImage(
-                                model = exercise.imageUrl,
-                                contentDescription = "Изображение упражнения: ${exercise.name}",
-                                modifier = Modifier.fillMaxSize(),
-                                contentScale = ContentScale.Fit
-                            )
-                        } else {
-                            Column(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(16.dp),
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                verticalArrangement = Arrangement.Center
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Outlined.FavoriteBorder,
-                                    contentDescription = "Изображение упражнения",
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.size(64.dp)
-                                )
-                                Spacer(modifier = Modifier.height(8.dp))
-                                Text(
-                                    text = "Изображение упражнения",
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                        }
-                    }
-                }
+                ExerciseImageCard(
+                    imageUrl = exercise.imageUrl,
+                    imageRes = exercise.imageRes,
+                    exerciseName = exercise.name,
+                    modifier = Modifier.fillMaxWidth(),
+                    contentDescription = "Изображение упражнения: ${exercise.name}"
+                )
 
                 Card(
                     modifier = Modifier.fillMaxWidth(),
