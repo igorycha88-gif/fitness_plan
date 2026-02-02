@@ -17,6 +17,7 @@ import com.example.fitness_plan.domain.usecase.AuthUseCase
 import com.example.fitness_plan.domain.usecase.ExerciseLibraryUseCase
 import com.example.fitness_plan.domain.usecase.ReferenceDataUseCase
 import com.example.fitness_plan.domain.usecase.WorkoutUseCase
+import com.example.fitness_plan.data.NotificationRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -32,6 +33,7 @@ private const val TAG = "ProfileViewModel"
 
 @HiltViewModel
 class ProfileViewModel @Inject constructor(
+    @dagger.hilt.android.qualifiers.ApplicationContext private val context: android.content.Context,
     private val userRepository: UserRepository,
     private val credentialsRepository: com.example.fitness_plan.domain.repository.ICredentialsRepository,
     private val cycleRepository: CycleRepository,
@@ -39,7 +41,8 @@ class ProfileViewModel @Inject constructor(
     private val authUseCase: AuthUseCase,
     private val workoutUseCase: WorkoutUseCase,
     private val exerciseLibraryUseCase: ExerciseLibraryUseCase,
-    private val referenceDataUseCase: ReferenceDataUseCase
+    private val referenceDataUseCase: ReferenceDataUseCase,
+    private val notificationRepository: NotificationRepository
 ) : ViewModel() {
 
     val userProfile: StateFlow<UserProfile?> = userRepository.getUserProfile()
@@ -66,6 +69,13 @@ class ProfileViewModel @Inject constructor(
 
     private val _profileChangeDetected = MutableStateFlow(false)
     val profileChangeDetected: StateFlow<Boolean> = _profileChangeDetected.asStateFlow()
+
+    val workoutReminderEnabled: StateFlow<Boolean> = notificationRepository.workoutReminderEnabled
+        .stateIn(
+            viewModelScope,
+            SharingStarted.WhileSubscribed(5000),
+            false
+        )
 
     init {
         checkUserSession()
@@ -274,5 +284,14 @@ class ProfileViewModel @Inject constructor(
 
     fun getFavoriteExercises(): kotlinx.coroutines.flow.Flow<kotlin.collections.Set<String>> {
         return userRepository.getUserProfile().map { it?.favoriteExercises ?: emptySet() }
+    }
+
+    fun toggleWorkoutReminder(enabled: Boolean) {
+        viewModelScope.launch {
+            notificationRepository.setWorkoutReminderEnabled(enabled)
+            if (enabled) {
+                com.example.fitness_plan.notification.WorkoutReminderScheduler.scheduleImmediate(context)
+            }
+        }
     }
 }

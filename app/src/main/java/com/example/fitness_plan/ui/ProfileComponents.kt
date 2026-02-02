@@ -599,7 +599,9 @@ private fun calculateWeightProgress(initialWeight: Double, targetWeight: Double,
 
 @Composable
 fun SettingsSection(
-    onSettingsClick: () -> Unit
+    onSettingsClick: () -> Unit,
+    workoutReminderEnabled: Boolean = false,
+    onWorkoutReminderToggle: (Boolean) -> Unit = {}
 ) {
     Card(
         modifier = Modifier
@@ -612,10 +614,23 @@ fun SettingsSection(
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Column(modifier = Modifier.fillMaxWidth()) {
+            SettingsSwitchItem(
+                icon = Icons.Outlined.Notifications,
+                title = "Напоминание о тренировке",
+                description = "За 8 часов до тренировки",
+                checked = workoutReminderEnabled,
+                onCheckedChange = onWorkoutReminderToggle
+            )
+            Divider(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp),
+                color = MaterialTheme.colorScheme.outlineVariant
+            )
             SettingsItem(
                 icon = Icons.Outlined.Notifications,
-                title = "Уведомления",
-                description = "Настроить напоминания о тренировках",
+                title = "История уведомлений",
+                description = "Все уведомления",
                 onClick = onSettingsClick
             )
             Divider(
@@ -722,6 +737,57 @@ fun SettingsItem(
             Icons.Outlined.KeyboardArrowRight,
             contentDescription = null,
             tint = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
+
+@Composable
+fun SettingsSwitchItem(
+    icon: ImageVector,
+    title: String,
+    description: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(16.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(
+            icon,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.size(24.dp)
+        )
+
+        Spacer(modifier = Modifier.width(16.dp))
+
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                title,
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Text(
+                description,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+
+        Spacer(modifier = Modifier.width(16.dp))
+
+        Switch(
+            checked = checked,
+            onCheckedChange = onCheckedChange,
+            colors = SwitchDefaults.colors(
+                checkedThumbColor = MaterialTheme.colorScheme.primary,
+                checkedTrackColor = MaterialTheme.colorScheme.primaryContainer,
+                uncheckedThumbColor = MaterialTheme.colorScheme.outline,
+                uncheckedTrackColor = MaterialTheme.colorScheme.surfaceVariant
+            )
         )
     }
 }

@@ -1,7 +1,10 @@
 package com.example.fitness_plan.ui
 
+import android.Manifest
 import android.content.Context
+import android.content.pm.PackageManager
 import android.net.Uri
+import android.os.Build
 import android.util.Log
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -17,6 +20,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.fitness_plan.domain.model.UserProfile
 import com.example.fitness_plan.domain.model.WeightEntry
@@ -34,10 +38,27 @@ fun ProfileScreen(
     val isEditing by viewModel.isEditingProfile.collectAsState()
     val profileChangeDetected by viewModel.profileChangeDetected.collectAsState()
     val weightHistory by viewModel.getWeightHistory().collectAsState(initial = emptyList())
+    val workoutReminderEnabled by viewModel.workoutReminderEnabled.collectAsState()
+    val context = LocalContext.current
 
     var editedProfile by remember { mutableStateOf<UserProfile?>(null) }
     var showNotificationDialog by remember { mutableStateOf(false) }
     var showConfirmationDialog by remember { mutableStateOf(false) }
+    var pendingWorkoutReminderToggle by remember { mutableStateOf<Boolean?>(null) }
+
+    val notificationPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        if (isGranted) {
+            pendingWorkoutReminderToggle?.let { enabled ->
+                viewModel.toggleWorkoutReminder(enabled)
+                pendingWorkoutReminderToggle = null
+            }
+        } else {
+            pendingWorkoutReminderToggle = false
+            Toast.makeText(context, "Уведомления отключены", Toast.LENGTH_SHORT).show()
+        }
+    }
 
     LaunchedEffect(userProfile) {
         editedProfile = userProfile
@@ -127,7 +148,29 @@ fun ProfileScreen(
                 Spacer(modifier = Modifier.height(8.dp))
 
                 SettingsSection(
-                    onSettingsClick = { }
+                    onSettingsClick = { showNotificationDialog = true },
+                    workoutReminderEnabled = workoutReminderEnabled,
+                    onWorkoutReminderToggle = { enabled ->
+                        if (enabled) {
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                                val hasPermission = ContextCompat.checkSelfPermission(
+                                    context,
+                                    Manifest.permission.POST_NOTIFICATIONS
+                                ) == PackageManager.PERMISSION_GRANTED
+                                
+                                if (hasPermission) {
+                                    viewModel.toggleWorkoutReminder(true)
+                                } else {
+                                    pendingWorkoutReminderToggle = true
+                                    notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                                }
+                            } else {
+                                viewModel.toggleWorkoutReminder(true)
+                            }
+                        } else {
+                            viewModel.toggleWorkoutReminder(false)
+                        }
+                    }
                 )
 
                 Spacer(modifier = Modifier.height(16.dp))
