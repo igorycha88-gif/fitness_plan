@@ -21,7 +21,7 @@ android {
         versionCode = 4
         versionName = "2.2"
 
-        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        testInstrumentationRunner = "dagger.hilt.android.testing.HiltTestRunner"
         testInstrumentationRunnerArguments["clearPackageData"] = "true"
 
         multiDexEnabled = true
