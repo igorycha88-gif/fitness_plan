@@ -1,5 +1,6 @@
 package com.example.fitness_plan.ui
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
@@ -12,6 +13,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
@@ -69,15 +71,17 @@ fun ExerciseImageCard(
             } ?: 0
 
             if (resId != 0) {
-                AsyncImage(
-                    model = ImageRequest.Builder(LocalContext.current)
-                        .data(resId)
-                        .crossfade(true)
-                        .build(),
-                    contentDescription = contentDescription,
+                Box(
                     modifier = Modifier.fillMaxSize(),
-                    contentScale = ContentScale.Fit
-                )
+                    contentAlignment = Alignment.Center
+                ) {
+                    Image(
+                        painter = painterResource(id = resId),
+                        contentDescription = contentDescription,
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Fit
+                    )
+                }
             } else {
                 PlaceholderContent(exerciseName = exerciseName)
             }
