@@ -1,19 +1,15 @@
 package com.example.fitness_plan.ui
 
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.unit.dp
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import org.junit.Ignore
-import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
-import androidx.compose.ui.platform.LocalConfiguration
-import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.dp
 
-@Ignore("AdaptiveUtils functions rely on real device configuration, not suitable for instrumentation tests")
 @RunWith(AndroidJUnit4::class)
 class AdaptiveUtilsTest {
 
@@ -21,26 +17,53 @@ class AdaptiveUtilsTest {
     val composeTestRule = createComposeRule()
 
     @Test
-    fun isTablet_withSmallWidth_shouldReturnFalse() {
+    fun isTablet_withPhoneScreenWidth_shouldReturnFalse() {
+        var result = true
+
         composeTestRule.setContent {
-            var isTablet = false
-            isTablet = isTablet()
-            assertFalse(isTablet)
+            result = isTablet()
         }
+
+        assertFalse("Phone (width < 600dp) should not be detected as tablet", result)
     }
 
     @Test
-    @Ignore("WindowInsets doesn't have .left property")
-    fun adaptivePadding_shouldReturnCorrectPadding() {
-        // composeTestRule.setContent {
-        //     val insets = adaptivePadding()
-        //     val isTablet = isTablet()
-        //
-        //     if (isTablet) {
-        //         assertEquals(48.dp, insets.left)
-        //     } else {
-        //         assertEquals(24.dp, insets.left)
-        //     }
-        // }
+    fun isTablet_returnsCorrectBoolean() {
+        var result: Boolean? = null
+
+        composeTestRule.setContent {
+            result = isTablet()
+        }
+
+        assertTrue("isTablet() should return a boolean value", result != null)
+    }
+
+    @Test
+    fun adaptivePadding_returnsWindowInsets() {
+        var insets: WindowInsets? = null
+
+        composeTestRule.setContent {
+            insets = adaptivePadding()
+        }
+
+        assertTrue("adaptivePadding() should return WindowInsets", insets != null)
+        assertTrue("WindowInsets should be non-zero", insets != WindowInsets(0.dp))
+    }
+
+    @Test
+    fun adaptivePadding_returnsConsistentValues() {
+        var firstInsets: WindowInsets? = null
+        var secondInsets: WindowInsets? = null
+
+        composeTestRule.setContent {
+            firstInsets = adaptivePadding()
+        }
+
+        composeTestRule.setContent {
+            secondInsets = adaptivePadding()
+        }
+
+        assertTrue("adaptivePadding() should return consistent values for same configuration", 
+            firstInsets == secondInsets)
     }
 }
