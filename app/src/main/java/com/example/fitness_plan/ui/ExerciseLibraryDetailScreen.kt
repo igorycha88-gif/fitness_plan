@@ -81,7 +81,7 @@ fun ExerciseLibraryDetailScreen(
                     Card(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(300.dp),
+                            .heightIn(min = 150.dp, max = getExerciseImageMaxHeight()),
                         shape = RoundedCornerShape(16.dp)
                     ) {
                         if (exercise.imageUrl != null) {
@@ -89,7 +89,7 @@ fun ExerciseLibraryDetailScreen(
                                 model = exercise.imageUrl,
                                 contentDescription = "Изображение упражнения: ${exercise.name}",
                                 modifier = Modifier.fillMaxSize(),
-                                contentScale = ContentScale.Crop
+                                contentScale = ContentScale.Fit
                             )
                         } else {
                             Column(

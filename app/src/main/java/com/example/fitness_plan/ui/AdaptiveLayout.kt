@@ -443,3 +443,9 @@ fun getLoginScreenSpacing(): Dp {
         DeviceType.EXPANDED -> 24.dp
     }
 }
+
+@Composable
+fun getExerciseImageMaxHeight(): Dp {
+    val screenHeight = rememberAdaptiveInfo().screenHeight
+    return (screenHeight * 0.45f).coerceIn(250.dp, 400.dp)
+}

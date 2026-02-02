@@ -14,6 +14,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import coil.compose.AsyncImagePainter
@@ -25,6 +26,7 @@ fun ExerciseImageCard(
     imageRes: String? = null,
     exerciseName: String = "",
     modifier: Modifier = Modifier,
+    maxHeight: Dp = getExerciseImageMaxHeight(),
     contentDescription: String? = "Изображение упражнения"
 ) {
     val hasImageUrl = !imageUrl.isNullOrBlank()
@@ -33,7 +35,7 @@ fun ExerciseImageCard(
     Card(
         modifier = modifier
             .fillMaxWidth()
-            .height(250.dp),
+            .heightIn(min = 150.dp, max = maxHeight),
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceVariant
@@ -49,7 +51,7 @@ fun ExerciseImageCard(
                     .build(),
                 contentDescription = contentDescription,
                 modifier = Modifier.fillMaxSize(),
-                contentScale = ContentScale.Crop,
+                contentScale = ContentScale.Fit,
                 onState = { imageState = it }
             )
 
@@ -74,7 +76,7 @@ fun ExerciseImageCard(
                         .build(),
                     contentDescription = contentDescription,
                     modifier = Modifier.fillMaxSize(),
-                    contentScale = ContentScale.Crop
+                    contentScale = ContentScale.Fit
                 )
             } else {
                 PlaceholderContent(exerciseName = exerciseName)
