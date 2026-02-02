@@ -2,7 +2,7 @@ plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("kotlin-kapt")
-    id("com.google.dagger.hilt.android")
+id("dagger.hilt.android.plugin")
 }
 
 // Hilt version heredity from root project (to unify across modules)
@@ -21,7 +21,7 @@ android {
         versionCode = 4
         versionName = "2.2"
 
-        testInstrumentationRunner = "dagger.hilt.android.testing.HiltTestRunner"
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         testInstrumentationRunnerArguments["clearPackageData"] = "true"
 
         multiDexEnabled = true
