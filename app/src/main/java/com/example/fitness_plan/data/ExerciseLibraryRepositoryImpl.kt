@@ -346,6 +346,7 @@ class ExerciseLibraryRepositoryImpl @Inject constructor(
                 difficulty = "Средний",
                 stepByStepInstructions = "1. Установите скамью под углом 30-45 градусов\n2. Возьмите гантели\n3. Опустите гантели к груди\n4. Выжмите гантели вверх",
                 imageUrl = null,
+                imageRes = "incline_dumbbell_press",
                 tipsAndAdvice = "• Контролируйте движение вниз\n• Не разжимайте локти полностью вверху\n• Держите гантели на одной линии\n• Спина плотно прижата к скамье\n• Взгляд направлен вверх",
                 progressionAdvice = "1. Увеличьте вес гантелей\n2. Попробуйте нейтральный хват\n3. Попробуйте жим с паузой\n4. Уменьшите время отдыха"
             ),
@@ -424,6 +425,7 @@ class ExerciseLibraryRepositoryImpl @Inject constructor(
                 difficulty = "Начальный",
                 stepByStepInstructions = "1. Лягте на горизонтальную скамью\n2. Возьмите гантели\n3. Опустите гантели к груди\n4. Выжмите гантели вверх",
                 imageUrl = null,
+                imageRes = "dumbbell_flat_press",
                 tipsAndAdvice = "• Контролируйте движение вниз\n• Не разжимайте локти полностью\n• Взгляд направлен вверх\n• Лопатки сведены\n• Держите пресс напряжённым",
                 progressionAdvice = "1. Увеличьте вес гантелей\n2. Попробуйте нейтральный хват\n3. Попробуйте с паузой внизу\n4. Уменьшите время отдыха"
             ),
@@ -568,6 +570,7 @@ class ExerciseLibraryRepositoryImpl @Inject constructor(
                 difficulty = "Средний",
                 stepByStepInstructions = "1. Возьмите гантели на уровне плеч\n2. Поднимайте и вращайте ладони\n3. Выжмите гантели вверх\n4. Верните гантели с обратным вращением",
                 imageUrl = null,
+                imageRes = "arnold_press",
                 tipsAndAdvice = "• Контролируйте вращение\n• Локти чуть вперёд вверху\n• Взгляд направлен вперёд\n• Не делайте рывков\n• Спина плотно прижата",
                 progressionAdvice = "1. Увеличьте вес\n2. Попробуйте с паузой\n3. Уменьшите время отдыха\n4. Попробуйте медленные повторения"
             ),
@@ -711,6 +714,7 @@ class ExerciseLibraryRepositoryImpl @Inject constructor(
                 difficulty = "Начальный",
                 stepByStepInstructions = "1. Возьмите гантели нейтральным хватом\n2. Сгибайте руки к плечам\n3. Ладони обращены друг к другу\n4. Медленно разгибайте",
                 imageUrl = null,
+                imageRes = "hammer_curl",
                 tipsAndAdvice = "• Локти прижаты к корпусу\n• Контролируйте движение вниз\n• Не раскачивайтесь\n• Взгляд направлен вперёд\n• Не делайте рывков",
                 progressionAdvice = "1. Увеличьте вес\n2. Попробуйте поочерёдные сгибания\n3. Попробуйте с паузой\n4. Уменьшите время отдыха"
             ),
