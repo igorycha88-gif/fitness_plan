@@ -400,6 +400,7 @@ class ExerciseLibraryRepositoryImpl @Inject constructor(
                 difficulty = "Средний",
                 stepByStepInstructions = "1. Повисните на брусьях\n2. Опуститесь вниз\n3. Поднимитесь вверх\n4. Выпрямите руки полностью",
                 imageUrl = null,
+                imageRes = "dips.png",
                 tipsAndAdvice = "• Не раскачивайтесь\n• Держите корпус ровно\n• Локти не уходят далеко назад\n• Контролируйте движение вниз\n• Взгляд направлен вперёд",
                 progressionAdvice = "1. Попробуйте с отягощением\n2. Попробуйте медленные повторения\n3. Попробуйте с паузой внизу\n4. Уменьшите время отдыха"
             ),
@@ -644,6 +645,7 @@ class ExerciseLibraryRepositoryImpl @Inject constructor(
                 difficulty = "Начальный",
                 stepByStepInstructions = "1. Встаньте прямо, гантели в руках\n2. Поднимите гантели перед собой\n3. Не поднимайте выше плеч\n4. Медленно опустите",
                 imageUrl = null,
+                imageRes = "dumbbell_front_raise.png",
                 tipsAndAdvice = "• Руки чуть согнуты\n• Контролируйте движение вниз\n• Не раскачивайтесь\n• Взгляд направлен вперёд\n• Не делайте рывков",
                 progressionAdvice = "1. Увеличьте вес\n2. Попробуйте поочерёдный подъём\n3. Попробуйте с паузой\n4. Уменьшите время отдыха"
             ),
@@ -1000,6 +1002,7 @@ class ExerciseLibraryRepositoryImpl @Inject constructor(
                 difficulty = "Средний",
                 stepByStepInstructions = "1. Наклонитесь корпусом к полу\n2. Разведите гантели в стороны\n3. Сожмите лопатки\n4. Медленно вернитесь",
                 imageUrl = null,
+                imageRes = "rear_delt_flyes.png",
                 tipsAndAdvice = "• Спина прямая и параллельна полу\n• Руки чуть согнуты\n• Сжимайте лопатки вверху\n• Контролируйте движение вниз\n• Не делайте рывков",
                 progressionAdvice = "1. Увеличьте вес\n2. Попробуйте с паузой\n3. Уменьшите время отдыха\n4. Попробуйте на тренажёре"
             ),
@@ -1092,6 +1095,7 @@ class ExerciseLibraryRepositoryImpl @Inject constructor(
                 difficulty = "Продвинутый",
                 stepByStepInstructions = "1. Повисните на брусьях\n2. Наклоните корпус вперёд\n3. Опуститесь вниз\n4. Поднимитесь вверх\n5. Выпрямите руки полностью",
                 imageUrl = null,
+                imageRes = "inclined_dips.png",
                 tipsAndAdvice = "• Корпус наклонён вперёд\n• Локти направлены в стороны\n• Контролируйте движение вниз\n• Взгляд направлен вперёд\n• Не раскачивайтесь",
                 progressionAdvice = "1. Попробуйте с отягощением\n2. Попробуйте медленные повторения\n3. Попробуйте с паузой внизу\n4. Уменьшите время отдыха"
             ),
