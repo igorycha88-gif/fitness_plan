@@ -333,6 +333,7 @@ class ExerciseLibraryRepositoryImpl @Inject constructor(
                 difficulty = "Начальный",
                 stepByStepInstructions = "1. Лягте на скамью, стопы на полу\n2. Возьмите штангу хватом чуть шире плеч\n3. Опустите штангу к груди\n4. Выжмите штангу вверх",
                 imageUrl = null,
+                imageRes = "bench_press",
                 tipsAndAdvice = "• Лопатки сведены вместе\n• Поясница с небольшим прогибом\n• Контролируйте движение вниз\n• Полностью выпрямите руки вверху\n• Не отрывайте поясницу от скамьи",
                 progressionAdvice = "1. Увеличивайте вес постепенно\n2. Изменяйте ширину хвата\n3. Попробуйте жим с паузой внизу\n4. Используйте цепи или резинки\n5. Перейдите на жим гантелей"
             ),
@@ -491,6 +492,7 @@ class ExerciseLibraryRepositoryImpl @Inject constructor(
                 difficulty = "Средний",
                 stepByStepInstructions = "1. Расположите гантель в углу\n2. Наклонитесь, возьмите гантель\n3. Тяните гантель к груди\n4. Медленно опустите",
                 imageUrl = null,
+                imageRes = "t_bar_dumbbell_row",
                 tipsAndAdvice = "• Спина прямая\n• Локти направлены в стороны\n• Сжимайте лопатки вверху\n• Контролируйте движение вниз\n• Не делайте рывков",
                 progressionAdvice = "1. Увеличьте вес\n2. Попробуйте узкий хват\n3. Попробуйте широкий хват\n4. Уменьшите время отдыха"
             ),
@@ -517,6 +519,7 @@ class ExerciseLibraryRepositoryImpl @Inject constructor(
                 difficulty = "Средний",
                 stepByStepInstructions = "1. Лягте поперёк скамьи\n2. Возьмите гантель прямыми руками\n3. Опустите гантель за голову\n4. Поднимите гантель над грудью",
                 imageUrl = null,
+                imageRes = "dumbbell_pullover",
                 tipsAndAdvice = "• Локти чуть согнуты\n• Не прогибайте поясницу\n• Контролируйте движение вниз\n• Сжимайте грудь вверху\n• Не делайте рывков",
                 progressionAdvice = "1. Увеличьте вес\n2. Попробуйте на горизонтальной скамье\n3. Попробуйте с паузой внизу\n4. Уменьшите время отдыха"
             ),
@@ -557,6 +560,7 @@ class ExerciseLibraryRepositoryImpl @Inject constructor(
                 difficulty = "Начальный",
                 stepByStepInstructions = "1. Сядьте на скамью, спина прямая\n2. Возьмите гантели на уровне плеч\n3. Выжмите гантели вверх\n4. Опустите в исходное положение",
                 imageUrl = null,
+                imageRes = "dumbbell_press",
                 tipsAndAdvice = "• Спина плотно прижата к скамье\n• Локти чуть вперёд вверху\n• Взгляд направлен вперёд\n• Не прогибайте поясницу\n• Контролируйте движение вниз",
                 progressionAdvice = "1. Увеличьте вес гантелей\n2. Попробуйте нейтральный хват\n3. Попробуйте с паузой\n4. Уменьшите время отдыха"
             ),
@@ -610,6 +614,7 @@ class ExerciseLibraryRepositoryImpl @Inject constructor(
                 difficulty = "Начальный",
                 stepByStepInstructions = "1. Сядьте в тренажёр\n2. Возьмите рукоятки\n3. Выжмите вверх\n4. Медленно вернитесь",
                 imageUrl = null,
+                imageRes = "shoulder_press_machine",
                 tipsAndAdvice = "• Спина плотно прижата\n• Локти чуть вперёд вверху\n• Контролируйте движение вниз\n• Не делайте рывков\n• Взгляд направлен вперёд",
                 progressionAdvice = "1. Увеличьте вес\n2. Попробуйте с паузой\n3. Уменьшите время отдыха\n4. Попробуйте разную высоту рукоятей"
             ),
@@ -1003,6 +1008,7 @@ class ExerciseLibraryRepositoryImpl @Inject constructor(
                 difficulty = "Продвинутый",
                 stepByStepInstructions = "1. Сядьте на скамью\n2. Возьмите штангу на уровне плеч\n3. Выжмите штангу вверх\n4. Опустите за голову\n5. Вернитесь в исходное положение",
                 imageUrl = null,
+                imageRes = "behind_head_press",
                 tipsAndAdvice = "• Контролируйте движение вниз\n• Не прогибайте поясницу\n• Локти направлены вперёд\n• Взгляд направлен вперёд\n• Не делайте рывков",
                 progressionAdvice = "1. Увеличьте вес\n2. Попробуйте жим гантелей\n3. Попробуйте с паузой\n4. Уменьшите время отдыха"
             ),
@@ -1159,6 +1165,7 @@ class ExerciseLibraryRepositoryImpl @Inject constructor(
                 difficulty = "Средний",
                 stepByStepInstructions = "1. Установите скамью под углом 30-45 градусов\n2. Возьмите гантели или штангу\n3. Опустите вес к верхней части груди\n4. Выжмите вес вверх",
                 imageUrl = null,
+                imageRes = "incline_bench_press",
                 tipsAndAdvice = "• Контролируйте движение вниз\n• Не разжимайте локти полностью\n• Взгляд направлен вверх\n• Лопатки сведены\n• Держите пресс напряжённым",
                 progressionAdvice = "1. Увеличьте вес\n2. Попробуйте разные хваты\n3. Попробуйте с паузой\n4. Уменьшите время отдыха"
             )
