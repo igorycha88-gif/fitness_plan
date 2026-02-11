@@ -911,7 +911,7 @@ fun PlanTypeSelector(
             isSelected = selectedType == com.example.fitness_plan.domain.repository.SelectedPlanType.CUSTOM,
             onClick = { onTypeSelected(com.example.fitness_plan.domain.repository.SelectedPlanType.CUSTOM) },
             modifier = Modifier.weight(1f),
-            enabled = userPlanExists || selectedType == com.example.fitness_plan.domain.repository.SelectedPlanType.CUSTOM
+            enabled = true
         )
     }
 }
