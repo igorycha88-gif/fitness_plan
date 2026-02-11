@@ -13,7 +13,7 @@ fun StatisticsScreen(
     viewModel: StatisticsViewModel = hiltViewModel()
 ) {
     var selectedTab by remember { mutableIntStateOf(0) }
-    val tabs = listOf("Вес", "Прогресс")
+    val tabs = listOf("Вес", "Прогресс", "Параметры тела")
 
     Scaffold(
         topBar = {
@@ -62,6 +62,7 @@ fun StatisticsScreen(
             when (selectedTab) {
                 0 -> WeightScreen(viewModel = viewModel)
                 1 -> ProgressScreen(viewModel = viewModel)
+                2 -> BodyParametersScreen()
             }
         }
     }

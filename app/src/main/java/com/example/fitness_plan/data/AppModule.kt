@@ -31,6 +31,7 @@ import com.example.fitness_plan.domain.usecase.BodyParametersUseCase
 import com.example.fitness_plan.domain.usecase.BodyParameterCalculator
 import com.example.fitness_plan.domain.usecase.MeasurementValidator
 import com.example.fitness_plan.presentation.viewmodel.BodyParametersViewModel
+import com.example.fitness_plan.presentation.viewmodel.BodyParametersStatsViewModel
 import com.google.gson.Gson
 import dagger.Module
 import dagger.Provides
@@ -295,5 +296,14 @@ object AppModule {
         userRepository: DomainUserRepository
     ): BodyParametersViewModel {
         return BodyParametersViewModel(bodyParametersUseCase, userRepository)
+    }
+
+    @Provides
+    @Singleton
+    fun provideBodyParametersStatsViewModel(
+        bodyParametersUseCase: BodyParametersUseCase,
+        credentialsRepository: ICredentialsRepository
+    ): BodyParametersStatsViewModel {
+        return BodyParametersStatsViewModel(bodyParametersUseCase, credentialsRepository)
     }
 }
