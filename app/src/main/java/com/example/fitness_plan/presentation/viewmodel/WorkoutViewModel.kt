@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.fitness_plan.domain.model.Cycle
 import com.example.fitness_plan.domain.model.CycleHistoryEntry
+import com.example.fitness_plan.domain.model.Exercise
 import com.example.fitness_plan.domain.model.ExerciseStats
 import com.example.fitness_plan.domain.model.UserProfile
 import com.example.fitness_plan.domain.model.WorkoutPlan
@@ -74,6 +75,18 @@ class WorkoutViewModel @Inject constructor(
     private val _alternativeExercises = MutableStateFlow<List<ExerciseLibrary>>(emptyList())
     val alternativeExercises: StateFlow<List<ExerciseLibrary>> = _alternativeExercises.asStateFlow()
 
+    private val _userWorkoutPlan = MutableStateFlow<WorkoutPlan?>(null)
+    val userWorkoutPlan: StateFlow<WorkoutPlan?> = _userWorkoutPlan.asStateFlow()
+
+    private val _selectedPlanType = MutableStateFlow<com.example.fitness_plan.domain.repository.SelectedPlanType>(com.example.fitness_plan.domain.repository.SelectedPlanType.AUTO)
+    val selectedPlanType: StateFlow<com.example.fitness_plan.domain.repository.SelectedPlanType> = _selectedPlanType.asStateFlow()
+
+    private val _isAutoPlanExpanded = MutableStateFlow(true)
+    val isAutoPlanExpanded: StateFlow<Boolean> = _isAutoPlanExpanded.asStateFlow()
+
+    private val _isUserPlanExpanded = MutableStateFlow(true)
+    val isUserPlanExpanded: StateFlow<Boolean> = _isUserPlanExpanded.asStateFlow()
+
     private var _currentUsername = MutableStateFlow("")
 
     fun initializeWorkout() {
@@ -135,6 +148,35 @@ class WorkoutViewModel @Inject constructor(
         loadCompletedExercises(username)
         loadExerciseStats(username)
         loadAdminWorkoutPlan()
+        loadUserWorkoutPlan()
+        loadSelectedPlanType()
+    }
+
+    private fun loadUserWorkoutPlan() {
+        viewModelScope.launch {
+            val username = _currentUsername.value
+            if (username.isEmpty()) return@launch
+
+            workoutUseCase.getUserWorkoutPlan(username).collect { plan ->
+                val updatedPlan = if (plan != null) {
+                    updateWorkoutPlanFromLibrary(plan)
+                } else {
+                    null
+                }
+                _userWorkoutPlan.value = updatedPlan
+            }
+        }
+    }
+
+    private fun loadSelectedPlanType() {
+        viewModelScope.launch {
+            val username = _currentUsername.value
+            if (username.isEmpty()) return@launch
+
+            workoutUseCase.getSelectedPlanType(username).collect { type ->
+                _selectedPlanType.value = type
+            }
+        }
     }
 
     private fun loadCompletedExercises(username: String) {
@@ -427,5 +469,59 @@ class WorkoutViewModel @Inject constructor(
             limit
         )
         _alternativeExercises.value = alternatives
+    }
+
+    fun createUserPlan(name: String, description: String) {
+        viewModelScope.launch {
+            val username = _currentUsername.value
+            if (username.isEmpty()) return@launch
+
+            workoutUseCase.createUserPlan(username, name, description)
+            setSelectedPlanType(com.example.fitness_plan.domain.repository.SelectedPlanType.CUSTOM)
+        }
+    }
+
+    fun addDayToUserPlan(dayName: String) {
+        viewModelScope.launch {
+            val username = _currentUsername.value
+            if (username.isEmpty()) return@launch
+
+            workoutUseCase.addDayToUserPlan(username, dayName)
+        }
+    }
+
+    fun addExerciseToUserDay(dayIndex: Int, exercise: Exercise) {
+        viewModelScope.launch {
+            val username = _currentUsername.value
+            if (username.isEmpty()) return@launch
+
+            workoutUseCase.addExerciseToUserDay(username, dayIndex, exercise)
+        }
+    }
+
+    fun deleteUserPlan() {
+        viewModelScope.launch {
+            val username = _currentUsername.value
+            if (username.isEmpty()) return@launch
+
+            workoutUseCase.deleteUserPlan(username)
+        }
+    }
+
+    fun setSelectedPlanType(type: com.example.fitness_plan.domain.repository.SelectedPlanType) {
+        viewModelScope.launch {
+            val username = _currentUsername.value
+            if (username.isEmpty()) return@launch
+
+            workoutUseCase.setSelectedPlanType(username, type)
+        }
+    }
+
+    fun toggleAutoPlanExpanded() {
+        _isAutoPlanExpanded.value = !_isAutoPlanExpanded.value
+    }
+
+    fun toggleUserPlanExpanded() {
+        _isUserPlanExpanded.value = !_isUserPlanExpanded.value
     }
 }

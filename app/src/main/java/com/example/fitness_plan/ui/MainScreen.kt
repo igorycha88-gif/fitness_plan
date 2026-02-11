@@ -23,7 +23,7 @@ import com.example.fitness_plan.presentation.viewmodel.ProfileViewModel
 import com.example.fitness_plan.presentation.viewmodel.WorkoutViewModel
 
 sealed class Screen(val route: String, val label: String, val icon: ImageVector) {
-    object Home : Screen("home", "Главная", Icons.Default.Home)
+    object Home : Screen("home", "План", Icons.Default.Home)
     object Profile : Screen("profile", "Профиль", Icons.Default.AccountCircle)
     object Statistics : Screen("statistics", "Статистика", Icons.AutoMirrored.Filled.List)
     object CycleHistory : Screen("cycle_history", "История циклов", Icons.Default.Home)

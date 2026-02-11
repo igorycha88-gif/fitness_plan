@@ -39,6 +39,14 @@ class WorkoutRepositoryImpl @Inject constructor(
 
     private val gson = Gson()
 
+    private fun getUserPlanKey(username: String): Preferences.Key<String> {
+        return stringPreferencesKey("${username}_user_workout_plan")
+    }
+
+    private fun getSelectedPlanTypeKey(username: String): Preferences.Key<String> {
+        return stringPreferencesKey("${username}_selected_plan_type")
+    }
+
     private fun getDataStorePath(): String {
         return try {
             val dataDir = context.dataDir?.absolutePath ?: "N/A"
@@ -278,6 +286,83 @@ class WorkoutRepositoryImpl @Inject constructor(
                 }
             } else {
                 null
+            }
+        }
+    }
+
+    override suspend fun saveUserWorkoutPlan(username: String, plan: WorkoutPlan) {
+        try {
+            Log.d(TAG, "saveUserWorkoutPlan: START for username=$username, plan=${plan.name}")
+            val key = getUserPlanKey(username)
+            val json = gson.toJson(plan)
+            context.workoutDataStore.edit { preferences ->
+                preferences[key] = json
+            }
+            Log.d(TAG, "saveUserWorkoutPlan: SUCCESS - saved user plan for username=$username")
+        } catch (e: Exception) {
+            Log.e(TAG, "saveUserWorkoutPlan: FAILED to save user plan for username=$username", e)
+            throw e
+        }
+    }
+
+    override fun getUserWorkoutPlan(username: String): Flow<WorkoutPlan?> {
+        val key = getUserPlanKey(username)
+        Log.d(TAG, "getUserWorkoutPlan: requesting user plan for username=$username")
+        return context.workoutDataStore.data.map { preferences ->
+            val json = preferences[key]
+            if (json != null) {
+                try {
+                    val plan = gson.fromJson(json, WorkoutPlan::class.java)
+                    Log.d(TAG, "getUserWorkoutPlan: SUCCESS - loaded user plan ${plan.name} with ${plan.days.size} days")
+                    plan
+                } catch (e: Exception) {
+                    Log.e(TAG, "getUserWorkoutPlan: FAILED to parse user plan for username=$username", e)
+                    null
+                }
+            } else {
+                Log.d(TAG, "getUserWorkoutPlan: no user plan found for username=$username")
+                null
+            }
+        }
+    }
+
+    override suspend fun deleteUserWorkoutPlan(username: String) {
+        try {
+            Log.d(TAG, "deleteUserWorkoutPlan: START for username=$username")
+            val key = getUserPlanKey(username)
+            context.workoutDataStore.edit { preferences ->
+                preferences.remove(key)
+            }
+            Log.d(TAG, "deleteUserWorkoutPlan: SUCCESS - deleted user plan for username=$username")
+        } catch (e: Exception) {
+            Log.e(TAG, "deleteUserWorkoutPlan: FAILED to delete user plan for username=$username", e)
+            throw e
+        }
+    }
+
+    override suspend fun setSelectedPlanType(username: String, planType: com.example.fitness_plan.domain.repository.SelectedPlanType) {
+        try {
+            Log.d(TAG, "setSelectedPlanType: START for username=$username, planType=$planType")
+            val key = getSelectedPlanTypeKey(username)
+            context.workoutDataStore.edit { preferences ->
+                preferences[key] = planType.name
+            }
+            Log.d(TAG, "setSelectedPlanType: SUCCESS - saved plan type for username=$username")
+        } catch (e: Exception) {
+            Log.e(TAG, "setSelectedPlanType: FAILED to save plan type for username=$username", e)
+            throw e
+        }
+    }
+
+    override fun getSelectedPlanType(username: String): Flow<com.example.fitness_plan.domain.repository.SelectedPlanType> {
+        val key = getSelectedPlanTypeKey(username)
+        return context.workoutDataStore.data.map { preferences ->
+            val type = preferences[key] ?: com.example.fitness_plan.domain.repository.SelectedPlanType.AUTO.name
+            try {
+                com.example.fitness_plan.domain.repository.SelectedPlanType.valueOf(type)
+            } catch (e: Exception) {
+                Log.e(TAG, "getSelectedPlanType: FAILED to parse plan type for username=$username, defaulting to AUTO", e)
+                com.example.fitness_plan.domain.repository.SelectedPlanType.AUTO
             }
         }
     }

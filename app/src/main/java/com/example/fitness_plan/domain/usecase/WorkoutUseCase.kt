@@ -1,7 +1,9 @@
 package com.example.fitness_plan.domain.usecase
 
+import com.example.fitness_plan.domain.model.Exercise
 import com.example.fitness_plan.domain.model.ExerciseStats
 import com.example.fitness_plan.domain.model.ExerciseSummary
+import com.example.fitness_plan.domain.model.WorkoutDay
 import com.example.fitness_plan.domain.model.WorkoutPlan
 import com.example.fitness_plan.domain.repository.ExerciseCompletionRepository
 import com.example.fitness_plan.domain.repository.ExerciseStatsRepository
@@ -224,5 +226,75 @@ class WorkoutUseCase @Inject constructor(
 
     fun getAdminWorkoutPlan(): Flow<WorkoutPlan?> {
         return workoutRepository.getAdminWorkoutPlan()
+    }
+
+    suspend fun createUserPlan(
+        username: String,
+        name: String,
+        description: String
+    ) {
+        val plan = WorkoutPlan(
+            id = "${username}_user_plan",
+            name = name,
+            description = description,
+            muscleGroups = listOf(),
+            goal = "Custom",
+            level = "Custom",
+            days = emptyList()
+        )
+        workoutRepository.saveUserWorkoutPlan(username, plan)
+    }
+
+    suspend fun addDayToUserPlan(
+        username: String,
+        dayName: String
+    ) {
+        val currentPlan = getUserWorkoutPlan(username).first()
+        if (currentPlan == null) return
+
+        val newDay = WorkoutDay(
+            id = currentPlan.days.size,
+            dayName = dayName,
+            exercises = emptyList(),
+            muscleGroups = listOf()
+        )
+        val updatedDays = currentPlan.days.toMutableList().apply { add(newDay) }
+        val updatedPlan = currentPlan.copy(days = updatedDays)
+        workoutRepository.saveUserWorkoutPlan(username, updatedPlan)
+    }
+
+    suspend fun addExerciseToUserDay(
+        username: String,
+        dayIndex: Int,
+        exercise: Exercise
+    ) {
+        val currentPlan = getUserWorkoutPlan(username).first()
+        if (currentPlan == null) return
+
+        val updatedDays = currentPlan.days.toMutableList()
+        if (dayIndex in updatedDays.indices) {
+            val day = updatedDays[dayIndex]
+            val updatedExercises = day.exercises.toMutableList().apply { add(exercise) }
+            updatedDays[dayIndex] = day.copy(exercises = updatedExercises)
+        }
+        val updatedPlan = currentPlan.copy(days = updatedDays)
+        workoutRepository.saveUserWorkoutPlan(username, updatedPlan)
+    }
+
+    suspend fun deleteUserPlan(username: String) {
+        workoutRepository.deleteUserWorkoutPlan(username)
+        setSelectedPlanType(username, com.example.fitness_plan.domain.repository.SelectedPlanType.AUTO)
+    }
+
+    fun getUserWorkoutPlan(username: String): Flow<WorkoutPlan?> {
+        return workoutRepository.getUserWorkoutPlan(username)
+    }
+
+    suspend fun setSelectedPlanType(username: String, planType: com.example.fitness_plan.domain.repository.SelectedPlanType) {
+        workoutRepository.setSelectedPlanType(username, planType)
+    }
+
+    fun getSelectedPlanType(username: String): Flow<com.example.fitness_plan.domain.repository.SelectedPlanType> {
+        return workoutRepository.getSelectedPlanType(username)
     }
 }

@@ -5,6 +5,8 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -135,26 +137,36 @@ fun HomeScreen(
     onExerciseClick: (Exercise, Int) -> Unit = { _, _ -> }
 ) {
     val workoutPlan by viewModel.currentWorkoutPlan.collectAsState()
+    val userWorkoutPlan by viewModel.userWorkoutPlan.collectAsState()
     val exerciseStats by viewModel.exerciseStats.collectAsState()
     val completedExercises by viewModel.completedExercises.collectAsState()
     val completedDays by viewModel.completedDays.collectAsState()
     val partiallyCompletedDays by viewModel.partiallyCompletedDays.collectAsState()
+    val selectedPlanType by viewModel.selectedPlanType.collectAsState()
+    val isAutoPlanExpanded by viewModel.isAutoPlanExpanded.collectAsState()
+    val isUserPlanExpanded by viewModel.isUserPlanExpanded.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
+    val exerciseLibraryViewModel = androidx.hilt.navigation.compose.hiltViewModel<com.example.fitness_plan.presentation.viewmodel.ExerciseLibraryViewModel>()
+    val exerciseLibrary by exerciseLibraryViewModel.exercises.collectAsState()
 
     LaunchedEffect(Unit) {
         viewModel.initializeWorkout()
     }
 
+    var showCreatePlanDialog by remember { mutableStateOf(false) }
+    var showAddDayDialog by remember { mutableStateOf(false) }
+    var showExerciseSelector by remember { mutableStateOf(false) }
+    var selectedDayIndex by remember { mutableStateOf(0) }
+    var showDeletePlanDialog by remember { mutableStateOf(false) }
+
     val configuration = LocalConfiguration.current
     val screenWidthDp = configuration.screenWidthDp
     val isExpandedScreen = screenWidthDp >= 600
 
-    // Screen insets handled by Scaffold
-
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Главная") },
+                title = { Text("План") },
                 actions = {
                     IconButton(onClick = { /* TODO: notifications */ }) {
                         Icon(Icons.Default.Notifications, contentDescription = "Уведомления")
@@ -166,7 +178,7 @@ fun HomeScreen(
             )
         }
     ) { paddingValues ->
-        if (workoutPlan == null || isLoading) {
+        if (isLoading && workoutPlan == null) {
             Box(
                 contentAlignment = Alignment.Center,
                 modifier = Modifier
@@ -180,40 +192,118 @@ fun HomeScreen(
                 )
             }
         } else {
-            if (isExpandedScreen) {
-                AdaptivePlanDetailsScreen(
-                    plan = workoutPlan!!,
-                    exerciseStats = exerciseStats,
-                    completedExercises = completedExercises,
-                    completedDays = completedDays,
-                    partiallyCompletedDays = partiallyCompletedDays,
-                    onExerciseClick = onExerciseClick,
-                    onExerciseToggle = { name, completed ->
-                        viewModel.toggleExerciseCompletion(name, completed)
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues)
+                    .verticalScroll(rememberScrollState())
+            ) {
+                Spacer(modifier = Modifier.height(8.dp))
+
+                PlanTypeSelector(
+                    selectedType = selectedPlanType,
+                    onTypeSelected = { type ->
+                        viewModel.setSelectedPlanType(type)
                     },
-                    onDateChange = { dayIndex, date ->
-                        viewModel.updateWorkoutDayDate(dayIndex, date)
-                    },
-                    modifier = Modifier.padding(paddingValues)
+                    userPlanExists = userWorkoutPlan != null
                 )
-            } else {
-                PlanDetailsScreen(
-                    plan = workoutPlan!!,
-                    exerciseStats = exerciseStats,
-                    completedExercises = completedExercises,
-                    completedDays = completedDays,
-                    partiallyCompletedDays = partiallyCompletedDays,
-                    onExerciseClick = onExerciseClick,
-                    onExerciseToggle = { name, completed ->
-                        viewModel.toggleExerciseCompletion(name, completed)
-                    },
-                    onDateChange = { dayIndex, date ->
-                        viewModel.updateWorkoutDayDate(dayIndex, date)
-                    },
-                    modifier = Modifier.padding(paddingValues)
-                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                when (selectedPlanType) {
+                    com.example.fitness_plan.domain.repository.SelectedPlanType.AUTO -> {
+                        if (workoutPlan != null) {
+                            AutoPlanSection(
+                                plan = workoutPlan!!,
+                                exerciseStats = exerciseStats,
+                                completedExercises = completedExercises,
+                                completedDays = completedDays,
+                                partiallyCompletedDays = partiallyCompletedDays,
+                                isExpanded = isAutoPlanExpanded,
+                                onToggleExpanded = { viewModel.toggleAutoPlanExpanded() },
+                                onExerciseClick = onExerciseClick,
+                                onExerciseToggle = { name, completed ->
+                                    viewModel.toggleExerciseCompletion(name, completed)
+                                },
+                                onDateChange = { dayIndex, date ->
+                                    viewModel.updateWorkoutDayDate(dayIndex, date)
+                                },
+                                isExpandedScreen = isExpandedScreen
+                            )
+                        }
+                    }
+                    com.example.fitness_plan.domain.repository.SelectedPlanType.CUSTOM -> {
+                        if (userWorkoutPlan != null) {
+                            UserPlanSection(
+                                plan = userWorkoutPlan!!,
+                                exerciseStats = exerciseStats,
+                                completedExercises = completedExercises,
+                                completedDays = completedDays,
+                                partiallyCompletedDays = partiallyCompletedDays,
+                                isExpanded = isUserPlanExpanded,
+                                onToggleExpanded = { viewModel.toggleUserPlanExpanded() },
+                                onExerciseClick = onExerciseClick,
+                                onExerciseToggle = { name, completed ->
+                                    viewModel.toggleExerciseCompletion(name, completed)
+                                },
+                                onAddDay = { showAddDayDialog = true },
+                                onDeletePlan = { showDeletePlanDialog = true },
+                                onAddExercise = { dayIndex ->
+                                    selectedDayIndex = dayIndex
+                                    showExerciseSelector = true
+                                },
+                                isExpandedScreen = isExpandedScreen
+                            )
+                        } else {
+                            CreateUserPlanPrompt(onCreatePlan = { showCreatePlanDialog = true })
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
             }
         }
+    }
+
+    if (showCreatePlanDialog) {
+        CreateUserPlanDialog(
+            onDismiss = { showCreatePlanDialog = false },
+            onConfirm = { name, description ->
+                viewModel.createUserPlan(name, description)
+                showCreatePlanDialog = false
+            }
+        )
+    }
+
+    if (showAddDayDialog) {
+        AddDayDialog(
+            onDismiss = { showAddDayDialog = false },
+            onConfirm = { dayName ->
+                viewModel.addDayToUserPlan(dayName)
+                showAddDayDialog = false
+            }
+        )
+    }
+
+    if (showExerciseSelector) {
+        ExerciseSelectorDialog(
+            exerciseLibrary = exerciseLibrary,
+            onDismiss = { showExerciseSelector = false },
+            onExerciseSelected = { exercise ->
+                viewModel.addExerciseToUserDay(selectedDayIndex, exercise)
+                showExerciseSelector = false
+            }
+        )
+    }
+
+    if (showDeletePlanDialog) {
+        DeletePlanConfirmationDialog(
+            onDismiss = { showDeletePlanDialog = false },
+            onConfirm = {
+                viewModel.deleteUserPlan()
+                showDeletePlanDialog = false
+            }
+        )
     }
 }
 
@@ -796,4 +886,541 @@ fun ExerciseRow(
     if (!isLast) {
         HorizontalDivider(modifier = Modifier.padding(top = 4.dp))
     }
+}
+
+@Composable
+fun PlanTypeSelector(
+    selectedType: com.example.fitness_plan.domain.repository.SelectedPlanType,
+    onTypeSelected: (com.example.fitness_plan.domain.repository.SelectedPlanType) -> Unit,
+    userPlanExists: Boolean
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        PlanTypeButton(
+            text = "Автоматический",
+            isSelected = selectedType == com.example.fitness_plan.domain.repository.SelectedPlanType.AUTO,
+            onClick = { onTypeSelected(com.example.fitness_plan.domain.repository.SelectedPlanType.AUTO) },
+            modifier = Modifier.weight(1f)
+        )
+        PlanTypeButton(
+            text = "Мой план",
+            isSelected = selectedType == com.example.fitness_plan.domain.repository.SelectedPlanType.CUSTOM,
+            onClick = { onTypeSelected(com.example.fitness_plan.domain.repository.SelectedPlanType.CUSTOM) },
+            modifier = Modifier.weight(1f),
+            enabled = userPlanExists || selectedType == com.example.fitness_plan.domain.repository.SelectedPlanType.CUSTOM
+        )
+    }
+}
+
+@Composable
+fun PlanTypeButton(
+    text: String,
+    isSelected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true
+) {
+    Button(
+        onClick = onClick,
+        modifier = modifier.height(48.dp),
+        enabled = enabled,
+        colors = ButtonDefaults.buttonColors(
+            containerColor = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surface,
+            contentColor = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
+        ),
+        border = if (!isSelected) BorderStroke(1.dp, MaterialTheme.colorScheme.outline) else null
+    ) {
+        Text(
+            text = text,
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun AutoPlanSection(
+    plan: WorkoutPlan,
+    exerciseStats: List<ExerciseStats>,
+    completedExercises: Set<String>,
+    completedDays: Set<Int>,
+    partiallyCompletedDays: Set<Int>,
+    isExpanded: Boolean,
+    onToggleExpanded: () -> Unit,
+    onExerciseClick: (Exercise, Int) -> Unit,
+    onExerciseToggle: (String, Boolean) -> Unit,
+    onDateChange: ((Int, Long?) -> Unit)? = null,
+    isExpandedScreen: Boolean = false
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        ),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { onToggleExpanded() },
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "Автоматический план",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        text = plan.name,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Text(
+                    text = if (isExpanded) "-" else "+",
+                    style = MaterialTheme.typography.titleMedium
+                )
+            }
+
+            if (isExpanded) {
+                Spacer(modifier = Modifier.height(12.dp))
+                WorkoutDaysList(
+                    days = plan.days,
+                    exerciseStats = exerciseStats,
+                    completedExercises = completedExercises,
+                    completedDays = completedDays,
+                    partiallyCompletedDays = partiallyCompletedDays,
+                    onExerciseClick = onExerciseClick,
+                    onExerciseToggle = onExerciseToggle,
+                    onDateChange = onDateChange
+                )
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun UserPlanSection(
+    plan: WorkoutPlan,
+    exerciseStats: List<ExerciseStats>,
+    completedExercises: Set<String>,
+    completedDays: Set<Int>,
+    partiallyCompletedDays: Set<Int>,
+    isExpanded: Boolean,
+    onToggleExpanded: () -> Unit,
+    onExerciseClick: (Exercise, Int) -> Unit,
+    onExerciseToggle: (String, Boolean) -> Unit,
+    onAddDay: () -> Unit,
+    onDeletePlan: () -> Unit,
+    onAddExercise: (Int) -> Unit,
+    isExpandedScreen: Boolean = false
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = FitnessSecondaryLight.copy(alpha = 0.1f)
+        ),
+        border = BorderStroke(1.dp, FitnessSecondaryLight)
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { onToggleExpanded() },
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "Мой план",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = FitnessSecondaryLight
+                    )
+                    if (plan.description.isNotEmpty()) {
+                        Text(
+                            text = plan.description,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = if (isExpanded) "-" else "+",
+                        style = MaterialTheme.typography.titleMedium
+                    )
+                }
+            }
+
+            if (isExpanded) {
+                Spacer(modifier = Modifier.height(12.dp))
+
+                OutlinedButton(
+                    onClick = onAddDay,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Icon(Icons.Default.Add, contentDescription = null)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Добавить день")
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Button(
+                    onClick = onDeletePlan,
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.error
+                    )
+                ) {
+                    Icon(Icons.Default.Delete, contentDescription = null)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Удалить план")
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                if (plan.days.isEmpty()) {
+                    Text(
+                        text = "Дни не добавлены",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(vertical = 16.dp)
+                    )
+                } else {
+                    plan.days.forEachIndexed { dayIndex, day ->
+                        UserWorkoutDayCard(
+                            day = day,
+                            dayIndex = dayIndex,
+                            isCompleted = dayIndex in completedDays,
+                            isPartiallyCompleted = dayIndex in partiallyCompletedDays,
+                            completedExercises = completedExercises,
+                            exerciseStats = exerciseStats,
+                            onExerciseClick = onExerciseClick,
+                            onExerciseToggle = onExerciseToggle,
+                            onAddExercise = { onAddExercise(dayIndex) }
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun UserWorkoutDayCard(
+    day: WorkoutDay,
+    dayIndex: Int,
+    isCompleted: Boolean,
+    isPartiallyCompleted: Boolean,
+    completedExercises: Set<String>,
+    exerciseStats: List<ExerciseStats>,
+    onExerciseClick: (Exercise, Int) -> Unit,
+    onExerciseToggle: (String, Boolean) -> Unit,
+    onAddExercise: () -> Unit
+) {
+    var isExpanded by remember { mutableStateOf(false) }
+
+    val backgroundColor = when {
+        isCompleted -> SuccessGreen.copy(alpha = 0.15f)
+        isPartiallyCompleted -> FitnessSecondaryLight.copy(alpha = 0.15f)
+        else -> MaterialTheme.colorScheme.surface
+    }
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = backgroundColor),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+    ) {
+        Column(modifier = Modifier.padding(12.dp)) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { isExpanded = !isExpanded },
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = day.dayName,
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Text(
+                        text = "${day.exercises.size} упражнений",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    if (isCompleted) {
+                        Text(
+                            text = "✓ Выполнено",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = SuccessGreen
+                        )
+                    } else if (isPartiallyCompleted) {
+                        val dayExerciseKeys = day.exercises.map { "${dayIndex}_${it.name}" }.toSet()
+                        val completedCount = dayExerciseKeys.count { it in completedExercises }
+                        Text(
+                            text = "○ $completedCount/${day.exercises.size}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = FitnessSecondaryLight
+                        )
+                    }
+                }
+                Text(
+                    text = if (isExpanded) "-" else "+",
+                    style = MaterialTheme.typography.titleMedium
+                )
+            }
+
+            if (isExpanded) {
+                Spacer(modifier = Modifier.height(8.dp))
+
+                day.exercises.forEachIndexed { index, exercise ->
+                    val exerciseKey = "${dayIndex}_${exercise.name}"
+                    val isExerciseCompleted = exerciseKey in completedExercises
+                    ExerciseRow(
+                        exercise = exercise,
+                        isCompleted = isExerciseCompleted,
+                        isLast = index == day.exercises.lastIndex,
+                        dayIndex = dayIndex,
+                        exerciseStats = exerciseStats,
+                        onClick = onExerciseClick,
+                        onToggle = { completed -> onExerciseToggle(exerciseKey, completed) }
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                OutlinedButton(
+                    onClick = onAddExercise,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Icon(Icons.Default.Add, contentDescription = null)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Добавить упражнение")
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun CreateUserPlanPrompt(onCreatePlan: () -> Unit) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant
+        )
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Icon(
+                Icons.Default.Home,
+                contentDescription = null,
+                modifier = Modifier.size(48.dp),
+                tint = MaterialTheme.colorScheme.primary
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+            Text(
+                text = "Мой план пока не создан",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = "Создайте свой индивидуальный план тренировок",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+            Button(
+                onClick = onCreatePlan,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Icon(Icons.Default.Add, contentDescription = null)
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Создать свой план")
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun CreateUserPlanDialog(
+    onDismiss: () -> Unit,
+    onConfirm: (String, String) -> Unit
+) {
+    var planName by remember { mutableStateOf("") }
+    var planDescription by remember { mutableStateOf("") }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Создать план тренировок") },
+        text = {
+            Column {
+                OutlinedTextField(
+                    value = planName,
+                    onValueChange = { planName = it },
+                    label = { Text("Название плана") },
+                    placeholder = { Text("Минимум 3 символа") },
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = if (planName.length < 3 && planName.isNotEmpty()) "Минимум 3 символа" else "",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                OutlinedTextField(
+                    value = planDescription,
+                    onValueChange = { planDescription = it },
+                    label = { Text("Описание плана") },
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = {
+                    if (planName.length >= 3) {
+                        onConfirm(planName, planDescription)
+                    }
+                },
+                enabled = planName.length >= 3
+            ) {
+                Text("Создать")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Отмена")
+            }
+        }
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ExerciseSelectorDialog(
+    exerciseLibrary: List<com.example.fitness_plan.domain.model.ExerciseLibrary>,
+    onDismiss: () -> Unit,
+    onExerciseSelected: (com.example.fitness_plan.domain.model.Exercise) -> Unit
+) {
+    var searchText by remember { mutableStateOf("") }
+
+    val filteredExercises = remember(searchText, exerciseLibrary) {
+        if (searchText.isEmpty()) {
+            exerciseLibrary
+        } else {
+            exerciseLibrary.filter { it.name.contains(searchText, ignoreCase = true) }
+        }
+    }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Выбрать упражнение") },
+        text = {
+            Column {
+                OutlinedTextField(
+                    value = searchText,
+                    onValueChange = { searchText = it },
+                    label = { Text("Поиск") },
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(300.dp)
+                ) {
+                    items(filteredExercises) { exercise ->
+                        Text(
+                            text = exercise.name,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    val exerciseObj = Exercise(
+                                        id = exercise.id,
+                                        name = exercise.name,
+                                        sets = 3,
+                                        reps = "10-12",
+                                        description = exercise.description,
+                                        muscleGroups = exercise.muscleGroups,
+                                        equipment = exercise.equipment,
+                                        exerciseType = exercise.exerciseType,
+                                        stepByStepInstructions = exercise.stepByStepInstructions,
+                                        animationUrl = exercise.animationUrl,
+                                        imageRes = exercise.imageRes,
+                                        imageUrl = exercise.imageUrl
+                                    )
+                                    onExerciseSelected(exerciseObj)
+                                }
+                                .padding(8.dp)
+                        )
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Закрыть")
+            }
+        }
+    )
+}
+
+@Composable
+fun DeletePlanConfirmationDialog(
+    onDismiss: () -> Unit,
+    onConfirm: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Удалить план?") },
+        text = {
+            Column {
+                Text("Вы уверены, что хотите удалить свой план тренировок?")
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "Это действие нельзя отменить. Все добавленные дни и упражнения будут удалены.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onConfirm) {
+                Text("Удалить", color = MaterialTheme.colorScheme.error)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Отмена")
+            }
+        }
+    )
 }
