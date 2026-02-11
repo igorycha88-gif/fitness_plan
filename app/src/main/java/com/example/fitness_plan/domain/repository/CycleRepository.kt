@@ -9,6 +9,7 @@ interface CycleRepository {
     suspend fun getCurrentCycleSync(username: String): Cycle?
     suspend fun startNewCycle(username: String, startDate: Long): Cycle
     suspend fun updateDaysCompleted(username: String, daysCompleted: Int)
+    suspend fun updateCompletedMicrocycles(username: String, completedMicrocycles: Int)
     suspend fun markCycleCompleted(username: String, completedDate: Long)
     suspend fun resetCycle(username: String)
     suspend fun getCompletedDate(username: String): Long?

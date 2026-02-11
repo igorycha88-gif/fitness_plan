@@ -6,6 +6,7 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.*
 import androidx.datastore.preferences.preferencesDataStore
 import com.example.fitness_plan.domain.calculator.WeightCalculator
+import com.example.fitness_plan.domain.calculator.WorkoutDateCalculator
 import com.example.fitness_plan.domain.model.Exercise
 import com.example.fitness_plan.domain.model.WorkoutDay
 import com.example.fitness_plan.domain.model.WorkoutPlan
@@ -16,6 +17,8 @@ import com.google.gson.reflect.TypeToken
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.runBlocking
+import java.io.File
 import java.util.*
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -29,49 +32,139 @@ class WorkoutRepositoryImpl @Inject constructor(
     private val context: Context,
     private val exerciseCompletionRepository: ExerciseCompletionRepository,
     private val workoutScheduleRepository: WorkoutScheduleRepository,
-    private val weightCalculator: WeightCalculator
+    private val weightCalculator: WeightCalculator,
+    private val workoutDateCalculator: WorkoutDateCalculator,
+    private val exerciseLibraryRepository: com.example.fitness_plan.domain.repository.ExerciseLibraryRepository
 ) : WorkoutRepository {
 
     private val gson = Gson()
 
-    override suspend fun getWorkoutPlanForUser(profile: com.example.fitness_plan.domain.model.UserProfile): WorkoutPlan {
-        Log.d(TAG, "getWorkoutPlanForUser: goal=${profile.goal}, level=${profile.level}")
-        val plan = when {
-            profile.goal == "Похудение" && profile.level == "Новичок" -> {
-                Log.d(TAG, "Creating weight loss beginner plan")
-                createWeightLossBeginnerPlan(profile)
+    private fun getUserPlanKey(username: String): Preferences.Key<String> {
+        return stringPreferencesKey("${username}_user_workout_plan")
+    }
+
+    private fun getSelectedPlanTypeKey(username: String): Preferences.Key<String> {
+        return stringPreferencesKey("${username}_selected_plan_type")
+    }
+
+    private fun getDataStorePath(): String {
+        return try {
+            val dataDir = context.dataDir?.absolutePath ?: "N/A"
+            val datastorePath = File(dataDir, "datastore/workout_plans.preferences_pb").absolutePath
+            Log.d(TAG, "DataStore path: $datastorePath")
+            Log.d(TAG, "DataStore exists: ${File(datastorePath).exists()}")
+            datastorePath
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to get DataStore path", e)
+            "Error getting path: ${e.message}"
+        }
+    }
+
+    init {
+        Log.d(TAG, "=== WorkoutRepositoryImpl initialized ===")
+        getDataStorePath()
+    }
+
+    private suspend fun findFavoriteExercise(
+        favoriteExercises: Set<String>,
+        exerciseLibrary: List<com.example.fitness_plan.domain.model.ExerciseLibrary>,
+        targetMuscleGroups: List<String>
+    ): com.example.fitness_plan.domain.model.ExerciseLibrary? {
+        return exerciseLibrary.find { exercise ->
+            exercise.name in favoriteExercises &&
+            hasCommonMuscleGroup(targetMuscleGroups, exercise.muscleGroups.map { it.displayName })
+        }
+    }
+
+    private fun hasCommonMuscleGroup(groups1: List<String>, groups2: List<String>): Boolean {
+        return groups1.any { it in groups2 }
+    }
+
+    private suspend fun applyFavoriteExercisesToDay(
+        day: WorkoutDay,
+        favoriteExercises: Set<String>,
+        exerciseLibrary: List<com.example.fitness_plan.domain.model.ExerciseLibrary>
+    ): WorkoutDay {
+        val updatedExercises = day.exercises.mapIndexed { index, exercise ->
+            val substitutionIndex = day.exercises.size / 2
+            if (index < substitutionIndex) {
+                val exerciseMuscleGroups = getMuscleGroupsForExercise(exercise.name)
+                val favoriteExercise = findFavoriteExercise(favoriteExercises, exerciseLibrary, exerciseMuscleGroups)
+                
+                if (favoriteExercise != null && favoriteExercise.name != exercise.name) {
+                    exercise.copy(
+                        name = favoriteExercise.name,
+                        description = favoriteExercise.description,
+                        muscleGroups = favoriteExercise.muscleGroups,
+                        equipment = favoriteExercise.equipment,
+                        exerciseType = favoriteExercise.exerciseType,
+                        stepByStepInstructions = favoriteExercise.stepByStepInstructions,
+                        animationUrl = favoriteExercise.animationUrl,
+                        imageRes = favoriteExercise.imageRes,
+                        imageUrl = favoriteExercise.imageUrl,
+                        isFavoriteSubstitution = true
+                    )
+                } else {
+                    exercise
+                }
+            } else {
+                exercise
             }
-            profile.goal == "Похудение" && profile.level == "Любитель" -> {
-                Log.d(TAG, "Creating weight loss intermediate plan")
-                createWeightLossIntermediatePlan(profile)
+        }
+        return day.copy(exercises = updatedExercises)
+    }
+
+    private suspend fun applyFavoriteExercises(
+        plan: WorkoutPlan,
+        favoriteExercises: Set<String>
+    ): WorkoutPlan {
+        if (favoriteExercises.isEmpty()) return plan
+        
+        val exerciseLibrary = exerciseLibraryRepository.getAllExercisesAsList()
+        val updatedDays = plan.days.map { day ->
+            applyFavoriteExercisesToDay(day, favoriteExercises, exerciseLibrary)
+        }
+        return plan.copy(days = updatedDays)
+    }
+
+    override suspend fun getWorkoutPlanForUser(profile: com.example.fitness_plan.domain.model.UserProfile): WorkoutPlan {
+        Log.d(TAG, "getWorkoutPlanForUser: goal=${profile.goal}, level=${profile.level}, frequency=${profile.frequency}, favorites=${profile.favoriteExercises.size}")
+        val plan = when {
+            profile.goal == "Похудение" -> {
+                Log.d(TAG, "Creating weight loss ${profile.level} plan with split")
+                createWeightLossPlanBySplit(profile, profile.level)
             }
             profile.goal == "Наращивание мышечной массы" && profile.level == "Новичок" -> {
                 Log.d(TAG, "Creating muscle gain beginner plan")
-                createMuscleGainBeginnerPlan(profile)
+                createMuscleGainBeginnerPlan(profile, profile.frequency)
             }
             profile.goal == "Наращивание мышечной массы" && profile.level == "Любитель" -> {
                 Log.d(TAG, "Creating muscle gain intermediate plan")
-                createMuscleGainIntermediatePlan(profile)
+                createMuscleGainIntermediatePlan(profile, profile.frequency)
             }
             profile.goal == "Наращивание мышечной массы" && profile.level == "Профессионал" -> {
                 Log.d(TAG, "Creating muscle gain advanced plan")
-                createMuscleGainAdvancedPlan(profile)
+                createMuscleGainAdvancedPlan(profile, profile.frequency)
             }
             else -> {
                 Log.d(TAG, "Creating maintenance plan")
-                createMaintenancePlan(profile)
+                createMaintenancePlan(profile, profile.frequency)
             }
         }
-        Log.d(TAG, "Plan created: ${plan.name}, days=${plan.days.size}")
-        return plan
+        
+        val planWithFavorites = applyFavoriteExercises(plan, profile.favoriteExercises)
+        Log.d(TAG, "Plan created: ${planWithFavorites.name}, days=${planWithFavorites.days.size}")
+        return planWithFavorites
     }
 
-    override suspend fun get30DayWorkoutPlan(basePlan: WorkoutPlan): WorkoutPlan {
+    override suspend fun getCycleWorkoutPlan(basePlan: WorkoutPlan, frequency: String): WorkoutPlan {
+        val totalDays = 10
+
         val days = mutableListOf<WorkoutDay>()
         val exerciseNames = basePlan.days.flatMap { day -> day.exercises.map { it.name } }.distinct()
         var dayCounter = 1
 
-        for (i in 0 until 30) {
+        for (i in 0 until totalDays) {
             val dayIndex = i % basePlan.days.size
             val baseDay = basePlan.days[dayIndex]
             val newExercises = baseDay.exercises.map { exercise ->
@@ -88,58 +181,16 @@ class WorkoutRepositoryImpl @Inject constructor(
             dayCounter++
         }
 
+        val planName = "10-дневный план"
+
         return basePlan.copy(
-            name = "30-дневный план",
+            name = planName,
             days = days
         )
     }
 
-    override suspend fun generate30DayDates(startDate: Long, frequency: String): List<Long> {
-        val dates = mutableListOf<Long>()
-        val calendar = Calendar.getInstance()
-        calendar.timeInMillis = startDate
-        calendar.set(Calendar.HOUR_OF_DAY, 0)
-        calendar.set(Calendar.MINUTE, 0)
-        calendar.set(Calendar.SECOND, 0)
-        calendar.set(Calendar.MILLISECOND, 0)
-
-        when (frequency) {
-            "1 раз в неделю" -> {
-                for (i in 0 until 30) {
-                    dates.add(calendar.timeInMillis)
-                    calendar.add(Calendar.WEEK_OF_YEAR, 1)
-                }
-            }
-            "3 раза в неделю" -> {
-                for (i in 0 until 30) {
-                    dates.add(calendar.timeInMillis)
-                    val dayOfWeek = calendar.get(Calendar.DAY_OF_WEEK)
-                    when (dayOfWeek) {
-                        Calendar.MONDAY -> calendar.add(Calendar.DAY_OF_YEAR, 2)
-                        Calendar.WEDNESDAY -> calendar.add(Calendar.DAY_OF_YEAR, 2)
-                        Calendar.FRIDAY -> calendar.add(Calendar.DAY_OF_YEAR, 3)
-                        else -> calendar.add(Calendar.DAY_OF_YEAR, 1)
-                    }
-                }
-            }
-            "5 раз в неделю" -> {
-                for (i in 0 until 30) {
-                    dates.add(calendar.timeInMillis)
-                    calendar.add(Calendar.DAY_OF_YEAR, 1)
-                    if (calendar.get(Calendar.DAY_OF_WEEK) == Calendar.SATURDAY) {
-                        calendar.add(Calendar.DAY_OF_YEAR, 2)
-                    }
-                }
-            }
-            else -> {
-                for (i in 0 until 30) {
-                    dates.add(calendar.timeInMillis)
-                    calendar.add(Calendar.DAY_OF_YEAR, 1)
-                }
-            }
-        }
-
-        return dates
+    override suspend fun generateCycleDates(startDate: Long, frequency: String): List<Long> {
+        return workoutDateCalculator.generateDates(startDate, frequency, 10)
     }
 
     override suspend fun getWorkoutPlanWithDates(plan: WorkoutPlan, dates: List<Long>): WorkoutPlan {
@@ -150,23 +201,67 @@ class WorkoutRepositoryImpl @Inject constructor(
     }
 
     override suspend fun saveWorkoutPlan(username: String, plan: WorkoutPlan) {
-        val json = gson.toJson(plan)
-        context.workoutDataStore.edit { preferences ->
-            preferences[stringPreferencesKey("${username}_workout_plan")] = json
+        try {
+            Log.d(TAG, "saveWorkoutPlan: START for username=$username, plan=${plan.name}")
+            Log.d(TAG, "saveWorkoutPlan: days=${plan.days.size}, goal=${plan.goal}, level=${plan.level}")
+
+            val json = gson.toJson(plan)
+            Log.d(TAG, "saveWorkoutPlan: JSON size=${json.length} bytes")
+
+            context.workoutDataStore.edit { preferences ->
+                preferences[stringPreferencesKey("${username}_workout_plan")] = json
+            }
+
+            Log.d(TAG, "saveWorkoutPlan: SUCCESS - saved plan for username=$username")
+        } catch (e: Exception) {
+            Log.e(TAG, "saveWorkoutPlan: FAILED to save plan for username=$username", e)
+            throw e
         }
+    }
+
+    private fun updateExerciseFromLibrary(
+        exercise: Exercise,
+        exerciseLibrary: List<com.example.fitness_plan.domain.model.ExerciseLibrary>
+    ): Exercise {
+        val libraryExercise = exerciseLibrary.find { it.name == exercise.name }
+
+        return if (libraryExercise != null) {
+            exercise.copy(
+                imageRes = if (exercise.imageRes == null) libraryExercise.imageRes else exercise.imageRes,
+                imageUrl = if (exercise.imageUrl == null) libraryExercise.imageUrl else exercise.imageUrl
+            )
+        } else {
+            exercise
+        }
+    }
+
+    private suspend fun updateWorkoutPlanFromLibrary(plan: WorkoutPlan): WorkoutPlan {
+        val exerciseLibrary = exerciseLibraryRepository.getAllExercisesAsList()
+        val updatedDays = plan.days.map { day ->
+            day.copy(exercises = day.exercises.map { exercise ->
+                updateExerciseFromLibrary(exercise, exerciseLibrary)
+            })
+        }
+        return plan.copy(days = updatedDays)
     }
 
     override fun getWorkoutPlan(username: String): Flow<WorkoutPlan?> {
         val key = stringPreferencesKey("${username}_workout_plan")
+        Log.d(TAG, "getWorkoutPlan: requesting plan for username=$username")
+
         return context.workoutDataStore.data.map { preferences ->
             val json = preferences[key]
             if (json != null) {
                 try {
-                    gson.fromJson(json, WorkoutPlan::class.java)
+                    val plan = gson.fromJson(json, WorkoutPlan::class.java)
+                    Log.d(TAG, "getWorkoutPlan: SUCCESS - loaded plan ${plan.name} with ${plan.days.size} days")
+                    plan
                 } catch (e: Exception) {
+                    Log.e(TAG, "getWorkoutPlan: FAILED to parse plan for username=$username", e)
                     null
                 }
             } else {
+                Log.d(TAG, "getWorkoutPlan: no plan found for username=$username")
                 null
             }
         }
@@ -195,65 +290,137 @@ class WorkoutRepositoryImpl @Inject constructor(
         }
     }
 
+    override suspend fun saveUserWorkoutPlan(username: String, plan: WorkoutPlan) {
+        try {
+            Log.d(TAG, "saveUserWorkoutPlan: START for username=$username, plan=${plan.name}")
+            val key = getUserPlanKey(username)
+            val json = gson.toJson(plan)
+            context.workoutDataStore.edit { preferences ->
+                preferences[key] = json
+            }
+            Log.d(TAG, "saveUserWorkoutPlan: SUCCESS - saved user plan for username=$username")
+        } catch (e: Exception) {
+            Log.e(TAG, "saveUserWorkoutPlan: FAILED to save user plan for username=$username", e)
+            throw e
+        }
+    }
+
+    override fun getUserWorkoutPlan(username: String): Flow<WorkoutPlan?> {
+        val key = getUserPlanKey(username)
+        Log.d(TAG, "getUserWorkoutPlan: requesting user plan for username=$username")
+        return context.workoutDataStore.data.map { preferences ->
+            val json = preferences[key]
+            if (json != null) {
+                try {
+                    val plan = gson.fromJson(json, WorkoutPlan::class.java)
+                    Log.d(TAG, "getUserWorkoutPlan: SUCCESS - loaded user plan ${plan.name} with ${plan.days.size} days")
+                    plan
+                } catch (e: Exception) {
+                    Log.e(TAG, "getUserWorkoutPlan: FAILED to parse user plan for username=$username", e)
+                    null
+                }
+            } else {
+                Log.d(TAG, "getUserWorkoutPlan: no user plan found for username=$username")
+                null
+            }
+        }
+    }
+
+    override suspend fun deleteUserWorkoutPlan(username: String) {
+        try {
+            Log.d(TAG, "deleteUserWorkoutPlan: START for username=$username")
+            val key = getUserPlanKey(username)
+            context.workoutDataStore.edit { preferences ->
+                preferences.remove(key)
+            }
+            Log.d(TAG, "deleteUserWorkoutPlan: SUCCESS - deleted user plan for username=$username")
+        } catch (e: Exception) {
+            Log.e(TAG, "deleteUserWorkoutPlan: FAILED to delete user plan for username=$username", e)
+            throw e
+        }
+    }
+
+    override suspend fun setSelectedPlanType(username: String, planType: com.example.fitness_plan.domain.repository.SelectedPlanType) {
+        try {
+            Log.d(TAG, "setSelectedPlanType: START for username=$username, planType=$planType")
+            val key = getSelectedPlanTypeKey(username)
+            context.workoutDataStore.edit { preferences ->
+                preferences[key] = planType.name
+            }
+            Log.d(TAG, "setSelectedPlanType: SUCCESS - saved plan type for username=$username")
+        } catch (e: Exception) {
+            Log.e(TAG, "setSelectedPlanType: FAILED to save plan type for username=$username", e)
+            throw e
+        }
+    }
+
+    override fun getSelectedPlanType(username: String): Flow<com.example.fitness_plan.domain.repository.SelectedPlanType> {
+        val key = getSelectedPlanTypeKey(username)
+        return context.workoutDataStore.data.map { preferences ->
+            val type = preferences[key] ?: com.example.fitness_plan.domain.repository.SelectedPlanType.AUTO.name
+            try {
+                com.example.fitness_plan.domain.repository.SelectedPlanType.valueOf(type)
+            } catch (e: Exception) {
+                Log.e(TAG, "getSelectedPlanType: FAILED to parse plan type for username=$username, defaulting to AUTO", e)
+                com.example.fitness_plan.domain.repository.SelectedPlanType.AUTO
+            }
+        }
+    }
+
     override suspend fun saveWorkoutSchedule(username: String, dates: List<Long>) {
         workoutScheduleRepository.saveWorkoutSchedule(username, dates)
     }
 
-    private fun getAlternatives(exerciseName: String): List<Exercise> {
-        return when (exerciseName) {
-            "Приседания" -> listOf(
-                Exercise(id = "alt1_1", name = "Приседания с гантелями", sets = 3, reps = "12-15"),
-                Exercise(id = "alt1_2", name = "Гакк-приседания", sets = 3, reps = "10-12")
+    private suspend fun getAlternatives(exerciseName: String): List<Exercise> {
+        val exerciseLibrary = exerciseLibraryRepository.getAllExercisesAsList()
+        val currentExercise = exerciseLibrary.find { it.name == exerciseName }
+
+        if (currentExercise == null || currentExercise.muscleGroups.isEmpty()) {
+            return emptyList()
+        }
+
+        val alternativeLibraryExercises = exerciseLibraryRepository.getAlternativeExercises(
+            currentExerciseName = exerciseName,
+            currentMuscleGroups = currentExercise.muscleGroups,
+            limit = 3
+        )
+
+        return alternativeLibraryExercises.map { libExercise ->
+            Exercise(
+                id = "alt_${libExercise.id}",
+                name = libExercise.name,
+                sets = 3,
+                reps = "10-12",
+                description = libExercise.description,
+                muscleGroups = libExercise.muscleGroups,
+                equipment = libExercise.equipment,
+                exerciseType = libExercise.exerciseType,
+                stepByStepInstructions = libExercise.stepByStepInstructions,
+                animationUrl = libExercise.animationUrl,
+                imageRes = libExercise.imageRes,
+                imageUrl = libExercise.imageUrl
             )
-            "Приседания со штангой" -> listOf(
-                Exercise(id = "alt2_1", name = "Приседания в Смите", sets = 4, reps = "8-10", isCompleted = false, alternatives = emptyList()),
-                Exercise(id = "alt2_2", name = "Фронтальные приседания", sets = 4, reps = "8-10", isCompleted = false, alternatives = emptyList())
-            )
-            "Жим лёжа" -> listOf(
-                Exercise(id = "alt3_1", name = "Жим на наклонной скамье", sets = 4, reps = "10-12", isCompleted = false, alternatives = emptyList()),
-                Exercise(id = "alt3_2", name = "Жим гантелей лёжа", sets = 4, reps = "10-12", isCompleted = false, alternatives = emptyList())
-            )
-            "Жим гантелей сидя" -> listOf(
-                Exercise(id = "alt4_1", name = "Жим Арнольда", sets = 4, reps = "10-12", isCompleted = false, alternatives = emptyList()),
-                Exercise(id = "alt4_2", name = "Подъём гантелей через стороны", sets = 4, reps = "12-15", isCompleted = false, alternatives = emptyList())
-            )
-            "Тяга штанги в наклоне" -> listOf(
-                Exercise(id = "alt5_1", name = "Тяга гантели одной рукой", sets = 4, reps = "10-12", isCompleted = false, alternatives = emptyList()),
-                Exercise(id = "alt5_2", name = "Тяга верхнего блока", sets = 4, reps = "10-12", isCompleted = false, alternatives = emptyList())
-            )
-            "Тяга верхнего блока" -> listOf(
-                Exercise(id = "alt6_1", name = "Тяга штанги в наклоне", sets = 4, reps = "10-12", isCompleted = false, alternatives = emptyList()),
-                Exercise(id = "alt6_2", name = "Подтягивания", sets = 4, reps = "макс", isCompleted = false, alternatives = emptyList())
-            )
-            "Становая тяга" -> listOf(
-                Exercise(id = "alt7_1", name = "Румынская тяга", sets = 4, reps = "10-12", isCompleted = false, alternatives = emptyList()),
-                Exercise(id = "alt7_2", name = "Тяга с плинтов", sets = 3, reps = "6-8", isCompleted = false, alternatives = emptyList())
-            )
-            "Подтягивания" -> listOf(
-                Exercise(id = "alt8_1", name = "Тяга верхнего блока", sets = 4, reps = "10-12", isCompleted = false, alternatives = emptyList()),
-                Exercise(id = "alt8_2", name = "Подтягивания с assistance", sets = 3, reps = "макс", isCompleted = false, alternatives = emptyList())
-            )
-            "Отжимания" -> listOf(
-                Exercise(id = "alt9_1", name = "Отжимания на брусьях", sets = 3, reps = "10-15", isCompleted = false, alternatives = emptyList()),
-                Exercise(id = "alt9_2", name = "Жим лёжа", sets = 4, reps = "10-12", isCompleted = false, alternatives = emptyList())
-            )
-            "Выпады" -> listOf(
-                Exercise(id = "alt10_1", name = "Выпады с гантелями", sets = 3, reps = "12-15", isCompleted = false, alternatives = emptyList()),
-                Exercise(id = "alt10_2", name = "Сjump squat", sets = 3, reps = "15-20", isCompleted = false, alternatives = emptyList())
-            )
-            "Бицепс" -> listOf(
-                Exercise(id = "alt11_1", name = "Подъём штанги на бицепс", sets = 3, reps = "10-12", isCompleted = false, alternatives = emptyList()),
-                Exercise(id = "alt11_2", name = "Молотки", sets = 3, reps = "12-15", isCompleted = false, alternatives = emptyList())
-            )
-            "Трицепс" -> listOf(
-                Exercise(id = "alt12_1", name = "Французский жим", sets = 3, reps = "10-12", isCompleted = false, alternatives = emptyList()),
-                Exercise(id = "alt12_2", name = "Отжимания на брусьях", sets = 3, reps = "10-15", isCompleted = false, alternatives = emptyList())
-            )
+        }
+    }
+
+    private fun getMuscleGroupsForExercise(name: String): List<String> {
+        return when (name) {
+            "Приседания", "Приседания со штангой", "Приседания с гантелями", "Фронтальные приседания", "Гакк-приседания", "Сумо-приседания", "Болгарские сплит-приседания", "Приседания на одной ноге" -> listOf("Квадрицепсы", "Ягодицы", "Бёдра сзади", "Икры")
+            "Жим ногами", "Разведение ног", "Выпады", "Выпады назад", "Ягодичный мостик", "Подъёмы на носки стоя", "Подъёмы на носки сидя", "Сведение ног" -> listOf("Квадрицепсы", "Ягодицы", "Бёдра сзади", "Икры")
+            "Жим лёжа", "Жим штанги лёжа", "Жим гантелей на наклонной скамье", "Жим на наклонной скамье", "Жим на наклонной скамье вниз", "Жим гантелей лёжа", "Разведение гантелей лёжа", "Пек-дек", "Отжимания на брусьях", "Отжимания узким хватом", "Отжимания" -> listOf("Грудь", "Трицепсы", "Плечи")
+            "Становая тяга", "Румынская тяга", "Тяга штанги в наклоне", "Тяга гантели одной рукой", "Т-тяга с гантелью", "Тяга каната к лицу", "Пуловер с гантелью", "Гиперэкстензия", "Тяга верхнего блока", "Тяга верхнего блока узким хватом", "Подтягивания" -> listOf("Широчайшие", "Трапеции", "Бицепсы", "Предплечья", "Поясница")
+            "Армейский жим", "Армейский жим с гантелями", "Жим гантелей сидя", "Жим на плечах в машине", "Жим Арнольда", "Разведение гантелей в стороны", "Обратные разведения", "Подъём штанги перед собой", "Махи гантелями перед собой" -> listOf("Плечи", "Трицепсы", "Трапеции")
+            "Бицепс со штангой", "Бицепс", "Сгибания рук с гантелями", "Молотки", "Концентрированные сгибания" -> listOf("Бицепсы", "Предплечья", "Плечелучевая")
+            "Трицепс", "Трицепс на блоке", "Французский жим", "Кикбэки", "Разгибания рук на блоке", "Разгибания на блоке из-за головы" -> listOf("Трицепсы", "Предплечья")
+            "Пресс", "Скручивания", "Велосипед" -> listOf("Пресс")
+            "Планка" -> listOf("Пресс", "Плечи", "Предплечья")
+            "Бег", "Беговая дорожка", "Интервальный бег" -> listOf("Квадрицепсы", "Бёдра сзади", "Икры", "Ягодицы")
+            "Велотренажёр", "Велотренажёр с сопротивлением", "Кардио: Комбо", "Эллипсоид", "Гребной тренажёр", "HIIT" -> listOf("Квадрицепсы", "Бёдра сзади", "Икры", "Ягодицы", "Широчайшие", "Бицепсы")
             else -> emptyList()
         }
     }
 
-    private fun createExerciseWithAlternatives(
+    private suspend fun createExerciseWithAlternatives(
         id: String,
         name: String,
         sets: Int,
@@ -261,7 +428,8 @@ class WorkoutRepositoryImpl @Inject constructor(
         description: String? = null,
         recommendedWeight: Float? = null,
         recommendedRepsPerSet: String? = null,
-        profile: com.example.fitness_plan.domain.model.UserProfile? = null
+        profile: com.example.fitness_plan.domain.model.UserProfile? = null,
+        exerciseLibrary: List<com.example.fitness_plan.domain.model.ExerciseLibrary>? = null
     ): Exercise {
         val finalRecommendedWeight = if (recommendedWeight == null && profile != null && profile.weight > 0) {
             weightCalculator.calculateBaseWeight(
@@ -274,268 +442,818 @@ class WorkoutRepositoryImpl @Inject constructor(
         } else {
             recommendedWeight
         }
-        
+
         val finalRecommendedReps = if (recommendedRepsPerSet == null && profile != null) {
             weightCalculator.getRecommendedRepsString(profile.level)
         } else {
             recommendedRepsPerSet
         }
-        
+
+        val libExercise = exerciseLibrary?.find { it.name == name }
+
         return Exercise(
             id = id,
             name = name,
             sets = sets,
             reps = reps,
             weight = null,
-            imageRes = null,
+            imageRes = libExercise?.imageRes,
             isCompleted = false,
             alternatives = emptyList(),
-            description = description,
+            description = libExercise?.description ?: description,
             recommendedWeight = finalRecommendedWeight,
-            recommendedRepsPerSet = finalRecommendedReps
+            recommendedRepsPerSet = finalRecommendedReps,
+            muscleGroups = libExercise?.muscleGroups ?: emptyList(),
+            equipment = libExercise?.equipment ?: emptyList(),
+            exerciseType = libExercise?.exerciseType ?: com.example.fitness_plan.domain.model.ExerciseType.STRENGTH,
+            stepByStepInstructions = libExercise?.stepByStepInstructions,
+            animationUrl = libExercise?.animationUrl,
+            imageUrl = libExercise?.imageUrl
         )
     }
 
-    private fun createWeightLossBeginnerPlan(profile: com.example.fitness_plan.domain.model.UserProfile): WorkoutPlan {
+    private suspend fun createWeightLossPlanBySplit(
+        profile: com.example.fitness_plan.domain.model.UserProfile,
+        level: String
+    ): WorkoutPlan {
+        val (sets, reps) = when (level) {
+            "Новичок" -> Pair(3, "12-15")
+            "Любитель" -> Pair(3, "10-12")
+            "Профессионал" -> Pair(4, "8-10")
+            else -> Pair(3, "10-12")
+        }
+
+        val cardioSets = 1
+        val cardioReps = "15-20 мин"
+
+        val exerciseLibrary = exerciseLibraryRepository.getAllExercisesAsList()
+
+        val legExercises = listOf(
+            createExerciseWithAlternatives("1", "Приседания", sets, reps, "Базовое упражнение для ног", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("2", "Приседания с гантелями", sets, reps, "Приседания с отягощением", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("3", "Фронтальные приседания", sets, reps, "Акцент на квадрицепсы", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("4", "Гакк-приседания", sets, reps, "В тренажёре гакк-приседаний", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("5", "Жим ногами", sets, reps, "Изолированное упражнение для ног", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("6", "Разведение ног", sets, reps, "Для квадрицепсов", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("7", "Выпады", sets, reps, "Классические выпады", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("8", "Выпады назад", sets, reps, "Выпады назад", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("9", "Сумо-приседания", sets, reps, "Широкая постановка ног", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("10", "Болгарские сплит-приседания", sets, reps, "Приседания на одной ноге", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("11", "Ягодичный мостик", sets, reps, "Для ягодиц", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("12", "Подъёмы на носки стоя", sets, reps, "Для икроножных", profile = profile, exerciseLibrary = exerciseLibrary)
+        )
+
+        val chestExercises = listOf(
+            createExerciseWithAlternatives("13", "Жим лёжа", sets, reps, "Базовое упражнение для груди", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("14", "Жим гантелей на наклонной скамье", sets, reps, "Для верхней части груди", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("15", "Жим на наклонной скамье", sets, reps, "Штанга на наклонной скамье", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("16", "Жим на наклонной скамье вниз", sets, reps, "Для нижней части груди", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("17", "Жим гантелей лёжа", sets, reps, "Гантели на горизонтальной скамье", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("18", "Разведение гантелей лёжа", sets, reps, "Изолированное упражнение", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("19", "Пек-дек", sets, reps, "На тренажёре пек-дек", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("20", "Отжимания на брусьях", sets, reps, "Для груди и трицепсов", profile = profile, exerciseLibrary = exerciseLibrary)
+        )
+
+        val backExercises = listOf(
+            createExerciseWithAlternatives("21", "Становая тяга", sets, reps, "Базовое упражнение", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("22", "Румынская тяга", sets, reps, "Тяга на прямых ногах", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("23", "Тяга штанги в наклоне", sets, reps, "Для широчайших", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("24", "Тяга гантели одной рукой", sets, reps, "С упором на скамью", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("25", "Т-тяга с гантелью", sets, reps, "Тяга с углом", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("26", "Тяга каната к лицу", sets, reps, "Для задних дельт", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("27", "Пуловер с гантелью", sets, reps, "Для широчайших", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("28", "Гиперэкстензия", sets, reps, "Для поясницы", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("29", "Тяга верхнего блока узким хватом", sets, reps, "Узким хватом", profile = profile, exerciseLibrary = exerciseLibrary)
+        )
+
+        val shoulderExercises = listOf(
+            createExerciseWithAlternatives("30", "Армейский жим", sets, reps, "Базовое упражнение", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("31", "Жим гантелей сидя", sets, reps, "Гантели сидя", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("32", "Жим Арнольда", sets, reps, "С поворотом", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("33", "Жим на плечах в машине", sets, reps, "На тренажёре", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("34", "Разведение гантелей в стороны", sets, reps, "Для средних дельт", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("35", "Обратные разведения", sets, reps, "Для задних дельт", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("36", "Подъём штанги перед собой", sets, reps, "Для передних дельт", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("37", "Махи гантелями перед собой", sets, reps, "Махи перед собой", profile = profile, exerciseLibrary = exerciseLibrary)
+        )
+
+        val armExercises = listOf(
+            createExerciseWithAlternatives("38", "Бицепс со штангой", sets, reps, "Базовое упражнение", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("39", "Молотки", sets, reps, "Нейтральный хват", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("40", "Концентрированные сгибания", sets, reps, "Одной рукой", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("41", "Сгибания рук с гантелями", sets, reps, "Поочерёдно", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("42", "Французский жим", sets, reps, "Для трицепсов", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("43", "Трицепс на блоке", sets, reps, "Разгибания на блоке", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("44", "Кикбэки", sets, reps, "Разгибание в наклоне", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("45", "Разгибания на блоке из-за головы", sets, reps, "Из-за головы", profile = profile, exerciseLibrary = exerciseLibrary)
+        )
+
+        val cardioExercises = listOf(
+            createExerciseWithAlternatives("46", "Бег", cardioSets, cardioReps, "Кардио", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("47", "Велотренажёр", cardioSets, cardioReps, "Кардио", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("48", "Эллипсоид", cardioSets, cardioReps, "Кардио", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("49", "Гребной тренажёр", cardioSets, cardioReps, "Кардио", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("50", "HIIT", cardioSets, cardioReps, "Интервальное кардио", profile = profile, exerciseLibrary = exerciseLibrary)
+        )
+
+        val dayNames = listOf("Ноги", "Грудь", "Спина", "Плечи", "Руки")
+        val exerciseGroups = listOf(legExercises, chestExercises, backExercises, shoulderExercises, armExercises)
+
+        val days = mutableListOf<com.example.fitness_plan.domain.model.WorkoutDay>()
+
+        val allStrengthExercises = legExercises + chestExercises + backExercises + shoulderExercises + armExercises
+        val strengthPool = ExercisePool(allStrengthExercises)
+        val cardioPoolStart = ExercisePool(cardioExercises)
+        val cardioPoolEnd = ExercisePool(cardioExercises)
+
+        val legMuscleGroups = listOf("Квадрицепсы", "Ягодицы", "Бёдра сзади", "Икры")
+        val chestMuscleGroups = listOf("Грудь", "Трицепсы", "Плечи")
+        val backMuscleGroups = listOf("Широчайшие", "Трапеции", "Бицепсы", "Предплечья", "Поясница")
+        val shoulderMuscleGroups = listOf("Плечи", "Трицепсы", "Трапеции")
+        val armMuscleGroups = listOf("Бицепсы", "Предплечья", "Плечелучевая", "Трицепсы")
+
+        for (dayIndex in 0 until 10) {
+            val groupIndex = dayIndex % 5
+            val muscleGroupName = dayNames[groupIndex]
+
+            val dayExercises = when (groupIndex) {
+                0 -> getUniqueExercisesForDay(strengthPool, 4, legMuscleGroups)
+                1 -> getUniqueExercisesForDay(strengthPool, 4, chestMuscleGroups)
+                2 -> getUniqueExercisesForDay(strengthPool, 4, backMuscleGroups)
+                3 -> getUniqueExercisesForDay(strengthPool, 4, shoulderMuscleGroups)
+                else -> getUniqueExercisesForDay(strengthPool, 4, armMuscleGroups)
+            }
+
+            val cardioStartExercises = listOfNotNull(cardioExercises.shuffled().firstOrNull())
+            val cardioEndExercises = listOfNotNull(cardioExercises.shuffled().firstOrNull())
+
+            val cardioStart = cardioStartExercises.firstOrNull()?.copy(
+                id = "${dayIndex}_cardio_start_${cardioStartExercises.firstOrNull()?.id}",
+                recommendedWeight = null,
+                recommendedRepsPerSet = cardioReps
+            )
+            val cardioEnd = cardioEndExercises.firstOrNull()?.copy(
+                id = "${dayIndex}_cardio_end_${cardioEndExercises.firstOrNull()?.id}",
+                recommendedWeight = null,
+                recommendedRepsPerSet = cardioReps
+            )
+
+            val allDayExercises = listOfNotNull(cardioStart) + dayExercises.map { it.copy(id = "${dayIndex}_${it.id}") } + listOfNotNull(cardioEnd)
+
+            val muscleGroups = allDayExercises.flatMap { getMuscleGroupsForExercise(it.name) }.distinct()
+
+            days.add(
+                com.example.fitness_plan.domain.model.WorkoutDay(
+                    id = dayIndex,
+                    dayName = "День ${dayIndex + 1}: $muscleGroupName",
+                    exercises = allDayExercises,
+                    muscleGroups = muscleGroups
+                )
+            )
+        }
+
         return WorkoutPlan(
-            id = "weight_loss_beginner",
-            name = "Похудение: Любитель 30 дней",
-            description = "Программа на 30 дней с разнообразием упражнений для похудения",
-            muscleGroups = listOf("Ноги", "Грудь", "Спина", "Плечи", "Руки", "Core"),
+            id = "weight_loss_${level.lowercase()}",
+            name = "Похудение: $level",
+            description = "10-дневный план по сплиту с уникальными упражнениями и кардио",
+            muscleGroups = listOf("Ноги", "Грудь", "Спина", "Плечи", "Руки", "Кардио"),
             goal = profile.goal,
             level = profile.level,
-            days = (1..30).map { dayIndex ->
-                val cycle = (dayIndex - 1) / 10 + 1 // Цикл 1,2,3
-                val progress = (cycle - 1) * 2.0f // +2 кг за цикл
-                when {
-                    dayIndex in listOf(1, 5) || (dayIndex in 11..12 && cycle == 2) || (dayIndex in 21..22 && cycle == 3) -> WorkoutDay(dayIndex - 1, "День $dayIndex: Ноги + Кардио", listOf(
-                        createExerciseWithAlternatives("1", "Приседания со штангой", 3, "12-15", "Ноги на ширине плеч, спина прямая, опускайся до параллели", 20.0f + progress, "12,13,14"),
-                        createExerciseWithAlternatives("2", "Жим ногами в машине", 3, "12-15", "Ступни на платформе, колени не выходят за носки", 40.0f + progress, "12,13,14"),
-                        createExerciseWithAlternatives("3", "Выпады с гантелями", 3, "10/ногу", "Шаг вперёд, колено не касается пола", 8.0f + progress / 2, "10,10,10"),
-                        createExerciseWithAlternatives("4", "Подъёмы на носки", 3, "15", "На икровой машине или с гантелью", 10.0f + progress, "15,15,15"),
-                        createExerciseWithAlternatives("5", "Кардио: Эллипс", 1, "15 мин", "Умеренный темп", null, null)
-                    ), listOf("Ноги", "Кардио"))
-                    dayIndex in listOf(3, 7) || (dayIndex in 13..14 && cycle == 2) || (dayIndex in 23..24 && cycle == 3) -> WorkoutDay(dayIndex - 1, "День $dayIndex: Грудь + Спина + Кардио", listOf(
-                        createExerciseWithAlternatives("6", "Жим штанги лёжа", 3, "12-15", "Гриф на уровне груди, локти под 45°", 25.0f + progress, "12,13,14"),
-                        createExerciseWithAlternatives("7", "Тяга верхнего блока", 3, "12-15", "Тяни к груди, лопатки сведены", 30.0f + progress, "12,13,14"),
-                        createExerciseWithAlternatives("8", "Разведение гантелей лёжа", 3, "12-15", "Разводи в стороны, локти слегка согнуты", 6.0f + progress / 2, "12,13,14"),
-                        createExerciseWithAlternatives("9", "Тяга гантели одной рукой", 3, "10/руку", "В наклоне, тяни к поясу", 10.0f + progress / 2, "10,10,10"),
-                        createExerciseWithAlternatives("10", "Кардио: Велотренажёр", 1, "15 мин", "Умеренный темп", null, null)
-                    ), listOf("Грудь", "Спина", "Кардио"))
-                    dayIndex in listOf(9, 19, 29) -> WorkoutDay(dayIndex - 1, "День $dayIndex: Плечи + Руки + Core + Кардио", listOf(
-                        createExerciseWithAlternatives("11", "Армейский жим с гантелями", 3, "12-15", "Жим вверх над головой", 8.0f + progress / 2, "12,13,14"),
-                        createExerciseWithAlternatives("12", "Разведение гантелей в стороны", 3, "12-15", "Стоя, руки параллельно полу", 5.0f + progress / 2, "12,13,14"),
-                        createExerciseWithAlternatives("13", "Сгибания рук с гантелями", 3, "12-15", "Бицепс, локти неподвижны", 6.0f + progress / 2, "12,13,14"),
-                        createExerciseWithAlternatives("14", "Разгибания рук на блоке", 3, "12-15", "Трицепс, над головой", 15.0f + progress, "12,13,14"),
-                        createExerciseWithAlternatives("15", "Планка", 3, "30-45 сек", "На предплечьях, тело прямое", null, null),
-                        createExerciseWithAlternatives("16", "Кардио: Беговая дорожка", 1, "15 мин", "Умеренный темп", null, null)
-                    ), listOf("Плечи", "Руки", "Core", "Кардио"))
-                    dayIndex in listOf(15, 25) -> WorkoutDay(dayIndex - 1, "День $dayIndex: Ноги (вариации) + Кардио", listOf(
-                        createExerciseWithAlternatives("17", "Фронтальные приседания", 3, "10-12", "Штанга на плечах спереди", 18.0f + progress, "10,11,12"),
-                        createExerciseWithAlternatives("18", "Румынская тяга", 3, "10-12", "Тяга штанги к коленям, спина прямая", 25.0f + progress, "10,11,12"),
-                        createExerciseWithAlternatives("19", "Болгарские сплит-приседания", 3, "8-10/ногу", "Задняя нога на скамье", 7.0f + progress / 2, "8,9,10"),
-                        createExerciseWithAlternatives("20", "Икры стоя", 3, "15", "С гантелью в руке", 12.0f + progress, "15,15,15"),
-                        createExerciseWithAlternatives("21", "Кардио: Интервальный бег", 1, "20 мин", "1 мин бег, 1 мин ходьба", null, null)
-                    ), listOf("Ноги", "Кардио"))
-                    dayIndex in listOf(17, 27) -> WorkoutDay(dayIndex - 1, "День $dayIndex: Грудь + Спина (вариации) + Кардио", listOf(
-                        createExerciseWithAlternatives("22", "Жим гантелей на наклонной скамье", 3, "10-12", "Голова выше ног", 10.0f + progress, "10,11,12"),
-                        createExerciseWithAlternatives("23", "Тяга штанги в наклоне", 3, "10-12", "Тяни к поясу", 28.0f + progress, "10,11,12"),
-                        createExerciseWithAlternatives("24", "Пуловер с гантелью", 3, "10-12", "Лёжа, руки за голову", 12.0f + progress, "10,11,12"),
-                        createExerciseWithAlternatives("25", "Подтягивания с резинкой", 3, "8-10", "Если нет — тяга нижнего блока", null, "8,9,10"),
-                        createExerciseWithAlternatives("26", "Кардио: Велотренажёр с сопротивлением", 1, "20 мин", "Среднее сопротивление", null, null)
-                    ), listOf("Грудь", "Спина", "Кардио"))
-                    dayIndex in listOf(21) -> WorkoutDay(dayIndex - 1, "День $dayIndex: Ноги (комбо) + Кардио", listOf(
-                        createExerciseWithAlternatives("27", "Сумо-приседания", 4, "8-10", "Ноги широко, носки в стороны", 22.0f + progress, "8,9,10,10"),
-                        createExerciseWithAlternatives("28", "Ягодичный мостик", 4, "10-12", "Лёжа, подъём таза", null, "10,11,12,12"),
-                        createExerciseWithAlternatives("29", "Шагающий выпад с поворотом", 4, "8/ногу", "Шаг + поворот корпуса", 9.0f + progress / 2, "8,8,9,9"),
-                        createExerciseWithAlternatives("30", "Осёл-качки", 4, "12", "Икры, в наклоне", 14.0f + progress, "12,12,13,13"),
-                        createExerciseWithAlternatives("31", "Кардио: HIIT", 1, "20 мин", "30 сек спринт, 30 сек отдых", null, null)
-                    ), listOf("Ноги", "Кардио"))
-                    dayIndex in listOf(23) -> WorkoutDay(dayIndex - 1, "День $dayIndex: Грудь + Спина (комбо) + Кардио", listOf(
-                        createExerciseWithAlternatives("32", "Жим в хаммере", 4, "8-10", "Машина, грудь вперёд", 27.0f + progress, "8,9,10,10"),
-                        createExerciseWithAlternatives("33", "Т-тяга с гантелью", 4, "8-10", "Одной рукой, упор на скамью", 13.0f + progress, "8,9,10,10"),
-                        createExerciseWithAlternatives("34", "Кроссовер", 4, "10-12", "Блочный тренажёр, сведение рук", 18.0f + progress, "10,11,12,12"),
-                        createExerciseWithAlternatives("35", "Тяга каната", 4, "10-12", "К груди, локти назад", 22.0f + progress, "10,11,12,12"),
-                        createExerciseWithAlternatives("36", "Кардио: Гребной тренажёр", 1, "20 мин", "Полная амплитуда", null, null)
-                    ), listOf("Грудь", "Спина", "Кардио"))
-                    dayIndex in listOf(25) -> WorkoutDay(dayIndex - 1, "День $dayIndex: Плечи + Руки (комбо) + Core + Кардио", listOf(
-                        createExerciseWithAlternatives("37", "Жим плечами в машине", 4, "8-10", "Сидя, хват сверху", 20.0f + progress, "8,9,10,10"),
-                        createExerciseWithAlternatives("38", "Обратные разведения", 4, "10-12", "Задние дельты", 8.0f + progress / 2, "10,11,12,12"),
-                        createExerciseWithAlternatives("39", "Концентрированные сгибания", 4, "10-12", "Бицепс, одной рукой", 7.0f + progress / 2, "10,11,12,12"),
-                        createExerciseWithAlternatives("40", "Кикбэки", 4, "10-12", "Трицепс, на блоке", 18.0f + progress, "10,11,12,12"),
-                        createExerciseWithAlternatives("41", "Велосипед", 4, "20", "Лёжа, скручивания", null, "20,20,20,20"),
-                        createExerciseWithAlternatives("42", "Кардио: Комбо", 1, "20 мин", "10 мин бег + 10 мин велотренажёр", null, null)
-                    ), listOf("Плечи", "Руки", "Core", "Кардио"))
-                    else -> WorkoutDay(dayIndex - 1, "День $dayIndex: Отдых", emptyList(), emptyList())
-                }
-            }
+            days = days
         )
     }
 
-    private fun createWeightLossIntermediatePlan(profile: com.example.fitness_plan.domain.model.UserProfile): WorkoutPlan {
+    private data class ExercisePool(
+        val allExercises: List<Exercise>,
+        val usedExerciseNames: MutableSet<String> = mutableSetOf()
+    ) {
+        fun getAvailableExercises(): List<Exercise> {
+            return allExercises.filter { it.name !in usedExerciseNames }
+        }
+
+        fun markAsUsed(exercise: Exercise) {
+            usedExerciseNames.add(exercise.name)
+        }
+
+        fun markAllAsUsed(exercises: List<Exercise>) {
+            exercises.forEach { markAsUsed(it) }
+        }
+    }
+
+    private fun getExercisesForDay(
+        exerciseList: List<Exercise>,
+        startIndex: Int,
+        count: Int
+    ): List<Exercise> {
+        val exercises = mutableListOf<Exercise>()
+        for (i in 0 until count) {
+            val index = (startIndex + i) % exerciseList.size
+            exercises.add(exerciseList[index])
+        }
+        return exercises
+    }
+
+    private fun getUniqueExercisesForDay(
+        pool: ExercisePool,
+        count: Int,
+        targetMuscleGroups: List<String>? = null
+    ): List<Exercise> {
+        val exercises = mutableListOf<Exercise>()
+        var availableExercises = pool.getAvailableExercises()
+
+        if (targetMuscleGroups != null) {
+            val targetGroupExercises = availableExercises.filter { exercise ->
+                val muscleGroups = getMuscleGroupsForExercise(exercise.name)
+                targetMuscleGroups.any { it in muscleGroups }
+            }
+
+            targetGroupExercises.shuffled().take(count).forEach { exercise ->
+                exercises.add(exercise)
+                pool.markAsUsed(exercise)
+            }
+
+            availableExercises = pool.getAvailableExercises()
+        }
+
+        while (exercises.size < count && availableExercises.isNotEmpty()) {
+            val exercise = availableExercises.first()
+            exercises.add(exercise)
+            pool.markAsUsed(exercise)
+            availableExercises = pool.getAvailableExercises()
+        }
+
+        return exercises
+    }
+
+    private suspend fun createWeightLossBeginnerPlan(profile: com.example.fitness_plan.domain.model.UserProfile, frequency: String): WorkoutPlan {
+        val exerciseLibrary = exerciseLibraryRepository.getAllExercisesAsList()
+
+        val baseExercises = listOf(
+            createExerciseWithAlternatives("1", "Приседания", 3, "12-15", "Ноги на ширине плеч, спина прямая", 15.0f, "12,13,14", profile, exerciseLibrary),
+            createExerciseWithAlternatives("2", "Жим лёжа", 3, "12-15", "Гриф на уровне груди, локти под 45°", 20.0f, "12,13,14", profile, exerciseLibrary),
+            createExerciseWithAlternatives("3", "Тяга штанги в наклоне", 3, "10-12", "Тяни к поясу", 25.0f, "10,11,12", profile, exerciseLibrary),
+            createExerciseWithAlternatives("4", "Армейский жим", 3, "12-15", "Жим вверх над головой", 12.0f, "12,13,14", profile, exerciseLibrary),
+            createExerciseWithAlternatives("5", "Отжимания", 3, "10-15", "Грудь к полу, корпус прямое", null, "10,12,14", profile, exerciseLibrary),
+            createExerciseWithAlternatives("6", "Планка", 3, "30-45 сек", "На предплечьях, тело прямое", null, null, profile, exerciseLibrary),
+            createExerciseWithAlternatives("7", "Скручивания", 3, "15-20", "Лёжа, поднимай плечи", null, null, profile, exerciseLibrary),
+            createExerciseWithAlternatives("8", "Бег", 1, "15 мин", "Умеренный темп", null, null, profile, exerciseLibrary),
+            createExerciseWithAlternatives("9", "Велотренажёр", 1, "15 мин", "Умеренный темп", null, null, profile, exerciseLibrary)
+        )
+
+        val daysCount = 10
+
+        val days = when (frequency) {
+            "1 раз в неделю" -> createFullBodyDays(baseExercises, daysCount, exerciseLibrary, profile)
+            "3 раза в неделю" -> createFullBodyDays(baseExercises, daysCount, exerciseLibrary, profile)
+            "5 раз в неделю" -> createSplit5xDays(baseExercises, daysCount, exerciseLibrary, profile)
+            else -> createDaysWithUniqueExercises(
+                listOf(
+                    listOf(0, 1, 2, 7),
+                    listOf(3, 4, 6, 8),
+                    listOf(0, 1, 2, 7),
+                    listOf(3, 4, 6, 8),
+                    listOf(0, 1, 2, 7),
+                    listOf(3, 4, 6, 8),
+                    listOf(0, 1, 2, 7),
+                    listOf(3, 4, 6, 8),
+                    listOf(0, 1, 2, 5, 7),
+                    listOf(3, 4, 6, 8)
+                ),
+                baseExercises,
+                exerciseLibrary,
+                daysCount,
+                profile
+            )
+        }
+
+        return WorkoutPlan(
+            id = "weight_loss_beginner",
+            name = "Похудение: Новичок",
+            description = "Программа с адаптацией под частоту: $frequency",
+            muscleGroups = listOf("Ноги", "Грудь", "Спина", "Плечи", "Core", "Кардио"),
+            goal = profile.goal,
+            level = profile.level,
+            days = days
+        )
+    }
+
+    private suspend fun createWeightLossIntermediatePlan(profile: com.example.fitness_plan.domain.model.UserProfile, frequency: String): WorkoutPlan {
+        val exerciseLibrary = exerciseLibraryRepository.getAllExercisesAsList()
+
+        val baseExercises = listOf(
+            createExerciseWithAlternatives("1", "Приседания", 4, "10-12", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("2", "Жим лёжа", 4, "10-12", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("3", "Становая тяга", 4, "6-8", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("4", "Тяга штанги в наклоне", 4, "10-12", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("5", "Армейский жим", 4, "10-12", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("6", "Жим гантелей сидя", 4, "10-12", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("7", "Подтягивания", 4, "макс", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("8", "Отжимания", 4, "12-15", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("9", "Выпады", 4, "10-12", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("10", "Тяга верхнего блока", 4, "10-12", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("11", "Бицепс со штангой", 3, "10-12", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("12", "Трицепс на блоке", 3, "10-12", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("13", "Скручивания", 3, "15-20", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("14", "Планка", 3, "45-60 сек", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("15", "Бег", 1, "20 мин", profile = profile, exerciseLibrary = exerciseLibrary)
+        )
+
+        val daysCount = 10
+
+        val days = when (frequency) {
+            "1 раз в неделю" -> createFullBodyDays(baseExercises, daysCount, exerciseLibrary, profile)
+            "3 раза в неделю" -> createFullBodyDays(baseExercises, daysCount, exerciseLibrary, profile)
+            "5 раз в неделю" -> createSplit5xDays(baseExercises, daysCount, exerciseLibrary, profile)
+            else -> createDaysWithUniqueExercises(
+                listOf(
+                    listOf(0, 1, 3, 10, 12),
+                    listOf(2, 5, 6, 11, 13),
+                    listOf(4, 7, 8, 14),
+                    listOf(0, 1, 3, 10, 12),
+                    listOf(2, 5, 6, 11, 13),
+                    listOf(4, 7, 8, 14),
+                    listOf(0, 1, 3, 10, 12),
+                    listOf(2, 5, 6, 11, 13),
+                    listOf(4, 7, 8, 14),
+                    listOf(0, 1, 3, 10, 12, 15)
+                ),
+                baseExercises,
+                exerciseLibrary,
+                daysCount,
+                profile
+            )
+        }
+
         return WorkoutPlan(
             id = "weight_loss_intermediate",
-            name = "Похудение: Продвинутый",
-            description = "Интенсивная программа для похудения",
+            name = "Похудение: Любитель",
+            description = "Программа с адаптацией под частоту: $frequency",
             muscleGroups = listOf("Ноги", "Грудь", "Спина", "Плечи", "Пресс", "Руки"),
             goal = profile.goal,
             level = profile.level,
-            days = listOf(
-                WorkoutDay(0, "День 1", listOf(
-                    createExerciseWithAlternatives("1", "Приседания со штангой", 4, "8-10", profile = profile),
-                    createExerciseWithAlternatives("2", "Жим лёжа", 4, "8-10", profile = profile),
-                    createExerciseWithAlternatives("3", "Тяга штанги в наклоне", 4, "8-10", profile = profile),
-                    createExerciseWithAlternatives("4", "Бицепс", 3, "10-12", profile = profile),
-                    createExerciseWithAlternatives("5", "Пресс", 4, "15-20", profile = profile)
-                ), listOf("Ноги", "Грудь", "Спина", "Руки", "Пресс")),
-                WorkoutDay(1, "День 2", listOf(
-                    createExerciseWithAlternatives("6", "Становая тяга", 4, "6-8", profile = profile),
-                    createExerciseWithAlternatives("7", "Жим гантелей сидя", 4, "10-12", profile = profile),
-                    createExerciseWithAlternatives("8", "Подтягивания", 4, "макс", profile = profile),
-                    createExerciseWithAlternatives("9", "Трицепс", 3, "10-12", profile = profile),
-                    createExerciseWithAlternatives("10", "Пресс", 4, "15-20", profile = profile)
-                ), listOf("Спина", "Плечи", "Руки", "Пресс")),
-                WorkoutDay(2, "День 3", listOf(
-                    createExerciseWithAlternatives("11", "Выпады с гантелями", 3, "12-15", profile = profile),
-                    createExerciseWithAlternatives("12", "Отжимания", 4, "15-20", profile = profile),
-                    createExerciseWithAlternatives("13", "Тяга верхнего блока", 4, "10-12", profile = profile),
-                    createExerciseWithAlternatives("14", "Бицепс", 3, "10-12", profile = profile),
-                    createExerciseWithAlternatives("15", "Пресс", 4, "15-20", profile = profile)
-                ), listOf("Ноги", "Грудь", "Спина", "Руки", "Пресс"))
-            )
+            days = days
         )
     }
 
-    private fun createMuscleGainBeginnerPlan(profile: com.example.fitness_plan.domain.model.UserProfile): WorkoutPlan {
+    private suspend fun createMuscleGainBeginnerPlan(profile: com.example.fitness_plan.domain.model.UserProfile, frequency: String): WorkoutPlan {
+        val exerciseLibrary = exerciseLibraryRepository.getAllExercisesAsList()
+
+        val baseExercises = listOf(
+            createExerciseWithAlternatives("1", "Приседания", 4, "8-10", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("2", "Жим лёжа", 4, "8-10", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("3", "Становая тяга", 4, "6-8", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("4", "Тяга штанги в наклоне", 4, "8-10", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("5", "Армейский жим", 4, "8-10", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("6", "Жим гантелей сидя", 4, "10-12", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("7", "Подтягивания", 4, "макс", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("8", "Отжимания", 4, "10-15", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("9", "Выпады", 4, "10-12", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("10", "Тяга верхнего блока", 4, "10-12", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("11", "Бицепс со штангой", 3, "10-12", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("12", "Скручивания", 3, "12-15", profile = profile, exerciseLibrary = exerciseLibrary)
+        )
+
+        val daysCount = 10
+
+        val days = when (frequency) {
+            "1 раз в неделю" -> createFullBodyDays(baseExercises, daysCount, exerciseLibrary, profile)
+            "3 раза в неделю" -> createFullBodyDays(baseExercises, daysCount, exerciseLibrary, profile)
+            "5 раз в неделю" -> createSplit5xDays(baseExercises, daysCount, exerciseLibrary, profile)
+            else -> createDaysWithUniqueExercises(
+                listOf(
+                    listOf(0, 1, 3, 11),
+                    listOf(2, 5, 6, 12),
+                    listOf(4, 7, 8, 12),
+                    listOf(0, 1, 3, 11),
+                    listOf(2, 5, 6, 12),
+                    listOf(4, 7, 8, 12),
+                    listOf(0, 1, 3, 11),
+                    listOf(2, 5, 6, 12),
+                    listOf(4, 7, 8, 12),
+                    listOf(0, 1, 3, 11)
+                ),
+                baseExercises,
+                exerciseLibrary,
+                daysCount,
+                profile
+            )
+        }
+
         return WorkoutPlan(
             id = "muscle_gain_beginner",
-            name = "Масса: Начальный",
-            description = "Базовые упражнения для набора массы",
+            name = "Масса: Новичок",
+            description = "Программа с адаптацией под частоту: $frequency",
             muscleGroups = listOf("Ноги", "Грудь", "Спина", "Плечи", "Пресс"),
             goal = profile.goal,
             level = profile.level,
-            days = listOf(
-                WorkoutDay(0, "День 1", listOf(
-                    createExerciseWithAlternatives("1", "Приседания", 4, "8-10", profile = profile),
-                    createExerciseWithAlternatives("2", "Жим лёжа", 4, "8-10", profile = profile),
-                    createExerciseWithAlternatives("3", "Тяга штанги в наклоне", 4, "8-10", profile = profile),
-                    createExerciseWithAlternatives("4", "Пресс", 3, "12-15", profile = profile)
-                ), listOf("Ноги", "Грудь", "Спина", "Пресс")),
-                WorkoutDay(1, "День 2", listOf(
-                    createExerciseWithAlternatives("5", "Становая тяга", 4, "6-8", profile = profile),
-                    createExerciseWithAlternatives("6", "Жим гантелей сидя", 4, "10-12", profile = profile),
-                    createExerciseWithAlternatives("7", "Подтягивания", 4, "макс", profile = profile),
-                    createExerciseWithAlternatives("8", "Пресс", 3, "12-15", profile = profile)
-                ), listOf("Спина", "Плечи", "Пресс")),
-                WorkoutDay(2, "День 3", listOf(
-                    createExerciseWithAlternatives("9", "Выпады", 4, "10-12", profile = profile),
-                    createExerciseWithAlternatives("10", "Отжимания", 4, "10-15", profile = profile),
-                    createExerciseWithAlternatives("11", "Тяга верхнего блока", 4, "10-12", profile = profile),
-                    createExerciseWithAlternatives("12", "Пресс", 3, "12-15", profile = profile)
-                ), listOf("Ноги", "Грудь", "Спина", "Пресс"))
-            )
+            days = days
         )
     }
 
-    private fun createMuscleGainIntermediatePlan(profile: com.example.fitness_plan.domain.model.UserProfile): WorkoutPlan {
+    private suspend fun createMuscleGainIntermediatePlan(profile: com.example.fitness_plan.domain.model.UserProfile, frequency: String): WorkoutPlan {
+        val exerciseLibrary = exerciseLibraryRepository.getAllExercisesAsList()
+
+        val baseExercises = listOf(
+            createExerciseWithAlternatives("1", "Приседания", 5, "6-8", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("2", "Жим лёжа", 5, "6-8", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("3", "Становая тяга", 5, "5-6", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("4", "Тяга штанги в наклоне", 5, "6-8", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("5", "Армейский жим", 5, "6-8", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("6", "Жим гантелей сидя", 5, "8-10", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("7", "Подтягивания", 5, "макс", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("8", "Отжимания", 5, "12-15", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("9", "Выпады", 4, "10-12", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("10", "Тяга верхнего блока", 5, "8-10", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("11", "Жим на наклонной скамье", 5, "8-10", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("12", "Бицепс со штангой", 4, "8-10", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("13", "Трицепс на блоке", 4, "8-10", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("14", "Скручивания", 4, "10-15", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("15", "Планка", 4, "45-60 сек", profile = profile, exerciseLibrary = exerciseLibrary)
+        )
+
+        val daysCount = 10
+
+        val days = when (frequency) {
+            "1 раз в неделю" -> createFullBodyDays(baseExercises, daysCount, exerciseLibrary, profile)
+            "3 раза в неделю" -> createFullBodyDays(baseExercises, daysCount, exerciseLibrary, profile)
+            "5 раз в неделю" -> createSplit5xDays(baseExercises, daysCount, exerciseLibrary, profile)
+            else -> createDaysWithUniqueExercises(
+                listOf(
+                    listOf(0, 1, 3, 11, 12, 14),
+                    listOf(2, 5, 6, 13, 14),
+                    listOf(4, 7, 8, 10, 14),
+                    listOf(0, 1, 3, 11, 12, 14),
+                    listOf(2, 5, 6, 13, 14),
+                    listOf(4, 7, 8, 10, 14),
+                    listOf(0, 1, 3, 11, 12, 14),
+                    listOf(2, 5, 6, 13, 14),
+                    listOf(4, 7, 8, 10, 14),
+                    listOf(0, 1, 3, 11, 12, 14)
+                ),
+                baseExercises,
+                exerciseLibrary,
+                daysCount,
+                profile
+            )
+        }
+
         return WorkoutPlan(
             id = "muscle_gain_intermediate",
-            name = "Масса: Продвинутый",
-            description = "Программа для активного набора массы",
+            name = "Масса: Любитель",
+            description = "Программа с адаптацией под частоту: $frequency",
             muscleGroups = listOf("Ноги", "Грудь", "Спина", "Плечи", "Пресс", "Руки"),
             goal = profile.goal,
             level = profile.level,
-            days = listOf(
-                WorkoutDay(0, "День 1", listOf(
-                    createExerciseWithAlternatives("1", "Приседания со штангой", 5, "6-8", profile = profile),
-                    createExerciseWithAlternatives("2", "Жим лёжа", 5, "6-8", profile = profile),
-                    createExerciseWithAlternatives("3", "Тяга штанги в наклоне", 5, "6-8", profile = profile),
-                    createExerciseWithAlternatives("4", "Бицепс", 4, "8-10", profile = profile),
-                    createExerciseWithAlternatives("5", "Пресс", 4, "10-15", profile = profile)
-                ), listOf("Ноги", "Грудь", "Спина", "Руки", "Пресс")),
-                WorkoutDay(1, "День 2", listOf(
-                    createExerciseWithAlternatives("6", "Становая тяга", 5, "5-6", profile = profile),
-                    createExerciseWithAlternatives("7", "Жим гантелей сидя", 5, "8-10", profile = profile),
-                    createExerciseWithAlternatives("8", "Подтягивания", 5, "макс", profile = profile),
-                    createExerciseWithAlternatives("9", "Трицепс", 4, "8-10", profile = profile),
-                    createExerciseWithAlternatives("10", "Пресс", 4, "10-15", profile = profile)
-                ), listOf("Спина", "Плечи", "Руки", "Пресс")),
-                WorkoutDay(2, "День 3", listOf(
-                    createExerciseWithAlternatives("11", "Выпады с гантелями", 4, "10-12", profile = profile),
-                    createExerciseWithAlternatives("12", "Жим на наклонной скамье", 5, "8-10", profile = profile),
-                    createExerciseWithAlternatives("13", "Тяга верхнего блока", 5, "8-10", profile = profile),
-                    createExerciseWithAlternatives("14", "Бицепс", 4, "8-10", profile = profile),
-                    createExerciseWithAlternatives("15", "Пресс", 4, "10-15", profile = profile)
-                ), listOf("Ноги", "Грудь", "Спина", "Руки", "Пресс"))
-            )
+            days = days
         )
     }
 
-    private fun createMuscleGainAdvancedPlan(profile: com.example.fitness_plan.domain.model.UserProfile): WorkoutPlan {
+    private suspend fun createMuscleGainAdvancedPlan(profile: com.example.fitness_plan.domain.model.UserProfile, frequency: String): WorkoutPlan {
+        val exerciseLibrary = exerciseLibraryRepository.getAllExercisesAsList()
+
+        val baseExercises = listOf(
+            createExerciseWithAlternatives("1", "Приседания", 6, "4-6", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("2", "Жим лёжа", 6, "4-6", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("3", "Становая тяга", 6, "3-5", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("4", "Тяга штанги в наклоне", 6, "4-6", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("5", "Армейский жим", 6, "4-6", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("6", "Жим гантелей сидя", 6, "6-8", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("7", "Подтягивания", 6, "макс", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("8", "Отжимания", 6, "12-15", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("9", "Выпады", 5, "8-10", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("10", "Тяга верхнего блока", 6, "8-10", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("11", "Жим на наклонной скамье", 6, "6-8", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("12", "Бицепс со штангой", 4, "8-10", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("13", "Трицепс на блоке", 4, "8-10", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("14", "Скручивания", 4, "10-15", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("15", "Планка", 4, "60 сек", profile = profile, exerciseLibrary = exerciseLibrary)
+        )
+
+        val daysCount = 10
+
+        val days = when (frequency) {
+            "1 раз в неделю" -> createFullBodyDays(baseExercises, daysCount, exerciseLibrary, profile)
+            "3 раза в неделю" -> createFullBodyDays(baseExercises, daysCount, exerciseLibrary, profile)
+            "5 раз в неделю" -> createSplit5xDays(baseExercises, daysCount, exerciseLibrary, profile)
+            else -> createDaysWithUniqueExercises(
+                listOf(
+                    listOf(0, 1, 3, 11, 12, 13, 14),
+                    listOf(2, 5, 6, 12, 13, 14),
+                    listOf(4, 7, 8, 10, 15),
+                    listOf(0, 1, 3, 11, 12, 13, 14),
+                    listOf(2, 5, 6, 12, 13, 14),
+                    listOf(4, 7, 8, 10, 15),
+                    listOf(0, 1, 3, 11, 12, 13, 14),
+                    listOf(2, 5, 6, 12, 13, 14),
+                    listOf(4, 7, 8, 10, 15),
+                    listOf(0, 1, 3, 11, 12, 13, 14)
+                ),
+                baseExercises,
+                exerciseLibrary,
+                daysCount,
+                profile
+            )
+        }
+
         return WorkoutPlan(
             id = "muscle_gain_advanced",
-            name = "Масса: Профессиональный",
-            description = "Максимальная программа для набора массы",
+            name = "Масса: Профессионал",
+            description = "Программа с адаптацией под частоту: $frequency",
             muscleGroups = listOf("Ноги", "Грудь", "Спина", "Плечи", "Пресс", "Руки"),
             goal = profile.goal,
             level = profile.level,
-            days = listOf(
-                WorkoutDay(0, "День 1", listOf(
-                    createExerciseWithAlternatives("1", "Приседания со штангой", 6, "4-6", profile = profile),
-                    createExerciseWithAlternatives("2", "Жим лёжа", 6, "4-6", profile = profile),
-                    createExerciseWithAlternatives("3", "Тяга штанги в наклоне", 6, "4-6", profile = profile),
-                    createExerciseWithAlternatives("4", "Бицепс", 4, "8-10", profile = profile),
-                    createExerciseWithAlternatives("5", "Трицепс", 4, "8-10", profile = profile),
-                    createExerciseWithAlternatives("6", "Пресс", 4, "10-15", profile = profile)
-                ), listOf("Ноги", "Грудь", "Спина", "Руки", "Пресс")),
-                WorkoutDay(1, "День 2", listOf(
-                    createExerciseWithAlternatives("7", "Становая тяга", 6, "3-5", profile = profile),
-                    createExerciseWithAlternatives("8", "Жим гантелей сидя", 6, "6-8", profile = profile),
-                    createExerciseWithAlternatives("9", "Подтягивания", 6, "макс", profile = profile),
-                    createExerciseWithAlternatives("10", "Бицепс", 4, "8-10", profile = profile),
-                    createExerciseWithAlternatives("11", "Трицепс", 4, "8-10", profile = profile),
-                    createExerciseWithAlternatives("12", "Пресс", 4, "10-15", profile = profile)
-                ), listOf("Спина", "Плечи", "Руки", "Пресс")),
-                WorkoutDay(2, "День 3", listOf(
-                    createExerciseWithAlternatives("13", "Выпады с гантелями", 5, "8-10", profile = profile),
-                    createExerciseWithAlternatives("14", "Жим на наклонной скамье", 6, "6-8", profile = profile),
-                    createExerciseWithAlternatives("15", "Тяга верхнего блока", 6, "8-10", profile = profile),
-                    createExerciseWithAlternatives("16", "Бицепс", 4, "8-10", profile = profile),
-                    createExerciseWithAlternatives("17", "Трицепс", 4, "8-10", profile = profile),
-                    createExerciseWithAlternatives("18", "Пресс", 4, "10-15", profile = profile)
-                ), listOf("Ноги", "Грудь", "Спина", "Руки", "Пресс"))
-            )
+            days = days
         )
     }
 
-    private fun createMaintenancePlan(profile: com.example.fitness_plan.domain.model.UserProfile): WorkoutPlan {
+    private suspend fun createMaintenancePlan(profile: com.example.fitness_plan.domain.model.UserProfile, frequency: String): WorkoutPlan {
+        val exerciseLibrary = exerciseLibraryRepository.getAllExercisesAsList()
+
+        val baseExercises = listOf(
+            createExerciseWithAlternatives("1", "Приседания", 4, "10-12", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("2", "Жим лёжа", 4, "10-12", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("3", "Становая тяга", 4, "8-10", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("4", "Тяга штанги в наклоне", 4, "10-12", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("5", "Армейский жим", 4, "10-12", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("6", "Жим гантелей сидя", 4, "10-12", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("7", "Подтягивания", 4, "макс", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("8", "Отжимания", 4, "15-20", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("9", "Выпады", 4, "12-15", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("10", "Тяга верхнего блока", 4, "10-12", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("11", "Бицепс со штангой", 3, "10-12", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("12", "Скручивания", 3, "15-20", profile = profile, exerciseLibrary = exerciseLibrary),
+            createExerciseWithAlternatives("13", "Планка", 3, "45-60 сек", profile = profile, exerciseLibrary = exerciseLibrary)
+        )
+
+        val daysCount = 10
+
+        val days = when (frequency) {
+            "1 раз в неделю" -> createFullBodyDays(baseExercises, daysCount, exerciseLibrary, profile)
+            "3 раза в неделю" -> createFullBodyDays(baseExercises, daysCount, exerciseLibrary, profile)
+            "5 раз в неделю" -> createSplit5xDays(baseExercises, daysCount, exerciseLibrary, profile)
+            else -> createDaysWithUniqueExercises(
+                listOf(
+                    listOf(0, 1, 3, 11),
+                    listOf(2, 5, 6, 12),
+                    listOf(4, 7, 8, 13),
+                    listOf(0, 1, 3, 11),
+                    listOf(2, 5, 6, 12),
+                    listOf(4, 7, 8, 13),
+                    listOf(0, 1, 3, 11),
+                    listOf(2, 5, 6, 12),
+                    listOf(4, 7, 8, 13),
+                    listOf(0, 1, 3, 11)
+                ),
+                baseExercises,
+                exerciseLibrary,
+                daysCount,
+                profile
+            )
+        }
+
         return WorkoutPlan(
             id = "maintenance",
             name = "Поддержание формы",
-            description = "Сбалансированная программа для поддержания формы",
+            description = "Программа с адаптацией под частоту: $frequency",
             muscleGroups = listOf("Ноги", "Грудь", "Спина", "Плечи", "Пресс"),
             goal = profile.goal,
             level = profile.level,
-            days = listOf(
-                WorkoutDay(0, "День 1", listOf(
-                    createExerciseWithAlternatives("1", "Приседания", 4, "10-12", profile = profile),
-                    createExerciseWithAlternatives("2", "Жим лёжа", 4, "10-12", profile = profile),
-                    createExerciseWithAlternatives("3", "Тяга штанги в наклоне", 4, "10-12", profile = profile),
-                    createExerciseWithAlternatives("4", "Пресс", 3, "15-20", profile = profile)
-                ), listOf("Ноги", "Грудь", "Спина", "Пресс")),
-                WorkoutDay(1, "День 2", listOf(
-                    createExerciseWithAlternatives("5", "Становая тяга", 4, "8-10", profile = profile),
-                    createExerciseWithAlternatives("6", "Жим гантелей сидя", 4, "10-12", profile = profile),
-                    createExerciseWithAlternatives("7", "Подтягивания", 4, "макс", profile = profile),
-                    createExerciseWithAlternatives("8", "Пресс", 3, "15-20", profile = profile)
-                ), listOf("Спина", "Плечи", "Пресс")),
-                WorkoutDay(2, "День 3", listOf(
-                    createExerciseWithAlternatives("9", "Выпады", 4, "12-15", profile = profile),
-                    createExerciseWithAlternatives("10", "Отжимания", 4, "15-20", profile = profile),
-                    createExerciseWithAlternatives("11", "Тяга верхнего блока", 4, "10-12", profile = profile),
-                    createExerciseWithAlternatives("12", "Пресс", 3, "15-20", profile = profile)
-                ), listOf("Ноги", "Грудь", "Спина", "Пресс"))
-            )
+            days = days
         )
+    }
+
+    private suspend fun createFullBodyDays(
+        baseExercises: List<Exercise>,
+        totalCount: Int,
+        exerciseLibrary: List<com.example.fitness_plan.domain.model.ExerciseLibrary>? = null,
+        profile: com.example.fitness_plan.domain.model.UserProfile? = null
+    ): List<WorkoutDay> {
+        val days = mutableListOf<WorkoutDay>()
+
+        val exercisesCount = Math.max(minOf(baseExercises.size, 8), 5)
+        val pool = ExercisePool(baseExercises)
+
+        val libraryExercises = if (exerciseLibrary != null && profile != null) {
+            exerciseLibrary.map { lib ->
+                runBlocking {
+                    createExerciseWithAlternatives(
+                        id = lib.id,
+                        name = lib.name,
+                        sets = 3,
+                        reps = "10-12",
+                        profile = profile,
+                        exerciseLibrary = exerciseLibrary
+                    )
+                }
+            }
+        } else null
+
+        val libraryPool = libraryExercises?.let { ExercisePool(it) }
+
+        for (i in 0 until totalCount) {
+            val pool = ExercisePool(baseExercises)
+            var dayExercises = getUniqueExercisesForDay(pool, exercisesCount, null)
+
+            if (dayExercises.size < exercisesCount && libraryPool != null) {
+                val additionalExercises = getUniqueExercisesForDay(libraryPool, exercisesCount - dayExercises.size, null)
+                dayExercises = dayExercises + additionalExercises
+            }
+
+            val muscleGroups = dayExercises.flatMap { getMuscleGroupsForExercise(it.name) }.distinct()
+
+            days.add(
+                WorkoutDay(
+                    id = i,
+                    dayName = "День ${i + 1} (Full Body)",
+                    exercises = dayExercises,
+                    muscleGroups = muscleGroups
+                )
+            )
+        }
+
+        return days
+    }
+
+    private suspend fun createSplit3xDays(
+        baseExercises: List<Exercise>,
+        totalCount: Int,
+        exerciseLibrary: List<com.example.fitness_plan.domain.model.ExerciseLibrary>? = null,
+        profile: com.example.fitness_plan.domain.model.UserProfile? = null
+    ): List<WorkoutDay> {
+        val days = mutableListOf<WorkoutDay>()
+
+        val pool = ExercisePool(baseExercises)
+
+        val libraryExercises = if (exerciseLibrary != null && profile != null) {
+            exerciseLibrary.map { lib ->
+                runBlocking {
+                    createExerciseWithAlternatives(
+                        id = lib.id,
+                        name = lib.name,
+                        sets = 3,
+                        reps = "10-12",
+                        profile = profile,
+                        exerciseLibrary = exerciseLibrary
+                    )
+                }
+            }
+        } else null
+
+        val libraryPool = libraryExercises?.let { ExercisePool(it) }
+
+        val legMuscleGroups = listOf("Квадрицепсы", "Ягодицы", "Бёдра сзади", "Икры")
+        val upperMuscleGroups = listOf("Грудь", "Спина", "Плечи", "Трицепсы", "Бицепсы")
+
+        for (i in 0 until totalCount) {
+            val pool = ExercisePool(baseExercises)
+
+            val cycleIndex = i % 3
+            val (targetMuscleGroups, dayName) = when (cycleIndex) {
+                0 -> Pair(legMuscleGroups, "Ноги")
+                1 -> Pair(upperMuscleGroups, "Верх тела")
+                else -> Pair(null, "Полный")
+            }
+
+            var exercises = getUniqueExercisesForDay(pool, 3, targetMuscleGroups)
+
+            if (exercises.size < 3 && libraryPool != null) {
+                val additionalExercises = getUniqueExercisesForDay(libraryPool, 3 - exercises.size, targetMuscleGroups)
+                exercises = exercises + additionalExercises
+            }
+
+            val muscleGroups = exercises.flatMap { getMuscleGroupsForExercise(it.name) }.distinct()
+
+            days.add(
+                WorkoutDay(
+                    id = i,
+                    dayName = "День ${i + 1} ($dayName)",
+                    exercises = exercises,
+                    muscleGroups = muscleGroups
+                )
+            )
+        }
+
+        return days
+    }
+
+    private suspend fun createSplit5xDays(
+        baseExercises: List<Exercise>,
+        totalCount: Int,
+        exerciseLibrary: List<com.example.fitness_plan.domain.model.ExerciseLibrary>? = null,
+        profile: com.example.fitness_plan.domain.model.UserProfile? = null
+    ): List<WorkoutDay> {
+        val days = mutableListOf<WorkoutDay>()
+        val dayNames = listOf("Ноги", "Грудь", "Спина", "Плечи", "Руки")
+
+        val pool = ExercisePool(baseExercises)
+
+        val libraryExercises = if (exerciseLibrary != null && profile != null) {
+            exerciseLibrary.map { lib ->
+                runBlocking {
+                    createExerciseWithAlternatives(
+                        id = lib.id,
+                        name = lib.name,
+                        sets = 3,
+                        reps = "10-12",
+                        profile = profile,
+                        exerciseLibrary = exerciseLibrary
+                    )
+                }
+            }
+        } else null
+
+        val libraryPool = libraryExercises?.let { ExercisePool(it) }
+
+        val legMuscleGroups = listOf("Квадрицепсы", "Ягодицы", "Бёдра сзади", "Икры")
+        val chestMuscleGroups = listOf("Грудь", "Трицепсы", "Плечи")
+        val backMuscleGroups = listOf("Широчайшие", "Трапеции", "Бицепсы", "Предплечья", "Поясница")
+        val shoulderMuscleGroups = listOf("Плечи", "Трицепсы", "Трапеции")
+        val armMuscleGroups = listOf("Бицепсы", "Предплечья", "Плечелучевая", "Трицепсы")
+
+        val muscleGroupsList = listOf(legMuscleGroups, chestMuscleGroups, backMuscleGroups, shoulderMuscleGroups, armMuscleGroups)
+
+        for (i in 0 until totalCount) {
+            val pool = ExercisePool(baseExercises)
+
+            val cycleIndex = i % 5
+            val targetMuscleGroups = muscleGroupsList[cycleIndex]
+            val dayName = dayNames[cycleIndex]
+
+            var exercises = getUniqueExercisesForDay(pool, 3, targetMuscleGroups)
+
+            if (exercises.size < 3 && libraryPool != null) {
+                val additionalExercises = getUniqueExercisesForDay(libraryPool, 3 - exercises.size, targetMuscleGroups)
+                exercises = exercises + additionalExercises
+            }
+
+            val muscleGroups = exercises.flatMap { getMuscleGroupsForExercise(it.name) }.distinct()
+
+            days.add(
+                WorkoutDay(
+                    id = i,
+                    dayName = "День ${i + 1} ($dayName)",
+                    exercises = exercises,
+                    muscleGroups = muscleGroups
+                )
+            )
+        }
+
+        return days
+    }
+ 
+    private suspend fun createDaysWithUniqueExercises(
+        predefinedWorkouts: List<List<Int>>,
+        baseExercises: List<Exercise>,
+        exerciseLibrary: List<com.example.fitness_plan.domain.model.ExerciseLibrary>,
+        totalCount: Int,
+        profile: com.example.fitness_plan.domain.model.UserProfile
+    ): List<WorkoutDay> {
+        val days = mutableListOf<WorkoutDay>()
+        val pool = ExercisePool(baseExercises)
+        val libraryPool = ExercisePool(exerciseLibrary.map { lib ->
+            runBlocking {
+                createExerciseWithAlternatives(
+                    id = lib.id,
+                    name = lib.name,
+                    sets = 3,
+                    reps = "10-12",
+                    profile = profile,
+                    exerciseLibrary = exerciseLibrary
+                )
+            }
+        })
+
+        for (i in 0 until minOf(totalCount, predefinedWorkouts.size)) {
+            val exerciseIndices = predefinedWorkouts[i]
+            val exercises = mutableListOf<Exercise>()
+
+            for (idx in exerciseIndices) {
+                if (idx < baseExercises.size) {
+                    val exercise = baseExercises[idx]
+                    if (exercise.name !in pool.usedExerciseNames) {
+                        exercises.add(exercise.copy(id = "${i}_${exercise.id}"))
+                        pool.markAsUsed(exercise)
+                    } else {
+                        val alternative = getUniqueExercisesForDay(libraryPool, 1, null).firstOrNull()
+                        if (alternative != null) {
+                            exercises.add(alternative.copy(id = "${i}_${alternative.id}"))
+                        }
+                    }
+                }
+            }
+
+            val muscleGroups = exercises.flatMap { getMuscleGroupsForExercise(it.name) }.distinct()
+
+            days.add(
+                WorkoutDay(
+                    id = i,
+                    dayName = "День ${i + 1}",
+                    exercises = exercises,
+                    muscleGroups = muscleGroups
+                )
+            )
+        }
+
+        return days
     }
 }

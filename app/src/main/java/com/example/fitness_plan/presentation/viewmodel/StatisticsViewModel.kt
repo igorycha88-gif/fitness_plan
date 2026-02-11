@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.example.fitness_plan.domain.model.Cycle
 import com.example.fitness_plan.domain.model.CycleHistoryEntry
 import com.example.fitness_plan.domain.model.ExerciseStats
+import com.example.fitness_plan.domain.model.ProgressTimeFilter
 import com.example.fitness_plan.domain.model.UserProfile
 import com.example.fitness_plan.domain.model.WeightEntry
 import com.example.fitness_plan.domain.repository.ICredentialsRepository
@@ -19,6 +20,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -28,7 +30,8 @@ private const val TAG = "StatisticsViewModel"
 enum class TimeFilter(val days: Int, val label: String) {
     WEEK(7, "Неделя"),
     MONTH(30, "Месяц"),
-    YEAR(365, "Год")
+    YEAR(365, "Год"),
+    ALL(0, "Всё время")
 }
 
 @HiltViewModel
@@ -62,12 +65,20 @@ class StatisticsViewModel @Inject constructor(
     private val _currentUsername = MutableStateFlow("")
     val currentUsername: StateFlow<String> = _currentUsername.asStateFlow()
 
+    private val _selectedTimeFilter = MutableStateFlow(TimeFilter.MONTH)
+    val selectedTimeFilter: StateFlow<TimeFilter> = _selectedTimeFilter.asStateFlow()
 
+    private val _showWeightDialog = MutableStateFlow(false)
+    val showWeightDialog: StateFlow<Boolean> = _showWeightDialog.asStateFlow()
 
+    private val _selectedProgressTimeFilter = MutableStateFlow(ProgressTimeFilter.MONTH)
+    val selectedProgressTimeFilter: StateFlow<ProgressTimeFilter> = _selectedProgressTimeFilter.asStateFlow()
 
+    private val _selectedProgressExercise = MutableStateFlow<String?>(null)
+    val selectedProgressExercise: StateFlow<String?> = _selectedProgressExercise.asStateFlow()
 
-    private val _availableExercises = MutableStateFlow<List<String>>(emptyList())
-    val availableExercises: StateFlow<List<String>> = _availableExercises.asStateFlow()
+    private val _progressChartData = MutableStateFlow<List<com.example.fitness_plan.domain.model.ProgressChartData>>(emptyList())
+    val progressChartData: StateFlow<List<com.example.fitness_plan.domain.model.ProgressChartData>> = _progressChartData.asStateFlow()
 
     init {
         viewModelScope.launch {
@@ -83,22 +94,51 @@ class StatisticsViewModel @Inject constructor(
         loadCycleData()
     }
 
-    private suspend fun loadWeightHistory() {
-        weightRepository.getWeightHistory(_currentUsername.value).collect { entries ->
-            _weightHistory.value = entries.sortedBy { it.date }
+    fun setTimeFilter(filter: TimeFilter) {
+        _selectedTimeFilter.value = filter
+    }
+
+    fun setShowWeightDialog(show: Boolean) {
+        _showWeightDialog.value = show
+    }
+
+    fun setProgressTimeFilter(filter: ProgressTimeFilter) {
+        _selectedProgressTimeFilter.value = filter
+        updateProgressChartData()
+    }
+
+    fun setProgressExercise(exerciseName: String?) {
+        _selectedProgressExercise.value = exerciseName
+        updateProgressChartData()
+    }
+
+    fun saveWeight(weight: Double, date: Long = System.currentTimeMillis()) {
+        viewModelScope.launch {
+            val username = _currentUsername.value
+            if (username.isNotEmpty()) {
+                weightRepository.saveWeight(username, weight, date)
+            }
         }
     }
 
-    private suspend fun loadExerciseStats() {
-        exerciseStatsRepository.getExerciseStats(_currentUsername.value).collect { stats ->
-            _exerciseStats.value = stats.sortedBy { it.date }
-            updateAvailableExercises(stats)
+    private fun loadWeightHistory() {
+        viewModelScope.launch {
+            weightRepository.getWeightHistory(_currentUsername.value).collect { entries ->
+                _weightHistory.value = entries.sortedBy { it.date }
+            }
         }
     }
 
-    private fun updateAvailableExercises(stats: List<ExerciseStats>) {
-        val exercises = stats.map { it.exerciseName }.distinct().sorted()
-        _availableExercises.value = exercises
+    private fun loadExerciseStats() {
+        viewModelScope.launch {
+            exerciseStatsRepository.getExerciseStats(_currentUsername.value).collect { stats ->
+                Log.d(TAG, "Loaded ${stats.size} exercise stats for user ${_currentUsername.value}")
+                val withVolume = stats.count { it.volume > 0L }
+                val withoutVolume = stats.count { it.volume == 0L }
+                Log.d(TAG, "Stats breakdown: $withVolume with volume > 0, $withoutVolume with volume = 0")
+                _exerciseStats.value = stats.sortedBy { it.date }
+            }
+        }
     }
 
     private suspend fun loadCycleData() {
@@ -121,19 +161,30 @@ class StatisticsViewModel @Inject constructor(
 
 
     fun getFilteredWeightHistory(): List<WeightEntry> {
-        val days = TimeFilter.MONTH.days // Default to month
+        val days = _selectedTimeFilter.value.days
+        if (days == 0) {
+            return _weightHistory.value.sortedBy { it.date }
+        }
         val cutoffTime = System.currentTimeMillis() - (days * 24 * 60 * 60 * 1000L)
-        return _weightHistory.value.filter { it.date >= cutoffTime }
+        return _weightHistory.value.filter { it.date >= cutoffTime }.sortedBy { it.date }
     }
 
-    fun getFilteredExerciseStats(): List<ExerciseStats> {
-        val days = TimeFilter.MONTH.days // Default to month
-        val cutoffTime = System.currentTimeMillis() - (days * 24 * 60 * 60 * 1000L)
-        val exerciseName = _availableExercises.value.firstOrNull() ?: ""
+    fun getCurrentWeight(): Double {
+        val filtered = getFilteredWeightHistory()
+        return if (filtered.isNotEmpty()) filtered.last().weight else userProfile.value?.weight ?: 0.0
+    }
 
-        return _exerciseStats.value
-            .filter { it.date >= cutoffTime && it.exerciseName == exerciseName }
-            .sortedBy { it.date }
+    fun getStartWeight(): Double {
+        val filtered = getFilteredWeightHistory()
+        return if (filtered.isNotEmpty()) filtered.first().weight else userProfile.value?.weight ?: 0.0
+    }
+
+    fun getDaysFromStart(): Int {
+        val filtered = getFilteredWeightHistory()
+        if (filtered.isEmpty()) return 0
+        val firstEntry = filtered.first()
+        val days = ((System.currentTimeMillis() - firstEntry.date) / (24 * 60 * 60 * 1000L)).toInt()
+        return maxOf(1, days)
     }
 
     fun getCycleProgress(): Float {
@@ -158,20 +209,125 @@ class StatisticsViewModel @Inject constructor(
         return if (change > 0) "+%.1f кг".format(change) else "%.1f кг".format(change)
     }
 
-    fun getStrengthProgress(): Double {
-        val stats = getFilteredExerciseStats()
-        if (stats.size < 2) return 0.0
-
-        val firstMaxWeight = stats.first().weight
-        val lastMaxWeight = stats.last().weight
-
-        return if (firstMaxWeight > 0) {
-            ((lastMaxWeight - firstMaxWeight) / firstMaxWeight) * 100
-        } else 0.0
+    fun getExerciseStatsSummary(): ExerciseStatsSummary {
+        val stats = _exerciseStats.value
+        return if (stats.isEmpty()) {
+            ExerciseStatsSummary(0, 0, emptyList(), emptyList(), 0L, "Нет данных")
+        } else {
+            val uniqueExercises = stats.map { it.exerciseName }.distinct()
+            val oldestDate = stats.minOfOrNull { it.date } ?: 0L
+            val newestDate = stats.maxOfOrNull { it.date } ?: 0L
+            val totalVolume = stats.sumOf { it.volume }
+            val dateRangeDays = if (oldestDate > 0 && newestDate > 0) {
+                (newestDate - oldestDate) / (24 * 60 * 60 * 1000L)
+            } else {
+                0L
+            }
+            ExerciseStatsSummary(
+                totalCount = stats.size,
+                uniqueCount = uniqueExercises.size,
+                exerciseNames = uniqueExercises,
+                sampleDates = stats.take(5).map { it.date },
+                totalVolume = totalVolume,
+                dateRange = "$dateRangeDays дней"
+            )
+        }
     }
 
-    fun getStrengthProgressText(): String {
-        val progress = getStrengthProgress()
-        return if (progress > 0) "+%.1f%%".format(progress) else "%.1f%%".format(progress)
+    fun getAvailableExercises(): List<String> {
+        return _exerciseStats.value.map { it.exerciseName }.distinct().sorted()
+    }
+
+    private fun updateProgressChartData() {
+        viewModelScope.launch {
+            val exerciseName = _selectedProgressExercise.value
+            val days = _selectedProgressTimeFilter.value.days
+
+            if (exerciseName == null) {
+                _progressChartData.value = emptyList()
+                return@launch
+            }
+
+            val stats = if (days == 0) {
+                _exerciseStats.value
+            } else {
+                val cutoffTime = System.currentTimeMillis() - (days * 24 * 60 * 60 * 1000L)
+                _exerciseStats.value.filter { it.date >= cutoffTime }
+            }.filter { it.exerciseName == exerciseName }
+
+            if (stats.isEmpty()) {
+                _progressChartData.value = emptyList()
+                return@launch
+            }
+
+            val dailyStats = aggregateByDay(stats)
+            val chartData = dailyStats.map { daily ->
+                com.example.fitness_plan.domain.model.ProgressChartData(
+                    date = daily.date,
+                    xValue = if (daily.exerciseType == com.example.fitness_plan.domain.model.ExerciseType.STRENGTH) {
+                        daily.averageWeight
+                    } else {
+                        daily.duration.toDouble()
+                    },
+                    xLabel = if (daily.exerciseType == com.example.fitness_plan.domain.model.ExerciseType.STRENGTH) {
+                        "%.1f кг".format(daily.averageWeight)
+                    } else {
+                        "%d мин".format(daily.duration)
+                    },
+                    yValue = if (daily.exerciseType == com.example.fitness_plan.domain.model.ExerciseType.STRENGTH) {
+                        daily.averageReps.toDouble()
+                    } else {
+                        daily.duration.toDouble()
+                    },
+                    exerciseName = daily.exerciseName
+                )
+            }.sortedBy { it.date }
+
+            _progressChartData.value = chartData
+        }
+    }
+
+    private fun aggregateByDay(stats: List<ExerciseStats>): List<com.example.fitness_plan.domain.model.DailyExerciseStats> {
+        return stats.groupBy { stat ->
+            val calendar = java.util.Calendar.getInstance()
+            calendar.timeInMillis = stat.date
+            calendar.set(java.util.Calendar.HOUR_OF_DAY, 0)
+            calendar.set(java.util.Calendar.MINUTE, 0)
+            calendar.set(java.util.Calendar.SECOND, 0)
+            calendar.set(java.util.Calendar.MILLISECOND, 0)
+            calendar.timeInMillis
+        }.map { (date, dayStats) ->
+            val exerciseType = determineExerciseType(dayStats.first().exerciseName)
+            com.example.fitness_plan.domain.model.DailyExerciseStats(
+                exerciseName = dayStats.first().exerciseName,
+                date = date,
+                averageWeight = if (exerciseType == com.example.fitness_plan.domain.model.ExerciseType.STRENGTH) {
+                    dayStats.filter { it.weight > 0 }.map { it.weight }.average()
+                } else {
+                    0.0
+                },
+                averageReps = if (exerciseType == com.example.fitness_plan.domain.model.ExerciseType.STRENGTH) {
+                    dayStats.filter { it.reps > 0 }.map { it.reps }.average().toInt()
+                } else {
+                    0
+                },
+                totalSets = dayStats.size,
+                exerciseType = exerciseType,
+                duration = dayStats.sumOf { it.duration }
+            )
+        }.sortedBy { it.date }
+    }
+
+    private fun determineExerciseType(exerciseName: String): com.example.fitness_plan.domain.model.ExerciseType {
+        return com.example.fitness_plan.domain.model.ExerciseType.STRENGTH
     }
 }
+
+data class ExerciseStatsSummary(
+    val totalCount: Int,
+    val uniqueCount: Int,
+    val exerciseNames: List<String>,
+    val sampleDates: List<Long>,
+    val totalVolume: Long,
+    val dateRange: String
+)

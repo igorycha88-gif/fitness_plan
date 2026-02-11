@@ -15,4 +15,13 @@ interface ExerciseLibraryRepository {
     suspend fun addExercise(exercise: ExerciseLibrary)
     suspend fun deleteExercise(exerciseId: String)
     suspend fun getExerciseById(id: String): ExerciseLibrary?
+    suspend fun initializeDefaultExercises()
+    suspend fun getAllExercisesAsList(): List<ExerciseLibrary>
+    suspend fun getAlternativeExercises(
+        currentExerciseName: String,
+        currentMuscleGroups: List<MuscleGroup>,
+        limit: Int = 3
+    ): List<ExerciseLibrary>
+
+    suspend fun reloadDefaultExercises()
 }

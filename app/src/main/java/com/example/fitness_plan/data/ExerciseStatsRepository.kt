@@ -1,6 +1,7 @@
 package com.example.fitness_plan.data
 
 import android.content.Context
+import android.util.Log
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.*
 import androidx.datastore.preferences.preferencesDataStore
@@ -13,6 +14,8 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 import javax.inject.Singleton
+
+private const val TAG = "ExerciseStatsRepo"
 
 private val Context.exerciseStatsDataStore: DataStore<Preferences> by preferencesDataStore(name = "exercise_stats")
 
@@ -28,6 +31,16 @@ class ExerciseStatsRepository @Inject constructor(
     }
 
     override suspend fun saveExerciseStats(username: String, stats: ExerciseStats) {
+        Log.d(TAG, "=== Сохранение данных о выполненной тренировке ===")
+        Log.d(TAG, "Пользователь: $username")
+        Log.d(TAG, "Название упражнения: ${stats.exerciseName}")
+        Log.d(TAG, "Вес: ${stats.weight} кг")
+        Log.d(TAG, "Повторения: ${stats.reps}")
+        Log.d(TAG, "Номер подхода: ${stats.setNumber}")
+        Log.d(TAG, "Количество подходов: ${stats.sets}")
+        Log.d(TAG, "Объём (вес × повт): ${stats.volume} кг")
+        Log.d(TAG, "Дата записи: ${java.text.SimpleDateFormat("dd.MM.yyyy HH:mm:ss", java.util.Locale("ru")).format(java.util.Date(stats.date))}")
+
         val key = getStatsKey(username)
         context.exerciseStatsDataStore.edit { preferences ->
             val json = preferences[key] ?: "[]"
@@ -35,10 +48,16 @@ class ExerciseStatsRepository @Inject constructor(
             val currentList: MutableList<ExerciseStats> = try {
                 gson.fromJson(json, type) ?: mutableListOf()
             } catch (e: Exception) {
+                Log.e(TAG, "Ошибка при чтении существующих данных", e)
                 mutableListOf()
             }
+            val previousSize = currentList.size
             currentList.add(stats)
             preferences[key] = gson.toJson(currentList)
+            Log.d(TAG, "✅ Данные успешно сохранены!")
+            Log.d(TAG, "Количество записей до: $previousSize")
+            Log.d(TAG, "Количество записей после: ${currentList.size}")
+            Log.d(TAG, "Новая запись добавлена: ${stats.exerciseName} - ${stats.weight}кг × ${stats.reps} = ${stats.volume}кг")
         }
     }
 
@@ -48,8 +67,23 @@ class ExerciseStatsRepository @Inject constructor(
             val json = preferences[key] ?: "[]"
             val type = object : TypeToken<List<ExerciseStats>>() {}.type
             try {
-                gson.fromJson(json, type) ?: emptyList()
+                val stats = gson.fromJson<List<ExerciseStats>>(json, type) ?: emptyList()
+                if (stats.isNotEmpty()) {
+                    Log.d(TAG, "Loaded ${stats.size} exercise stats for user $username")
+                    val oldestStat = stats.minByOrNull { it.date }
+                    val newestStat = stats.maxByOrNull { it.date }
+                    if (oldestStat != null && newestStat != null) {
+                        val dateRangeDays = ((newestStat.date - oldestStat.date) / (24 * 60 * 60 * 1000L))
+                        Log.d(TAG, "Date range: $dateRangeDays days (from ${oldestStat.exerciseName} to ${newestStat.exerciseName})")
+                    }
+                    val uniqueExercises = stats.map { it.exerciseName }.distinct()
+                    Log.d(TAG, "Unique exercises: ${uniqueExercises.size} - ${uniqueExercises.take(5)}")
+                } else {
+                    Log.d(TAG, "No exercise stats found for user $username")
+                }
+                stats
             } catch (e: Exception) {
+                Log.e(TAG, "Error parsing stats for user $username", e)
                 emptyList()
             }
         }

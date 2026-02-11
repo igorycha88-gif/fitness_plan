@@ -5,10 +5,12 @@ data class Cycle(
     val startDate: Long,
     val completedDate: Long? = null,
     val daysCompleted: Int = 0,
-    val totalDays: Int = DAYS_IN_CYCLE
+    val totalDays: Int = DAYS_IN_CYCLE,
+    val completedMicrocycles: Int = 0
 ) {
     companion object {
         const val DAYS_IN_CYCLE = 30
+        const val DAYS_IN_MICROCYCLE = 10
     }
 
     val isCompleted: Boolean

@@ -22,6 +22,8 @@ class NotificationRepository @Inject constructor(
         val SCHEDULE_FILLED_REMINDER_SENT = longPreferencesKey("schedule_filled_reminder_sent")
         val LAST_WORKOUT_DATE = longPreferencesKey("last_workout_date")
         val NOTIFICATIONS_ENABLED = booleanPreferencesKey("notifications_enabled")
+        val WORKOUT_REMINDER_ENABLED = booleanPreferencesKey("workout_reminder_enabled")
+        val WORKOUT_REMINDER_HOURS = intPreferencesKey("workout_reminder_hours")
     }
 
     val notificationsEnabled: Flow<Boolean> = context.notificationDataStore.data.map { prefs ->
@@ -31,6 +33,26 @@ class NotificationRepository @Inject constructor(
     suspend fun setNotificationsEnabled(enabled: Boolean) {
         context.notificationDataStore.edit { prefs ->
             prefs[Keys.NOTIFICATIONS_ENABLED] = enabled
+        }
+    }
+
+    val workoutReminderEnabled: Flow<Boolean> = context.notificationDataStore.data.map { prefs ->
+        prefs[Keys.WORKOUT_REMINDER_ENABLED] ?: false
+    }
+
+    suspend fun setWorkoutReminderEnabled(enabled: Boolean) {
+        context.notificationDataStore.edit { prefs ->
+            prefs[Keys.WORKOUT_REMINDER_ENABLED] = enabled
+        }
+    }
+
+    val workoutReminderHours: Flow<Int> = context.notificationDataStore.data.map { prefs ->
+        prefs[Keys.WORKOUT_REMINDER_HOURS] ?: 8
+    }
+
+    suspend fun setWorkoutReminderHours(hours: Int) {
+        context.notificationDataStore.edit { prefs ->
+            prefs[Keys.WORKOUT_REMINDER_HOURS] = hours
         }
     }
 

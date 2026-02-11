@@ -20,7 +20,8 @@ class CycleUseCase @Inject constructor(
     private val cycleRepository: CycleRepository,
     private val workoutRepository: WorkoutRepository,
     private val userRepository: UserRepository,
-    private val exerciseCompletionRepository: ExerciseCompletionRepository
+    private val exerciseCompletionRepository: ExerciseCompletionRepository,
+    private val weightProgressionUseCase: WeightProgressionUseCase
 ) {
     data class CycleState(
         val cycle: Cycle?,
@@ -35,7 +36,7 @@ class CycleUseCase @Inject constructor(
         val currentCycle = cycleRepository.getCurrentCycleSync(username)
         val now = System.currentTimeMillis()
 
-        Log.d(TAG, "completedDate=$completedDate, currentCycle=${currentCycle?.cycleNumber}")
+        Log.d(TAG, "completedDate=$completedDate, currentCycle=${currentCycle?.cycleNumber}, totalDays=${currentCycle?.totalDays}")
 
         val cycle = when {
             completedDate != null -> {
@@ -46,6 +47,13 @@ class CycleUseCase @Inject constructor(
             }
             currentCycle == null -> {
                 Log.d(TAG, "Starting new cycle")
+                cycleRepository.startNewCycle(username, now)
+            }
+            currentCycle.totalDays != Cycle.DAYS_IN_CYCLE -> {
+                Log.d(TAG, "Migrating old ${currentCycle.totalDays}-day cycle to new ${Cycle.DAYS_IN_CYCLE}-day cycle")
+                cycleRepository.markCycleCompleted(username, now)
+                cycleRepository.resetCycle(username)
+                exerciseCompletionRepository.clearCompletion(username)
                 cycleRepository.startNewCycle(username, now)
             }
             else -> {
@@ -65,12 +73,43 @@ class CycleUseCase @Inject constructor(
 
     private suspend fun loadWorkoutPlan(profile: UserProfile, cycle: Cycle?): WorkoutPlan {
         val basePlan = workoutRepository.getWorkoutPlanForUser(profile)
-        val plan30 = workoutRepository.get30DayWorkoutPlan(basePlan)
-        val dates = workoutRepository.generate30DayDates(
+        val planCycle = workoutRepository.getCycleWorkoutPlan(basePlan, profile.frequency)
+        val dates = workoutRepository.generateCycleDates(
             cycle?.startDate ?: System.currentTimeMillis(),
             profile.frequency
         )
-        return workoutRepository.getWorkoutPlanWithDates(plan30, dates)
+        val finalPlan = workoutRepository.getWorkoutPlanWithDates(planCycle, dates)
+
+        val cycleNumber = cycle?.cycleNumber ?: 1
+        return applyWeightProgression(finalPlan, cycleNumber)
+    }
+
+    private fun applyWeightProgression(plan: WorkoutPlan, cycleNumber: Int): WorkoutPlan {
+        val cycleGroup = (cycleNumber - 1) / 3
+        val weightIncrement = cycleGroup * 2.0f
+        
+        val updatedDays = plan.days.map { day ->
+            val updatedExercises = day.exercises.map { exercise ->
+                exercise.copy(
+                    recommendedWeight = exercise.recommendedWeight?.let { weight -> weight + weightIncrement }
+                )
+            }
+            day.copy(exercises = updatedExercises)
+        }
+        
+        return plan.copy(days = updatedDays)
+    }
+
+    suspend fun getCompletedCyclesCount(username: String): Int {
+        val history = cycleRepository.getCycleHistory(username).first()
+        return history.size
+    }
+
+    suspend fun getFullCycleGroups(username: String): Int {
+        val completedCount = getCompletedCyclesCount(username)
+        val currentCycle = cycleRepository.getCurrentCycleSync(username)
+        val currentCycleNumber = currentCycle?.cycleNumber ?: 0
+        return (currentCycleNumber - 1) / 3
     }
 
     fun getCurrentCycle(username: String): Flow<Cycle?> {
@@ -86,7 +125,28 @@ class CycleUseCase @Inject constructor(
 
         if (completedDaysCount >= Cycle.DAYS_IN_CYCLE) {
             cycleRepository.markCycleCompleted(username, System.currentTimeMillis())
+        } else {
+            checkAndApplyMicrocycleProgression(username, completedDaysCount)
         }
+    }
+    
+    suspend fun checkAndApplyMicrocycleProgression(username: String, completedDaysCount: Int): WeightProgressionUseCase.WeightProgressionSummary? {
+        val currentCycle = cycleRepository.getCurrentCycleSync(username) ?: return null
+        val newMicrocycleCount = completedDaysCount / Cycle.DAYS_IN_MICROCYCLE
+        
+        if (newMicrocycleCount > currentCycle.completedMicrocycles) {
+            Log.d(TAG, "Microcycle completed: $newMicrocycleCount (was ${currentCycle.completedMicrocycles})")
+            
+            cycleRepository.updateCompletedMicrocycles(username, newMicrocycleCount)
+            
+            val progressionResult = weightProgressionUseCase.applyAdaptiveProgression(username)
+            if (progressionResult.isSuccess) {
+                val summary = progressionResult.getOrNull()
+                Log.d(TAG, "Adaptive progression applied: increased=${summary?.totalIncreased}, decreased=${summary?.totalDecreased}")
+                return summary
+            }
+        }
+        return null
     }
 
     suspend fun checkAndStartNewCycleIfNeeded() {

@@ -12,6 +12,7 @@ import com.example.fitness_plan.domain.repository.ExerciseStatsRepository
 import com.example.fitness_plan.domain.repository.UserRepository
 import com.example.fitness_plan.domain.usecase.CycleUseCase
 import com.example.fitness_plan.domain.usecase.WorkoutUseCase
+import com.example.fitness_plan.domain.usecase.ExerciseLibraryUseCase
 import io.mockk.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -34,6 +35,8 @@ class WorkoutViewModelTest {
     private lateinit var mockCycleUseCase: CycleUseCase
     private lateinit var mockWorkoutUseCase: WorkoutUseCase
     private lateinit var mockExerciseCompletionRepository: ExerciseCompletionRepository
+    private lateinit var mockWeightCalculator: com.example.fitness_plan.domain.calculator.WeightCalculator
+    private lateinit var mockExerciseLibraryUseCase: ExerciseLibraryUseCase
 
     private val testDispatcher = UnconfinedTestDispatcher()
 
@@ -47,13 +50,19 @@ class WorkoutViewModelTest {
         mockCycleUseCase = mockk(relaxed = true)
         mockWorkoutUseCase = mockk(relaxed = true)
         mockExerciseCompletionRepository = mockk(relaxed = true)
+        mockWeightCalculator = mockk<com.example.fitness_plan.domain.calculator.WeightCalculator>(relaxed = true)
+        mockExerciseLibraryUseCase = mockk(relaxed = true)
 
         viewModel = WorkoutViewModel(
+            mockk(relaxed = true),
             mockUserRepository,
             mockCycleRepository,
             mockExerciseStatsRepository,
             mockCycleUseCase,
-            mockWorkoutUseCase
+            mockWorkoutUseCase,
+            mockWeightCalculator,
+            mockExerciseLibraryUseCase,
+            mockExerciseCompletionRepository
         )
     }
 

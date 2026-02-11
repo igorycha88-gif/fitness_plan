@@ -27,8 +27,9 @@ class CredentialsRepository @Inject constructor(
         // Force synchronous read
         val username = encryptedPrefs.getString(KEY_USERNAME, null)
         val hashedPassword = encryptedPrefs.getString(KEY_HASHED_PASSWORD, null)
+        val appVersion = encryptedPrefs.getString(KEY_APP_VERSION, null)
 
-        Log.d(TAG, "CredentialsRepository: init read username=$username")
+        Log.d(TAG, "CredentialsRepository: init read username=$username, appVersion=$appVersion")
 
         if (username != null && hashedPassword != null) {
             _credentialsFlow.value = Credentials(username, hashedPassword)
@@ -194,6 +195,56 @@ class CredentialsRepository @Inject constructor(
         Log.d(TAG, "clearSession: flow updated to null")
     }
 
+    override suspend fun getAppVersion(): String? {
+        return try {
+            encryptedPrefs.getString(KEY_APP_VERSION, null)
+        } catch (e: Exception) {
+            Log.e(TAG, "getAppVersion: failed", e)
+            null
+        }
+    }
+
+    override suspend fun saveAppVersion(version: String) {
+        try {
+            Log.d(TAG, "saveAppVersion: saving version=$version")
+            encryptedPrefs.edit()
+                .putString(KEY_APP_VERSION, version)
+                .commit()
+            Log.d(TAG, "saveAppVersion: version saved successfully")
+        } catch (e: Exception) {
+            Log.e(TAG, "saveAppVersion: failed", e)
+        }
+    }
+
+    override suspend fun clearAppVersion() {
+        try {
+            Log.d(TAG, "clearAppVersion: clearing app version")
+            encryptedPrefs.edit()
+                .remove(KEY_APP_VERSION)
+                .commit()
+            Log.d(TAG, "clearAppVersion: app version cleared")
+        } catch (e: Exception) {
+            Log.e(TAG, "clearAppVersion: failed", e)
+        }
+    }
+
+    override suspend fun isAppVersionMismatch(currentVersion: String): Boolean {
+        return try {
+            val savedVersion = getAppVersion()
+            if (savedVersion == null) {
+                Log.d(TAG, "isAppVersionMismatch: no saved version, assuming mismatch")
+                true
+            } else {
+                val mismatch = savedVersion != currentVersion
+                Log.d(TAG, "isAppVersionMismatch: saved=$savedVersion, current=$currentVersion, mismatch=$mismatch")
+                mismatch
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "isAppVersionMismatch: failed", e)
+            true
+        }
+    }
+
     // Admin credentials methods
     suspend fun saveAdminCredentials(username: String, plainPassword: String) {
         try {
@@ -219,5 +270,6 @@ class CredentialsRepository @Inject constructor(
         private const val KEY_HASHED_PASSWORD = "credentials_hashed_password"
         private const val KEY_ADMIN_USERNAME = "admin_username"
         private const val KEY_ADMIN_HASHED_PASSWORD = "admin_hashed_password"
+        private const val KEY_APP_VERSION = "app_version"
     }
 }

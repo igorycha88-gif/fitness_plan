@@ -1,9 +1,11 @@
 package com.example.fitness_plan.presentation.viewmodel
 
+import android.content.Context
 import com.example.fitness_plan.data.CredentialsRepository
 import com.example.fitness_plan.data.UserRepository
 import com.example.fitness_plan.data.CycleRepository
 import com.example.fitness_plan.data.WeightRepository
+import com.example.fitness_plan.data.NotificationRepository
 import com.example.fitness_plan.domain.repository.ICredentialsRepository
 import com.example.fitness_plan.domain.repository.UserRepository as DomainUserRepository
 import com.example.fitness_plan.domain.repository.CycleRepository as DomainCycleRepository
@@ -36,12 +38,16 @@ import java.util.*
 class ProfileViewModelTest {
 
     private lateinit var viewModel: ProfileViewModel
+    private lateinit var mockContext: Context
     private lateinit var mockCredentialsRepository: ICredentialsRepository
     private lateinit var mockUserRepository: DomainUserRepository
     private lateinit var mockCycleRepository: DomainCycleRepository
     private lateinit var mockWeightRepository: DomainWeightRepository
     private lateinit var mockAuthUseCase: AuthUseCase
     private lateinit var mockWorkoutUseCase: WorkoutUseCase
+    private lateinit var mockExerciseLibraryUseCase: com.example.fitness_plan.domain.usecase.ExerciseLibraryUseCase
+    private lateinit var mockReferenceDataUseCase: com.example.fitness_plan.domain.usecase.ReferenceDataUseCase
+    private lateinit var mockNotificationRepository: NotificationRepository
 
     private val testDispatcher = UnconfinedTestDispatcher()
 
@@ -49,20 +55,28 @@ class ProfileViewModelTest {
     fun setup() {
         Dispatchers.setMain(testDispatcher)
 
+        mockContext = mockk<Context>(relaxed = true)
         mockCredentialsRepository = mockk<ICredentialsRepository>(relaxed = true)
         mockUserRepository = mockk<DomainUserRepository>(relaxed = true)
         mockCycleRepository = mockk<DomainCycleRepository>(relaxed = true)
         mockWeightRepository = mockk<DomainWeightRepository>(relaxed = true)
         mockAuthUseCase = mockk<AuthUseCase>(relaxed = true)
         mockWorkoutUseCase = mockk<WorkoutUseCase>(relaxed = true)
+        mockExerciseLibraryUseCase = mockk<com.example.fitness_plan.domain.usecase.ExerciseLibraryUseCase>(relaxed = true)
+        mockReferenceDataUseCase = mockk<com.example.fitness_plan.domain.usecase.ReferenceDataUseCase>(relaxed = true)
+        mockNotificationRepository = mockk<NotificationRepository>(relaxed = true)
 
         viewModel = ProfileViewModel(
+            mockContext,
             mockUserRepository,
             mockCredentialsRepository,
             mockCycleRepository,
             mockWeightRepository,
             mockAuthUseCase,
-            mockWorkoutUseCase
+            mockWorkoutUseCase,
+            mockExerciseLibraryUseCase,
+            mockReferenceDataUseCase,
+            mockNotificationRepository
         )
     }
 

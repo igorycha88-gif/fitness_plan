@@ -2,7 +2,6 @@ package com.example.fitness_plan.domain.repository
 
 import kotlinx.coroutines.flow.Flow
 
-// Unified domain contract for credentials management
 interface ICredentialsRepository {
     suspend fun saveCredentials(username: String, plainPassword: String)
     suspend fun verifyPassword(username: String, plainPassword: String): Boolean
@@ -12,4 +11,9 @@ interface ICredentialsRepository {
     fun reloadCredentials()
     fun clearSession()
     fun getCredentialsFlow(): Flow<Credentials?>
+
+    suspend fun getAppVersion(): String?
+    suspend fun saveAppVersion(version: String)
+    suspend fun clearAppVersion()
+    suspend fun isAppVersionMismatch(currentVersion: String): Boolean
 }

@@ -22,6 +22,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.WindowInsetsSides
+import com.example.fitness_plan.domain.calculator.WorkoutDateCalculator
 import com.example.fitness_plan.domain.model.UserProfile
 import com.example.fitness_plan.presentation.viewmodel.ProfileViewModel
 import java.text.SimpleDateFormat
@@ -47,6 +48,7 @@ fun UserProfileForm(
     var weight by remember { mutableStateOf("") }
     var height by remember { mutableStateOf("") }
     var gender by remember { mutableStateOf<String?>(null) }
+    var targetWeight by remember { mutableStateOf("") }
 
     var showSlowWeightLossDialog by remember { mutableStateOf(false) }
     var showScheduleDialog by remember { mutableStateOf(false) }
@@ -76,12 +78,18 @@ fun UserProfileForm(
 
     val showWarning = goal == "Похудение" && frequency == "1 раз в неделю"
 
+    val showTargetWeight = goal == UserProfile.GOAL_WEIGHT_LOSS
+
     val isValid = goal != null && level != null && frequency != null &&
-            weight.isNotEmpty() && height.isNotEmpty() && gender != null
+            weight.isNotEmpty() && height.isNotEmpty() && gender != null &&
+            (!showTargetWeight || targetWeight.isNotEmpty())
 
     val weightDouble = weight.toDoubleOrNull()
     val heightDouble = height.toDoubleOrNull()
-    val isNumericValid = (weightDouble != null && weightDouble > 0) && (heightDouble != null && heightDouble > 0)
+    val targetWeightDouble = targetWeight.toDoubleOrNull()
+    val isNumericValid = (weightDouble != null && weightDouble > 0) &&
+            (heightDouble != null && heightDouble > 0) &&
+            (!showTargetWeight || targetWeightDouble != null && targetWeightDouble > 0)
 
     val scrollState = rememberScrollState()
 
@@ -321,6 +329,34 @@ fun UserProfileForm(
                 }
             }
 
+            if (showTargetWeight) {
+                Spacer(modifier = Modifier.height(16.dp))
+
+                OutlinedTextField(
+                    value = targetWeight,
+                    onValueChange = { targetWeight = it },
+                    label = { Text("Целевой вес (кг)") },
+                    isError = targetWeight.isNotEmpty() && (targetWeightDouble == null || targetWeightDouble <= 0),
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = MaterialTheme.colorScheme.primary,
+                        unfocusedBorderColor = MaterialTheme.colorScheme.outline,
+                        focusedLabelColor = MaterialTheme.colorScheme.primary,
+                        unfocusedLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                        cursorColor = MaterialTheme.colorScheme.primary,
+                        focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                        unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+                        errorBorderColor = MaterialTheme.colorScheme.error,
+                        errorLabelColor = MaterialTheme.colorScheme.error
+                    ),
+                    shape = RoundedCornerShape(12.dp),
+                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                        keyboardType = androidx.compose.ui.text.input.KeyboardType.Number
+                    ),
+                    singleLine = true
+                )
+            }
+
             Spacer(modifier = Modifier.height(24.dp))
 
             Button(
@@ -387,7 +423,8 @@ fun UserProfileForm(
                         frequency = frequency!!,
                         weight = weightDouble!!,
                         height = heightDouble!!,
-                        gender = gender!!
+                        gender = gender!!,
+                        targetWeight = if (goal == UserProfile.GOAL_WEIGHT_LOSS) targetWeightDouble else null
                     )
                     viewModel.saveUserProfile(profile)
                     viewModel.saveWorkoutDates(dates)
@@ -414,6 +451,7 @@ fun WorkoutScheduleDialog(
     onDismiss: () -> Unit,
     onConfirm: (List<Long>) -> Unit
 ) {
+    val dateCalculator = remember { WorkoutDateCalculator() }
     val trainingCount = when (frequency) {
         "1 раз в неделю" -> 4
         "3 раза в неделю" -> 12
@@ -423,10 +461,11 @@ fun WorkoutScheduleDialog(
 
     var showStartDatePicker by remember { mutableStateOf(false) }
     var startDate by remember { mutableStateOf<Long?>(null) }
+    var dateError by remember { mutableStateOf<String?>(null) }
 
     val dates = remember(startDate, frequency) {
         if (startDate != null) {
-            calculateWorkoutDates(startDate!!, frequency, trainingCount)
+            dateCalculator.generateDates(startDate!!, frequency, trainingCount)
         } else {
             emptyList()
         }
@@ -459,6 +498,15 @@ fun WorkoutScheduleDialog(
                         style = MaterialTheme.typography.bodyMedium
                     )
                 }
+
+                if (dateError != null) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        dateError!!,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
             }
         },
         confirmButton = {
@@ -478,8 +526,16 @@ fun WorkoutScheduleDialog(
     )
 
     if (showStartDatePicker) {
+        val minDate = dateCalculator.getMinStartDate()
+        val maxDate = dateCalculator.getMaxStartDate()
         val datePickerState = rememberDatePickerState(
-            initialSelectedDateMillis = startDate ?: System.currentTimeMillis()
+            initialSelectedDateMillis = startDate ?: minDate,
+            selectableDates = object : SelectableDates {
+                override fun isSelectableDate(utcTimeMillis: Long): Boolean {
+                    val dayStart = dateCalculator.validateStartDate(utcTimeMillis)
+                    return dayStart.isValid
+                }
+            }
         )
 
         DatePickerDialog(
@@ -487,7 +543,13 @@ fun WorkoutScheduleDialog(
             confirmButton = {
                 TextButton(onClick = {
                     datePickerState.selectedDateMillis?.let { date ->
-                        startDate = date
+                        val validation = dateCalculator.validateStartDate(date)
+                        if (validation.isValid) {
+                            startDate = date
+                            dateError = null
+                        } else {
+                            dateError = validation.errorMessage
+                        }
                     }
                     showStartDatePicker = false
                 }) {
@@ -503,50 +565,4 @@ fun WorkoutScheduleDialog(
             DatePicker(state = datePickerState)
         }
     }
-}
-
-fun calculateWorkoutDates(startDate: Long, frequency: String, totalCount: Int): List<Long> {
-    val dates = mutableListOf<Long>()
-    val calendar = Calendar.getInstance()
-    calendar.timeInMillis = startDate
-
-    when (frequency) {
-        "1 раз в неделю" -> {
-            for (i in 0 until totalCount) {
-                dates.add(calendar.timeInMillis)
-                calendar.add(Calendar.WEEK_OF_YEAR, 1)
-            }
-        }
-        "3 раза в неделю" -> {
-            var count = 0
-            while (dates.size < totalCount) {
-                dates.add(calendar.timeInMillis)
-                count++
-                if (count == 3) {
-                    calendar.add(Calendar.WEEK_OF_YEAR, 1)
-                    calendar.set(Calendar.DAY_OF_WEEK, Calendar.getInstance().apply {
-                        timeInMillis = startDate
-                    }.get(Calendar.DAY_OF_WEEK))
-                    count = 0
-                } else {
-                    calendar.add(Calendar.DAY_OF_YEAR, 2)
-                }
-            }
-        }
-        "5 раз в неделю" -> {
-            var weekStart = calendar.clone() as Calendar
-            while (dates.size < totalCount) {
-                for (dayOffset in 0 until 5) {
-                    if (dates.size >= totalCount) break
-                    val dayCalendar = weekStart.clone() as Calendar
-                    dayCalendar.add(Calendar.DAY_OF_YEAR, dayOffset)
-                    dates.add(dayCalendar.timeInMillis)
-                }
-                calendar.add(Calendar.WEEK_OF_YEAR, 1)
-                weekStart = calendar.clone() as Calendar
-            }
-        }
-    }
-
-    return dates
 }
