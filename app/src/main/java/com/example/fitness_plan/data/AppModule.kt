@@ -20,12 +20,17 @@ import com.example.fitness_plan.domain.repository.ReferenceDataRepository
 import com.example.fitness_plan.domain.repository.UserRepository as DomainUserRepository
 import com.example.fitness_plan.domain.repository.WeightRepository as DomainWeightRepository
 import com.example.fitness_plan.domain.repository.WorkoutRepository
+import com.example.fitness_plan.domain.repository.BodyParametersRepository as DomainBodyParametersRepository
 import com.example.fitness_plan.domain.repository.WorkoutScheduleRepository as DomainWorkoutScheduleRepository
 import com.example.fitness_plan.domain.usecase.AuthUseCase
 import com.example.fitness_plan.domain.usecase.CycleUseCase
 import com.example.fitness_plan.domain.usecase.ReferenceDataUseCase
 import com.example.fitness_plan.domain.usecase.WeightUseCase
 import com.example.fitness_plan.domain.usecase.WorkoutUseCase
+import com.example.fitness_plan.domain.usecase.BodyParametersUseCase
+import com.example.fitness_plan.domain.usecase.BodyParameterCalculator
+import com.example.fitness_plan.domain.usecase.MeasurementValidator
+import com.example.fitness_plan.presentation.viewmodel.BodyParametersViewModel
 import com.google.gson.Gson
 import dagger.Module
 import dagger.Provides
@@ -251,5 +256,44 @@ object AppModule {
         exerciseLibraryUseCase: ExerciseLibraryUseCase
     ): com.example.fitness_plan.presentation.viewmodel.ExerciseLibraryViewModel {
         return com.example.fitness_plan.presentation.viewmodel.ExerciseLibraryViewModel(exerciseLibraryUseCase)
+    }
+
+    @Provides
+    @Singleton
+    fun provideBodyParametersRepository(
+        @ApplicationContext context: Context
+    ): DomainBodyParametersRepository {
+        return BodyParametersRepository(context)
+    }
+
+    @Provides
+    @Singleton
+    fun provideBodyParameterCalculator(): BodyParameterCalculator {
+        return BodyParameterCalculator()
+    }
+
+    @Provides
+    @Singleton
+    fun provideMeasurementValidator(): MeasurementValidator {
+        return MeasurementValidator()
+    }
+
+    @Provides
+    @Singleton
+    fun provideBodyParametersUseCase(
+        bodyParametersRepository: DomainBodyParametersRepository,
+        calculator: BodyParameterCalculator,
+        validator: MeasurementValidator
+    ): BodyParametersUseCase {
+        return BodyParametersUseCase(bodyParametersRepository, calculator, validator)
+    }
+
+    @Provides
+    @Singleton
+    fun provideBodyParametersViewModel(
+        bodyParametersUseCase: BodyParametersUseCase,
+        userRepository: DomainUserRepository
+    ): BodyParametersViewModel {
+        return BodyParametersViewModel(bodyParametersUseCase, userRepository)
     }
 }

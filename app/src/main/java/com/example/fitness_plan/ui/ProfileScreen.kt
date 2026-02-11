@@ -25,6 +25,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.fitness_plan.domain.model.UserProfile
 import com.example.fitness_plan.domain.model.WeightEntry
 import com.example.fitness_plan.presentation.viewmodel.ProfileViewModel
+import com.example.fitness_plan.presentation.viewmodel.BodyParametersViewModel
 import kotlinx.coroutines.launch
 
 private const val TAG = "ProfileScreen"
@@ -171,6 +172,14 @@ fun ProfileScreen(
                             viewModel.toggleWorkoutReminder(false)
                         }
                     }
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                val bodyParametersViewModel: BodyParametersViewModel = hiltViewModel()
+                BodyParametersSection(
+                    viewModel = bodyParametersViewModel,
+                    modifier = Modifier.padding(horizontal = 16.dp)
                 )
 
                 Spacer(modifier = Modifier.height(16.dp))
