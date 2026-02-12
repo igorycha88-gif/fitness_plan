@@ -23,6 +23,7 @@ interface WorkoutRepository {
     suspend fun saveUserWorkoutPlan(username: String, plan: WorkoutPlan)
     fun getUserWorkoutPlan(username: String): Flow<WorkoutPlan?>
     suspend fun deleteUserWorkoutPlan(username: String)
+    suspend fun updateUserPlan(username: String, plan: WorkoutPlan)
 
     suspend fun setSelectedPlanType(username: String, planType: SelectedPlanType)
     fun getSelectedPlanType(username: String): Flow<SelectedPlanType>

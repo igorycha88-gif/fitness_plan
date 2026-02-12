@@ -129,28 +129,7 @@ class WorkoutRepositoryImpl @Inject constructor(
 
     override suspend fun getWorkoutPlanForUser(profile: com.example.fitness_plan.domain.model.UserProfile): WorkoutPlan {
         Log.d(TAG, "getWorkoutPlanForUser: goal=${profile.goal}, level=${profile.level}, frequency=${profile.frequency}, favorites=${profile.favoriteExercises.size}")
-        val plan = when {
-            profile.goal == "Похудение" -> {
-                Log.d(TAG, "Creating weight loss ${profile.level} plan with split")
-                createWeightLossPlanBySplit(profile, profile.level)
-            }
-            profile.goal == "Наращивание мышечной массы" && profile.level == "Новичок" -> {
-                Log.d(TAG, "Creating muscle gain beginner plan")
-                createMuscleGainBeginnerPlan(profile, profile.frequency)
-            }
-            profile.goal == "Наращивание мышечной массы" && profile.level == "Любитель" -> {
-                Log.d(TAG, "Creating muscle gain intermediate plan")
-                createMuscleGainIntermediatePlan(profile, profile.frequency)
-            }
-            profile.goal == "Наращивание мышечной массы" && profile.level == "Профессионал" -> {
-                Log.d(TAG, "Creating muscle gain advanced plan")
-                createMuscleGainAdvancedPlan(profile, profile.frequency)
-            }
-            else -> {
-                Log.d(TAG, "Creating maintenance plan")
-                createMaintenancePlan(profile, profile.frequency)
-            }
-        }
+        val plan = createWorkoutPlanWithNewLogic(profile)
         
         val planWithFavorites = applyFavoriteExercises(plan, profile.favoriteExercises)
         Log.d(TAG, "Plan created: ${planWithFavorites.name}, days=${planWithFavorites.days.size}")
@@ -254,8 +233,11 @@ class WorkoutRepositoryImpl @Inject constructor(
             if (json != null) {
                 try {
                     val plan = gson.fromJson(json, WorkoutPlan::class.java)
-                    Log.d(TAG, "getWorkoutPlan: SUCCESS - loaded plan ${plan.name} with ${plan.days.size} days")
-                    plan
+                    if (plan.planType == null) {
+                        plan.copy(planType = com.example.fitness_plan.domain.model.PlanType.AUTO)
+                    } else {
+                        plan
+                    }
                 } catch (e: Exception) {
                     Log.e(TAG, "getWorkoutPlan: FAILED to parse plan for username=$username", e)
                     null
@@ -280,7 +262,12 @@ class WorkoutRepositoryImpl @Inject constructor(
             val json = preferences[key]
             if (json != null) {
                 try {
-                    gson.fromJson(json, WorkoutPlan::class.java)
+                    val plan = gson.fromJson(json, WorkoutPlan::class.java)
+                    if (plan.planType == null) {
+                        plan.copy(planType = com.example.fitness_plan.domain.model.PlanType.ADMIN)
+                    } else {
+                        plan
+                    }
                 } catch (e: Exception) {
                     null
                 }
@@ -313,8 +300,11 @@ class WorkoutRepositoryImpl @Inject constructor(
             if (json != null) {
                 try {
                     val plan = gson.fromJson(json, WorkoutPlan::class.java)
-                    Log.d(TAG, "getUserWorkoutPlan: SUCCESS - loaded user plan ${plan.name} with ${plan.days.size} days")
-                    plan
+                    if (plan.planType == null) {
+                        plan.copy(planType = com.example.fitness_plan.domain.model.PlanType.USER)
+                    } else {
+                        plan
+                    }
                 } catch (e: Exception) {
                     Log.e(TAG, "getUserWorkoutPlan: FAILED to parse user plan for username=$username", e)
                     null
@@ -336,6 +326,21 @@ class WorkoutRepositoryImpl @Inject constructor(
             Log.d(TAG, "deleteUserWorkoutPlan: SUCCESS - deleted user plan for username=$username")
         } catch (e: Exception) {
             Log.e(TAG, "deleteUserWorkoutPlan: FAILED to delete user plan for username=$username", e)
+            throw e
+        }
+    }
+
+    override suspend fun updateUserPlan(username: String, plan: WorkoutPlan) {
+        try {
+            Log.d(TAG, "updateUserPlan: START for username=$username, plan=${plan.name}")
+            val key = getUserPlanKey(username)
+            val json = gson.toJson(plan)
+            context.workoutDataStore.edit { preferences ->
+                preferences[key] = json
+            }
+            Log.d(TAG, "updateUserPlan: SUCCESS - updated user plan for username=$username")
+        } catch (e: Exception) {
+            Log.e(TAG, "updateUserPlan: FAILED to update user plan for username=$username", e)
             throw e
         }
     }
@@ -416,7 +421,31 @@ class WorkoutRepositoryImpl @Inject constructor(
             "Планка" -> listOf("Пресс", "Плечи", "Предплечья")
             "Бег", "Беговая дорожка", "Интервальный бег" -> listOf("Квадрицепсы", "Бёдра сзади", "Икры", "Ягодицы")
             "Велотренажёр", "Велотренажёр с сопротивлением", "Кардио: Комбо", "Эллипсоид", "Гребной тренажёр", "HIIT" -> listOf("Квадрицепсы", "Бёдра сзади", "Икры", "Ягодицы", "Широчайшие", "Бицепсы")
-            else -> emptyList()
+            else -> when {
+                name.contains("Бицепс") || name.contains("Сгибания") -> listOf("Бицепсы", "Предплечья", "Плечелучевая")
+                name.contains("Трицепс") || name.contains("Французский") || name.contains("Кикбэки") || name.contains("Разгибания") -> listOf("Трицепсы", "Предплечья")
+                name.contains("Армейский") || name.contains("Жим гантелей") || name.contains("Разведение") || name.contains("Подъём") || name.contains("Махи") -> listOf("Плечи", "Трицепсы", "Трапеции")
+                name.contains("Жим") && !name.contains("ног") -> listOf("Грудь", "Трицепсы", "Плечи")
+                name.contains("Отжимания") || name.contains("Разведение") || name.contains("Пек-дек") -> listOf("Грудь", "Трицепсы", "Плечи")
+                name.contains("Становая") || name.contains("Тяга") || name.contains("Гиперэкстензия") || name.contains("Подтягивания") || name.contains("Т-тяга") -> listOf("Широчайшие", "Трапеции", "Бицепсы", "Предплечья", "Поясница")
+                name.contains("Приседания") || name.contains("Жим ног") || name.contains("Выпады") || name.contains("Ягодичный") || name.contains("Подъёмы на носки") || name.contains("Разведение ног") || name.contains("Сведение ног") -> listOf("Квадрицепсы", "Ягодицы", "Бёдра сзади", "Икры")
+                else -> emptyList()
+            }
+        }
+    }
+
+    private fun getCardioDuration(level: String): String {
+        return when (level) {
+            "Новичок" -> "40 мин"
+            "Любитель" -> "50 мин"
+            "Профессионал" -> "60 мин"
+            else -> "50 мин"
+        }
+    }
+
+    private fun getMuscleGroupsFromNames(names: List<String>): List<com.example.fitness_plan.domain.model.MuscleGroup> {
+        return names.mapNotNull { groupName ->
+            com.example.fitness_plan.domain.model.MuscleGroup.values().find { it.displayName == groupName }
         }
     }
 
@@ -451,6 +480,12 @@ class WorkoutRepositoryImpl @Inject constructor(
 
         val libExercise = exerciseLibrary?.find { it.name == name }
 
+        val muscleGroups = if (libExercise != null && libExercise.muscleGroups.isNotEmpty()) {
+            libExercise.muscleGroups
+        } else {
+            getMuscleGroupsFromNames(getMuscleGroupsForExercise(name))
+        }
+
         return Exercise(
             id = id,
             name = name,
@@ -463,12 +498,208 @@ class WorkoutRepositoryImpl @Inject constructor(
             description = libExercise?.description ?: description,
             recommendedWeight = finalRecommendedWeight,
             recommendedRepsPerSet = finalRecommendedReps,
-            muscleGroups = libExercise?.muscleGroups ?: emptyList(),
+            muscleGroups = muscleGroups,
             equipment = libExercise?.equipment ?: emptyList(),
             exerciseType = libExercise?.exerciseType ?: com.example.fitness_plan.domain.model.ExerciseType.STRENGTH,
             stepByStepInstructions = libExercise?.stepByStepInstructions,
             animationUrl = libExercise?.animationUrl,
             imageUrl = libExercise?.imageUrl
+        )
+    }
+
+    private suspend fun createArmExercises(
+        library: List<com.example.fitness_plan.domain.model.ExerciseLibrary>,
+        sets: Int,
+        reps: String,
+        profile: com.example.fitness_plan.domain.model.UserProfile
+    ): List<Exercise> {
+        return listOf(
+            createExerciseWithAlternatives("arm_1", "Бицепс со штангой", sets, reps, profile = profile, exerciseLibrary = library),
+            createExerciseWithAlternatives("arm_2", "Молотки", sets, reps, profile = profile, exerciseLibrary = library),
+            createExerciseWithAlternatives("arm_3", "Концентрированные сгибания", sets, reps, profile = profile, exerciseLibrary = library),
+            createExerciseWithAlternatives("arm_4", "Сгибания рук с гантелями", sets, reps, profile = profile, exerciseLibrary = library),
+            createExerciseWithAlternatives("arm_5", "Трицепс на блоке", sets, reps, profile = profile, exerciseLibrary = library),
+            createExerciseWithAlternatives("arm_6", "Французский жим", sets, reps, profile = profile, exerciseLibrary = library),
+            createExerciseWithAlternatives("arm_7", "Кикбэки", sets, reps, profile = profile, exerciseLibrary = library),
+            createExerciseWithAlternatives("arm_8", "Разгибания на блоке из-за головы", sets, reps, profile = profile, exerciseLibrary = library),
+            createExerciseWithAlternatives("arm_9", "Сгибания рук с эспандером", sets, reps, profile = profile, exerciseLibrary = library),
+            createExerciseWithAlternatives("arm_10", "Разгибания рук на блоке", sets, reps, profile = profile, exerciseLibrary = library)
+        )
+    }
+
+    private suspend fun createShoulderExercises(
+        library: List<com.example.fitness_plan.domain.model.ExerciseLibrary>,
+        sets: Int,
+        reps: String,
+        profile: com.example.fitness_plan.domain.model.UserProfile
+    ): List<Exercise> {
+        return listOf(
+            createExerciseWithAlternatives("shoulder_1", "Армейский жим", sets, reps, profile = profile, exerciseLibrary = library),
+            createExerciseWithAlternatives("shoulder_2", "Жим гантелей сидя", sets, reps, profile = profile, exerciseLibrary = library),
+            createExerciseWithAlternatives("shoulder_3", "Разведение гантелей в стороны", sets, reps, profile = profile, exerciseLibrary = library),
+            createExerciseWithAlternatives("shoulder_4", "Обратные разведения", sets, reps, profile = profile, exerciseLibrary = library),
+            createExerciseWithAlternatives("shoulder_5", "Подъём штанги перед собой", sets, reps, profile = profile, exerciseLibrary = library),
+            createExerciseWithAlternatives("shoulder_6", "Жим Арнольда", sets, reps, profile = profile, exerciseLibrary = library),
+            createExerciseWithAlternatives("shoulder_7", "Махи гантелями перед собой", sets, reps, profile = profile, exerciseLibrary = library),
+            createExerciseWithAlternatives("shoulder_8", "Жим на плечах в машине", sets, reps, profile = profile, exerciseLibrary = library),
+            createExerciseWithAlternatives("shoulder_9", "Тяга штанги к подбородку", sets, reps, profile = profile, exerciseLibrary = library),
+            createExerciseWithAlternatives("shoulder_10", "Разведение гантелей в наклоне", sets, reps, profile = profile, exerciseLibrary = library)
+        )
+    }
+
+    private suspend fun createChestExercises(
+        library: List<com.example.fitness_plan.domain.model.ExerciseLibrary>,
+        sets: Int,
+        reps: String,
+        profile: com.example.fitness_plan.domain.model.UserProfile
+    ): List<Exercise> {
+        return listOf(
+            createExerciseWithAlternatives("chest_1", "Жим лёжа", sets, reps, profile = profile, exerciseLibrary = library),
+            createExerciseWithAlternatives("chest_2", "Жим на наклонной скамье", sets, reps, profile = profile, exerciseLibrary = library),
+            createExerciseWithAlternatives("chest_3", "Разведение гантелей лёжа", sets, reps, profile = profile, exerciseLibrary = library),
+            createExerciseWithAlternatives("chest_4", "Отжимания на брусьях", sets, reps, profile = profile, exerciseLibrary = library),
+            createExerciseWithAlternatives("chest_5", "Жим гантелей на наклонной скамье", sets, reps, profile = profile, exerciseLibrary = library),
+            createExerciseWithAlternatives("chest_6", "Пек-дек", sets, reps, profile = profile, exerciseLibrary = library),
+            createExerciseWithAlternatives("chest_7", "Жим гантелей лёжа", sets, reps, profile = profile, exerciseLibrary = library),
+            createExerciseWithAlternatives("chest_8", "Жим на наклонной скамье вниз", sets, reps, profile = profile, exerciseLibrary = library),
+            createExerciseWithAlternatives("chest_9", "Отжимания", sets, reps, profile = profile, exerciseLibrary = library),
+            createExerciseWithAlternatives("chest_10", "Разведение гантелей на наклонной скамье", sets, reps, profile = profile, exerciseLibrary = library)
+        )
+    }
+
+    private suspend fun createBackExercises(
+        library: List<com.example.fitness_plan.domain.model.ExerciseLibrary>,
+        sets: Int,
+        reps: String,
+        profile: com.example.fitness_plan.domain.model.UserProfile
+    ): List<Exercise> {
+        return listOf(
+            createExerciseWithAlternatives("back_1", "Становая тяга", sets, reps, profile = profile, exerciseLibrary = library),
+            createExerciseWithAlternatives("back_2", "Тяга штанги в наклоне", sets, reps, profile = profile, exerciseLibrary = library),
+            createExerciseWithAlternatives("back_3", "Тяга гантели одной рукой", sets, reps, profile = profile, exerciseLibrary = library),
+            createExerciseWithAlternatives("back_4", "Тяга верхнего блока", sets, reps, profile = profile, exerciseLibrary = library),
+            createExerciseWithAlternatives("back_5", "Тяга верхнего блока узким хватом", sets, reps, profile = profile, exerciseLibrary = library),
+            createExerciseWithAlternatives("back_6", "Тяга каната к лицу", sets, reps, profile = profile, exerciseLibrary = library),
+            createExerciseWithAlternatives("back_7", "Гиперэкстензия", sets, reps, profile = profile, exerciseLibrary = library),
+            createExerciseWithAlternatives("back_8", "Подтягивания", sets, reps, profile = profile, exerciseLibrary = library),
+            createExerciseWithAlternatives("back_9", "Т-тяга с гантелью", sets, reps, profile = profile, exerciseLibrary = library),
+            createExerciseWithAlternatives("back_10", "Пуловер с гантелью", sets, reps, profile = profile, exerciseLibrary = library)
+        )
+    }
+
+    private suspend fun createLegExercises(
+        library: List<com.example.fitness_plan.domain.model.ExerciseLibrary>,
+        sets: Int,
+        reps: String,
+        profile: com.example.fitness_plan.domain.model.UserProfile
+    ): List<Exercise> {
+        return listOf(
+            createExerciseWithAlternatives("leg_1", "Приседания", sets, reps, profile = profile, exerciseLibrary = library),
+            createExerciseWithAlternatives("leg_2", "Жим ногами", sets, reps, profile = profile, exerciseLibrary = library),
+            createExerciseWithAlternatives("leg_3", "Выпады", sets, reps, profile = profile, exerciseLibrary = library),
+            createExerciseWithAlternatives("leg_4", "Приседания с гантелями", sets, reps, profile = profile, exerciseLibrary = library),
+            createExerciseWithAlternatives("leg_5", "Фронтальные приседания", sets, reps, profile = profile, exerciseLibrary = library),
+            createExerciseWithAlternatives("leg_6", "Гакк-приседания", sets, reps, profile = profile, exerciseLibrary = library),
+            createExerciseWithAlternatives("leg_7", "Разведение ног", sets, reps, profile = profile, exerciseLibrary = library),
+            createExerciseWithAlternatives("leg_8", "Ягодичный мостик", sets, reps, profile = profile, exerciseLibrary = library),
+            createExerciseWithAlternatives("leg_9", "Выпады назад", sets, reps, profile = profile, exerciseLibrary = library),
+            createExerciseWithAlternatives("leg_10", "Подъёмы на носки стоя", sets, reps, profile = profile, exerciseLibrary = library)
+        )
+    }
+
+    private suspend fun createCardioExercises(
+        library: List<com.example.fitness_plan.domain.model.ExerciseLibrary>,
+        profile: com.example.fitness_plan.domain.model.UserProfile
+    ): List<Exercise> {
+        return listOf(
+            createExerciseWithAlternatives("cardio_1", "Бег", 1, "", profile = profile, exerciseLibrary = library),
+            createExerciseWithAlternatives("cardio_2", "Велотренажёр", 1, "", profile = profile, exerciseLibrary = library),
+            createExerciseWithAlternatives("cardio_3", "Эллипсоид", 1, "", profile = profile, exerciseLibrary = library),
+            createExerciseWithAlternatives("cardio_4", "Гребной тренажёр", 1, "", profile = profile, exerciseLibrary = library),
+            createExerciseWithAlternatives("cardio_5", "HIIT", 1, "", profile = profile, exerciseLibrary = library)
+        ).map { it.copy(exerciseType = com.example.fitness_plan.domain.model.ExerciseType.CARDIO) }
+    }
+
+    private suspend fun createWorkoutPlanWithNewLogic(
+        profile: com.example.fitness_plan.domain.model.UserProfile
+    ): WorkoutPlan {
+        val exerciseLibrary = exerciseLibraryRepository.getAllExercisesAsList()
+        
+        val (sets, reps) = when (profile.level) {
+            "Новичок" -> Pair(3, "12-15")
+            "Любитель" -> Pair(3, "10-12")
+            "Профессионал" -> Pair(4, "8-10")
+            else -> Pair(3, "10-12")
+        }
+        
+        val cardioDuration = getCardioDuration(profile.level)
+        
+        val armExercises = createArmExercises(exerciseLibrary, sets, reps, profile)
+        val shoulderExercises = createShoulderExercises(exerciseLibrary, sets, reps, profile)
+        val chestExercises = createChestExercises(exerciseLibrary, sets, reps, profile)
+        val backExercises = createBackExercises(exerciseLibrary, sets, reps, profile)
+        val legExercises = createLegExercises(exerciseLibrary, sets, reps, profile)
+        val cardioExercises = createCardioExercises(exerciseLibrary, profile)
+        
+        val strengthPool = ExercisePool(
+            armExercises + shoulderExercises + chestExercises + backExercises + legExercises
+        )
+        
+        val cardioPool = ExercisePool(cardioExercises)
+        
+        data class DayConfiguration(
+            val name: String,
+            val muscleGroups: List<String>,
+            val exerciseCount: Int,
+            val isCardio: Boolean = false
+        )
+        
+        val dayConfigurations = listOf(
+            DayConfiguration("Руки", listOf("Бицепсы", "Трицепсы", "Предплечья", "Плечелучевая"), 6),
+            DayConfiguration("Плечи", listOf("Плечи", "Трапеции"), 6),
+            DayConfiguration("Грудь", listOf("Грудь", "Трицепсы"), 6),
+            DayConfiguration("Кардио", listOf("Квадрицепсы", "Бёдра сзади", "Икры", "Ягодицы"), 0, isCardio = true),
+            DayConfiguration("Спина", listOf("Широчайшие", "Трапеции", "Бицепсы", "Предплечья", "Поясница"), 6),
+            DayConfiguration("Ноги", listOf("Квадрицепсы", "Ягодицы", "Бёдра сзади", "Икры"), 6),
+            DayConfiguration("Руки", listOf("Бицепсы", "Трицепсы", "Предплечья", "Плечелучевая"), 6),
+            DayConfiguration("Плечи", listOf("Плечи", "Трапеции"), 6),
+            DayConfiguration("Кардио", listOf("Квадрицепсы", "Бёдра сзади", "Икры", "Ягодицы"), 0, isCardio = true),
+            DayConfiguration("Грудь", listOf("Грудь", "Трицепсы"), 6)
+        )
+        
+        val days = mutableListOf<WorkoutDay>()
+        
+        for ((index, config) in dayConfigurations.withIndex()) {
+            val dayExercises = if (config.isCardio) {
+                cardioPool.getAvailableExercises().shuffled().take(1).map {
+                    it.copy(id = "${index}_${it.id}", reps = cardioDuration, sets = 1)
+                }
+            } else {
+                getUniqueExercisesForDay(strengthPool, config.exerciseCount, config.muscleGroups)
+                    .map { it.copy(id = "${index}_${it.id}") }
+            }
+            
+            val muscleGroups = dayExercises.flatMap { getMuscleGroupsForExercise(it.name) }.distinct()
+            
+            days.add(
+                WorkoutDay(
+                    id = index,
+                    dayName = "День ${index + 1}: ${config.name}",
+                    exercises = dayExercises,
+                    muscleGroups = muscleGroups
+                )
+            )
+        }
+        
+        return WorkoutPlan(
+            id = "${profile.goal.lowercase()}_${profile.level.lowercase()}_new",
+            name = "${profile.goal}: ${profile.level}",
+            description = "План с уникальными упражнениями и кардио-днями (3 силовых + 1 кардио)",
+            muscleGroups = listOf("Руки", "Плечи", "Грудь", "Спина", "Ноги", "Кардио"),
+            goal = profile.goal,
+            level = profile.level,
+            days = days,
+            planType = com.example.fitness_plan.domain.model.PlanType.AUTO
         )
     }
 
@@ -619,7 +850,8 @@ class WorkoutRepositoryImpl @Inject constructor(
             muscleGroups = listOf("Ноги", "Грудь", "Спина", "Плечи", "Руки", "Кардио"),
             goal = profile.goal,
             level = profile.level,
-            days = days
+            days = days,
+            planType = com.example.fitness_plan.domain.model.PlanType.AUTO
         )
     }
 
@@ -637,6 +869,10 @@ class WorkoutRepositoryImpl @Inject constructor(
 
         fun markAllAsUsed(exercises: List<Exercise>) {
             exercises.forEach { markAsUsed(it) }
+        }
+
+        fun reset() {
+            usedExerciseNames.clear()
         }
     }
 
@@ -667,7 +903,8 @@ class WorkoutRepositoryImpl @Inject constructor(
                 targetMuscleGroups.any { it in muscleGroups }
             }
 
-            targetGroupExercises.shuffled().take(count).forEach { exercise ->
+            val takeCount = minOf(count, targetGroupExercises.size)
+            targetGroupExercises.shuffled().take(takeCount).forEach { exercise ->
                 exercises.add(exercise)
                 pool.markAsUsed(exercise)
             }
@@ -733,7 +970,8 @@ class WorkoutRepositoryImpl @Inject constructor(
             muscleGroups = listOf("Ноги", "Грудь", "Спина", "Плечи", "Core", "Кардио"),
             goal = profile.goal,
             level = profile.level,
-            days = days
+            days = days,
+            planType = com.example.fitness_plan.domain.model.PlanType.AUTO
         )
     }
 
@@ -791,7 +1029,8 @@ class WorkoutRepositoryImpl @Inject constructor(
             muscleGroups = listOf("Ноги", "Грудь", "Спина", "Плечи", "Пресс", "Руки"),
             goal = profile.goal,
             level = profile.level,
-            days = days
+            days = days,
+            planType = com.example.fitness_plan.domain.model.PlanType.AUTO
         )
     }
 
@@ -846,7 +1085,8 @@ class WorkoutRepositoryImpl @Inject constructor(
             muscleGroups = listOf("Ноги", "Грудь", "Спина", "Плечи", "Пресс"),
             goal = profile.goal,
             level = profile.level,
-            days = days
+            days = days,
+            planType = com.example.fitness_plan.domain.model.PlanType.AUTO
         )
     }
 
@@ -904,7 +1144,8 @@ class WorkoutRepositoryImpl @Inject constructor(
             muscleGroups = listOf("Ноги", "Грудь", "Спина", "Плечи", "Пресс", "Руки"),
             goal = profile.goal,
             level = profile.level,
-            days = days
+            days = days,
+            planType = com.example.fitness_plan.domain.model.PlanType.AUTO
         )
     }
 
@@ -962,7 +1203,8 @@ class WorkoutRepositoryImpl @Inject constructor(
             muscleGroups = listOf("Ноги", "Грудь", "Спина", "Плечи", "Пресс", "Руки"),
             goal = profile.goal,
             level = profile.level,
-            days = days
+            days = days,
+            planType = com.example.fitness_plan.domain.model.PlanType.AUTO
         )
     }
 
@@ -1018,7 +1260,8 @@ class WorkoutRepositoryImpl @Inject constructor(
             muscleGroups = listOf("Ноги", "Грудь", "Спина", "Плечи", "Пресс"),
             goal = profile.goal,
             level = profile.level,
-            days = days
+            days = days,
+            planType = com.example.fitness_plan.domain.model.PlanType.AUTO
         )
     }
 
