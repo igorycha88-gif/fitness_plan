@@ -7,6 +7,7 @@ import com.example.fitness_plan.domain.model.Cycle
 import com.example.fitness_plan.domain.model.CycleHistoryEntry
 import com.example.fitness_plan.domain.model.Exercise
 import com.example.fitness_plan.domain.model.ExerciseStats
+import com.example.fitness_plan.domain.model.PlanHistory
 import com.example.fitness_plan.domain.model.UserProfile
 import com.example.fitness_plan.domain.model.WorkoutPlan
 import com.example.fitness_plan.domain.model.WorkoutDay
@@ -42,7 +43,8 @@ class WorkoutViewModel @Inject constructor(
     private val workoutUseCase: WorkoutUseCase,
     private val weightCalculator: WeightCalculator,
     private val exerciseLibraryUseCase: ExerciseLibraryUseCase,
-    private val exerciseCompletionRepo: com.example.fitness_plan.domain.repository.ExerciseCompletionRepository
+    private val exerciseCompletionRepo: com.example.fitness_plan.domain.repository.ExerciseCompletionRepository,
+    private val planHistoryUseCase: com.example.fitness_plan.domain.usecase.PlanHistoryUseCase
 ) : ViewModel() {
 
     private val _currentWorkoutPlan = MutableStateFlow<WorkoutPlan?>(null)
@@ -80,6 +82,9 @@ class WorkoutViewModel @Inject constructor(
 
     private val _selectedPlanType = MutableStateFlow<com.example.fitness_plan.domain.repository.SelectedPlanType>(com.example.fitness_plan.domain.repository.SelectedPlanType.AUTO)
     val selectedPlanType: StateFlow<com.example.fitness_plan.domain.repository.SelectedPlanType> = _selectedPlanType.asStateFlow()
+
+    private val _planHistory = MutableStateFlow<PlanHistory>(PlanHistory("", emptyList()))
+    val planHistory: StateFlow<PlanHistory> = _planHistory.asStateFlow()
 
     private val _isAutoPlanExpanded = MutableStateFlow(true)
     val isAutoPlanExpanded: StateFlow<Boolean> = _isAutoPlanExpanded.asStateFlow()
@@ -150,6 +155,15 @@ class WorkoutViewModel @Inject constructor(
         loadAdminWorkoutPlan()
         loadUserWorkoutPlan()
         loadSelectedPlanType()
+        loadPlanHistory(username)
+    }
+
+    private fun loadPlanHistory(username: String) {
+        viewModelScope.launch {
+            planHistoryUseCase.getPlanHistory(username).collect { history ->
+                _planHistory.value = history
+            }
+        }
     }
 
     private fun loadUserWorkoutPlan() {
@@ -301,7 +315,8 @@ class WorkoutViewModel @Inject constructor(
                 muscleGroups = listOf(),
                 goal = "Admin",
                 level = "Admin",
-                days = emptyList()
+                days = emptyList(),
+                planType = com.example.fitness_plan.domain.model.PlanType.ADMIN
             )
             workoutUseCase.saveAdminWorkoutPlan(newPlan)
             _adminWorkoutPlan.value = newPlan
@@ -523,5 +538,23 @@ class WorkoutViewModel @Inject constructor(
 
     fun toggleUserPlanExpanded() {
         _isUserPlanExpanded.value = !_isUserPlanExpanded.value
+    }
+
+    fun updateUserPlan(name: String, description: String) {
+        viewModelScope.launch {
+            val username = _currentUsername.value
+            if (username.isEmpty()) return@launch
+
+            workoutUseCase.updateUserPlan(username, name, description)
+        }
+    }
+
+    fun archiveCurrentPlan(plan: WorkoutPlan) {
+        viewModelScope.launch {
+            val username = _currentUsername.value
+            if (username.isEmpty()) return@launch
+
+            planHistoryUseCase.archivePlan(username, plan)
+        }
     }
 }

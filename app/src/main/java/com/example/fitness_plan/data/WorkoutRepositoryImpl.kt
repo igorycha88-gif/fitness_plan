@@ -254,8 +254,11 @@ class WorkoutRepositoryImpl @Inject constructor(
             if (json != null) {
                 try {
                     val plan = gson.fromJson(json, WorkoutPlan::class.java)
-                    Log.d(TAG, "getWorkoutPlan: SUCCESS - loaded plan ${plan.name} with ${plan.days.size} days")
-                    plan
+                    if (plan.planType == null) {
+                        plan.copy(planType = com.example.fitness_plan.domain.model.PlanType.AUTO)
+                    } else {
+                        plan
+                    }
                 } catch (e: Exception) {
                     Log.e(TAG, "getWorkoutPlan: FAILED to parse plan for username=$username", e)
                     null
@@ -280,7 +283,12 @@ class WorkoutRepositoryImpl @Inject constructor(
             val json = preferences[key]
             if (json != null) {
                 try {
-                    gson.fromJson(json, WorkoutPlan::class.java)
+                    val plan = gson.fromJson(json, WorkoutPlan::class.java)
+                    if (plan.planType == null) {
+                        plan.copy(planType = com.example.fitness_plan.domain.model.PlanType.ADMIN)
+                    } else {
+                        plan
+                    }
                 } catch (e: Exception) {
                     null
                 }
@@ -313,8 +321,11 @@ class WorkoutRepositoryImpl @Inject constructor(
             if (json != null) {
                 try {
                     val plan = gson.fromJson(json, WorkoutPlan::class.java)
-                    Log.d(TAG, "getUserWorkoutPlan: SUCCESS - loaded user plan ${plan.name} with ${plan.days.size} days")
-                    plan
+                    if (plan.planType == null) {
+                        plan.copy(planType = com.example.fitness_plan.domain.model.PlanType.USER)
+                    } else {
+                        plan
+                    }
                 } catch (e: Exception) {
                     Log.e(TAG, "getUserWorkoutPlan: FAILED to parse user plan for username=$username", e)
                     null
@@ -336,6 +347,21 @@ class WorkoutRepositoryImpl @Inject constructor(
             Log.d(TAG, "deleteUserWorkoutPlan: SUCCESS - deleted user plan for username=$username")
         } catch (e: Exception) {
             Log.e(TAG, "deleteUserWorkoutPlan: FAILED to delete user plan for username=$username", e)
+            throw e
+        }
+    }
+
+    override suspend fun updateUserPlan(username: String, plan: WorkoutPlan) {
+        try {
+            Log.d(TAG, "updateUserPlan: START for username=$username, plan=${plan.name}")
+            val key = getUserPlanKey(username)
+            val json = gson.toJson(plan)
+            context.workoutDataStore.edit { preferences ->
+                preferences[key] = json
+            }
+            Log.d(TAG, "updateUserPlan: SUCCESS - updated user plan for username=$username")
+        } catch (e: Exception) {
+            Log.e(TAG, "updateUserPlan: FAILED to update user plan for username=$username", e)
             throw e
         }
     }
@@ -619,7 +645,8 @@ class WorkoutRepositoryImpl @Inject constructor(
             muscleGroups = listOf("Ноги", "Грудь", "Спина", "Плечи", "Руки", "Кардио"),
             goal = profile.goal,
             level = profile.level,
-            days = days
+            days = days,
+            planType = com.example.fitness_plan.domain.model.PlanType.AUTO
         )
     }
 
@@ -733,7 +760,8 @@ class WorkoutRepositoryImpl @Inject constructor(
             muscleGroups = listOf("Ноги", "Грудь", "Спина", "Плечи", "Core", "Кардио"),
             goal = profile.goal,
             level = profile.level,
-            days = days
+            days = days,
+            planType = com.example.fitness_plan.domain.model.PlanType.AUTO
         )
     }
 
@@ -791,7 +819,8 @@ class WorkoutRepositoryImpl @Inject constructor(
             muscleGroups = listOf("Ноги", "Грудь", "Спина", "Плечи", "Пресс", "Руки"),
             goal = profile.goal,
             level = profile.level,
-            days = days
+            days = days,
+            planType = com.example.fitness_plan.domain.model.PlanType.AUTO
         )
     }
 
@@ -846,7 +875,8 @@ class WorkoutRepositoryImpl @Inject constructor(
             muscleGroups = listOf("Ноги", "Грудь", "Спина", "Плечи", "Пресс"),
             goal = profile.goal,
             level = profile.level,
-            days = days
+            days = days,
+            planType = com.example.fitness_plan.domain.model.PlanType.AUTO
         )
     }
 
@@ -904,7 +934,8 @@ class WorkoutRepositoryImpl @Inject constructor(
             muscleGroups = listOf("Ноги", "Грудь", "Спина", "Плечи", "Пресс", "Руки"),
             goal = profile.goal,
             level = profile.level,
-            days = days
+            days = days,
+            planType = com.example.fitness_plan.domain.model.PlanType.AUTO
         )
     }
 
@@ -962,7 +993,8 @@ class WorkoutRepositoryImpl @Inject constructor(
             muscleGroups = listOf("Ноги", "Грудь", "Спина", "Плечи", "Пресс", "Руки"),
             goal = profile.goal,
             level = profile.level,
-            days = days
+            days = days,
+            planType = com.example.fitness_plan.domain.model.PlanType.AUTO
         )
     }
 
@@ -1018,7 +1050,8 @@ class WorkoutRepositoryImpl @Inject constructor(
             muscleGroups = listOf("Ноги", "Грудь", "Спина", "Плечи", "Пресс"),
             goal = profile.goal,
             level = profile.level,
-            days = days
+            days = days,
+            planType = com.example.fitness_plan.domain.model.PlanType.AUTO
         )
     }
 

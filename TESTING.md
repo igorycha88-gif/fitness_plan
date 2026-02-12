@@ -12,19 +12,22 @@ This document describes the unit testing setup for the Fitness Plan Android appl
 - **Adaptive UI Tests**: Screen adaptation logic
 - **BodyParameterCalculator Tests**: BMI, body fat (US Navy), muscle mass calculations
 - **MeasurementValidator Tests**: Parameter range validation
+- **PlanType Tests**: Plan type validation and null-safety for WorkoutPlan deserialization
 
 ### Test Structure
 ```
 src/test/java/com/example/fitness_plan/
  ├── ExampleUnitTest.kt                 # Basic unit tests
  ├── data/                             # Data layer tests
- │   └── PasswordHasherTest.kt         # Password hashing tests
+ │   ├── PasswordHasherTest.kt         # Password hashing tests
+ │   └── WorkoutRepositoryPlanTypeTest.kt  # Plan type tests
  ├── domain/                           # Domain layer tests
  │   ├── model/
  │   │   └── DomainModelTest.kt        # Data model tests
  │   └── usecase/
  │       ├── AuthUseCaseTest.kt        # Authentication logic tests
  │       ├── WorkoutUseCaseTest.kt     # Workout logic tests
+ │       ├── WorkoutUseCasePlanTypeTest.kt  # Plan type tests
  │       ├── WeightUseCaseTest.kt      # Weight tracking tests
  │       ├── BodyParameterCalculatorTest.kt  # Body parameters calculation tests
  │       └── MeasurementValidatorTest.kt     # Parameter validation tests
@@ -32,12 +35,13 @@ src/test/java/com/example/fitness_plan/
  │   └── viewmodel/
  │       ├── ProfileViewModelTest.kt   # Profile ViewModel tests
  │       ├── WorkoutViewModelTest.kt   # Workout ViewModel tests
+ │       ├── WorkoutViewModelPlanTypeTest.kt  # Plan type tests
  │       └── StatisticsViewModelTest.kt # Statistics ViewModel tests
  ├── ui/                               # UI layer tests
  │   ├── AdaptiveLayoutTest.kt         # Adaptive UI tests
  │   └── HomeScreenUtilsTest.kt        # Screen utility tests
  └── testutils/                        # Test utilities
-     └── TestUtils.kt                  # Test data factories
+      └── TestUtils.kt                  # Test data factories
 ```
 
 ## Running Tests
@@ -72,11 +76,13 @@ The project uses the following testing dependencies:
 
 ### ✅ Data Layer
 - **PasswordHasher**: Hash/verify password functionality
+- **WorkoutRepository**: Plan type validation and null-safety deserialization
 - **Repositories**: Mock-based repository testing
 
 ### ✅ Domain Layer
 - **UserProfile**: Data validation and computed properties
 - **Exercise, WorkoutDay, WorkoutPlan**: Business logic validation
+- **PlanType**: Enum for AUTO/USER/ADMIN plan types
 - **WeightEntry, Cycle**: Progress tracking
 - **ExerciseStats**: Performance metrics
 - **BodyParameter, BodyParameterType**: Body parameters data models
@@ -84,7 +90,7 @@ The project uses the following testing dependencies:
 
 ### ✅ Use Cases
 - **AuthUseCase**: Login/logout/register flows
-- **WorkoutUseCase**: Exercise management
+- **WorkoutUseCase**: Exercise management and plan type handling
 - **WeightUseCase**: Weight tracking and statistics
 - **BodyParametersUseCase**: Body parameters management
 - **BodyParameterCalculator**: BMI, body fat, muscle mass calculations
@@ -92,7 +98,7 @@ The project uses the following testing dependencies:
 
 ### ✅ Presentation Layer
 - **ProfileViewModel**: User profile management
-- **WorkoutViewModel**: Workout session handling
+- **WorkoutViewModel**: Workout session handling and plan type validation
 - **StatisticsViewModel**: Data aggregation and filtering
 - **BodyParametersViewModel**: Body parameters state management
 

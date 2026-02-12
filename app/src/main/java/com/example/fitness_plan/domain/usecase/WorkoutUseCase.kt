@@ -240,7 +240,8 @@ class WorkoutUseCase @Inject constructor(
             muscleGroups = listOf(),
             goal = "Custom",
             level = "Custom",
-            days = emptyList()
+            days = emptyList(),
+            planType = com.example.fitness_plan.domain.model.PlanType.USER
         )
         workoutRepository.saveUserWorkoutPlan(username, plan)
     }
@@ -251,6 +252,10 @@ class WorkoutUseCase @Inject constructor(
     ) {
         val currentPlan = getUserWorkoutPlan(username).first()
         if (currentPlan == null) return
+
+        if (currentPlan.days.size >= MAX_DAYS_IN_PLAN) {
+            throw MaxDaysLimitExceededException("Максимальное количество дней: $MAX_DAYS_IN_PLAN")
+        }
 
         val newDay = WorkoutDay(
             id = currentPlan.days.size,
@@ -284,6 +289,17 @@ class WorkoutUseCase @Inject constructor(
     suspend fun deleteUserPlan(username: String) {
         workoutRepository.deleteUserWorkoutPlan(username)
         setSelectedPlanType(username, com.example.fitness_plan.domain.repository.SelectedPlanType.AUTO)
+    }
+
+    suspend fun updateUserPlan(username: String, name: String, description: String) {
+        val currentPlan = getUserWorkoutPlan(username).first()
+        if (currentPlan == null) return
+
+        val updatedPlan = currentPlan.copy(
+            name = name,
+            description = description
+        )
+        workoutRepository.updateUserPlan(username, updatedPlan)
     }
 
     fun getUserWorkoutPlan(username: String): Flow<WorkoutPlan?> {
