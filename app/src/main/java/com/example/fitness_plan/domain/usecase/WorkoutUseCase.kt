@@ -280,7 +280,42 @@ class WorkoutUseCase @Inject constructor(
         if (dayIndex in updatedDays.indices) {
             val day = updatedDays[dayIndex]
             val updatedExercises = day.exercises.toMutableList().apply { add(exercise) }
-            updatedDays[dayIndex] = day.copy(exercises = updatedExercises)
+            
+            val existingMuscleGroups = day.muscleGroups.toMutableList()
+            val newMuscleGroups = exercise.muscleGroups.map { it.displayName }
+            val allMuscleGroups = (existingMuscleGroups + newMuscleGroups).distinct()
+            
+            updatedDays[dayIndex] = day.copy(
+                exercises = updatedExercises,
+                muscleGroups = allMuscleGroups
+            )
+        }
+        val updatedPlan = currentPlan.copy(days = updatedDays)
+        workoutRepository.saveUserWorkoutPlan(username, updatedPlan)
+    }
+
+    suspend fun removeExerciseFromUserDay(
+        username: String,
+        dayIndex: Int,
+        exerciseName: String
+    ) {
+        val currentPlan = getUserWorkoutPlan(username).first()
+        if (currentPlan == null) return
+
+        val updatedDays = currentPlan.days.toMutableList()
+        if (dayIndex in updatedDays.indices) {
+            val day = updatedDays[dayIndex]
+            val updatedExercises = day.exercises.filterNot { it.name == exerciseName }
+            
+            val remainingMuscleGroups = updatedExercises
+                .flatMap { it.muscleGroups }
+                .map { it.displayName }
+                .distinct()
+            
+            updatedDays[dayIndex] = day.copy(
+                exercises = updatedExercises,
+                muscleGroups = remainingMuscleGroups
+            )
         }
         val updatedPlan = currentPlan.copy(days = updatedDays)
         workoutRepository.saveUserWorkoutPlan(username, updatedPlan)
@@ -299,6 +334,19 @@ class WorkoutUseCase @Inject constructor(
             name = name,
             description = description
         )
+        workoutRepository.updateUserPlan(username, updatedPlan)
+    }
+
+    suspend fun updateUserWorkoutDayDate(username: String, dayIndex: Int, date: Long?) {
+        val currentPlan = getUserWorkoutPlan(username).first()
+        if (currentPlan == null) return
+
+        val updatedDays = currentPlan.days.toMutableList().apply {
+            if (dayIndex in indices) {
+                this[dayIndex] = this[dayIndex].copy(scheduledDate = date)
+            }
+        }
+        val updatedPlan = currentPlan.copy(days = updatedDays)
         workoutRepository.updateUserPlan(username, updatedPlan)
     }
 

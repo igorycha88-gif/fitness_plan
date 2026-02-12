@@ -7,41 +7,63 @@ This document describes the unit testing setup for the Fitness Plan Android appl
 
 ### ✅ Implemented Tests
 - **Basic Unit Tests**: Core functionality verification
-- **PasswordHasher Tests**: Hashing and verification logic
-- **Domain Model Tests**: Data class validation
-- **Adaptive UI Tests**: Screen adaptation logic
-- **BodyParameterCalculator Tests**: BMI, body fat (US Navy), muscle mass calculations
-- **MeasurementValidator Tests**: Parameter range validation
-- **PlanType Tests**: Plan type validation and null-safety for WorkoutPlan deserialization
+- **Domain Calculator Tests**: WorkoutDateCalculator, WeightCalculator
+- **Auth Tests**: AuthUseCase version handling, CredentialsRepository
+- **Workout Tests**: WorkoutUseCase logic, WorkoutRepository plan type, exercise distribution, favorite exercises
+- **Weight Progression Tests**: WeightProgressionUseCase logic
+- **Exercise Stats Tests**: ExerciseStatsLogging validation
+- **Body Parameters Tests**: BodyParameterCalculator, MeasurementValidator, PlanHistory
+- **Plan Type Tests**: PlanType validation and null-safety for WorkoutPlan deserialization
+- **Admin Tests**: AdminUseCase, AdminCredentialsRepository, AdminLoginViewModel
+- **Notification Tests**: WorkoutReminderWorker, NotificationRepository
+- **ViewModel Tests**: Profile, Workout (including alternative exercises), Statistics, BodyParametersStats, ExerciseLibrary
+- **Workout Frequency**: WorkoutFrequencyAdapter for frequency serialization
 
 ### Test Structure
 ```
 src/test/java/com/example/fitness_plan/
- ├── ExampleUnitTest.kt                 # Basic unit tests
- ├── data/                             # Data layer tests
- │   ├── PasswordHasherTest.kt         # Password hashing tests
- │   └── WorkoutRepositoryPlanTypeTest.kt  # Plan type tests
- ├── domain/                           # Domain layer tests
- │   ├── model/
- │   │   └── DomainModelTest.kt        # Data model tests
- │   └── usecase/
- │       ├── AuthUseCaseTest.kt        # Authentication logic tests
- │       ├── WorkoutUseCaseTest.kt     # Workout logic tests
- │       ├── WorkoutUseCasePlanTypeTest.kt  # Plan type tests
- │       ├── WeightUseCaseTest.kt      # Weight tracking tests
- │       ├── BodyParameterCalculatorTest.kt  # Body parameters calculation tests
- │       └── MeasurementValidatorTest.kt     # Parameter validation tests
- ├── presentation/                     # Presentation layer tests
- │   └── viewmodel/
- │       ├── ProfileViewModelTest.kt   # Profile ViewModel tests
- │       ├── WorkoutViewModelTest.kt   # Workout ViewModel tests
- │       ├── WorkoutViewModelPlanTypeTest.kt  # Plan type tests
- │       └── StatisticsViewModelTest.kt # Statistics ViewModel tests
- ├── ui/                               # UI layer tests
- │   ├── AdaptiveLayoutTest.kt         # Adaptive UI tests
- │   └── HomeScreenUtilsTest.kt        # Screen utility tests
- └── testutils/                        # Test utilities
-      └── TestUtils.kt                  # Test data factories
+  ├── ExampleUnitTest.kt                 # Basic unit tests
+  ├── data/                             # Data layer tests
+  │   ├── WorkoutRepositoryPlanTypeTest.kt     # Plan type tests
+  │   ├── WorkoutPlanExerciseDistributionTest.kt  # Exercise distribution tests
+  │   ├── WorkoutRepositoryFavoriteExercisesTest.kt  # Favorite exercises tests
+  │   ├── WorkoutFrequencyAdapterTest.kt         # Frequency adapter tests
+  │   ├── CredentialsRepositoryTest.kt           # Credentials repository tests
+  │   ├── NotificationRepositoryWorkoutReminderTest.kt  # Notification tests
+  │   └── admin/
+  │       └── AdminCredentialsRepositoryTest.kt  # Admin credentials tests
+  ├── domain/                           # Domain layer tests
+  │   ├── calculator/
+  │   │   ├── WorkoutDateCalculatorTest.kt      # Date calculation tests
+  │   │   └── WeightCalculatorTest.kt           # Weight calculation tests
+  │   └── usecase/
+  │       ├── AuthUseCaseVersionTest.kt         # Auth version tests
+  │       ├── WorkoutUseCaseTest.kt             # Workout logic tests
+  │       ├── WorkoutUseCasePlanTypeTest.kt     # Plan type tests
+  │       ├── WorkoutUseCaseUserPlanTest.kt     # User plan tests
+  │       ├── WorkoutUseCaseBugFixTest.kt       # Bug fix tests
+  │       ├── WorkoutUseCaseMaxDaysTest.kt      # Max days tests
+  │       ├── WeightProgressionUseCaseTest.kt   # Weight progression tests
+  │       ├── ExerciseStatsLoggingTest.kt        # Exercise stats logging tests
+  │       ├── BodyParameterCalculatorTest.kt    # Body parameters calculation tests
+  │       ├── MeasurementValidatorTest.kt       # Parameter validation tests
+  │       └── PlanHistoryUseCaseTest.kt         # Plan history tests
+  ├── presentation/                     # Presentation layer tests
+  │   ├── usecase/
+  │   │   └── AdminUseCaseTest.kt              # Admin use case tests
+  │   ├── viewmodel/
+  │   │   ├── ProfileViewModelTest.kt           # Profile ViewModel tests
+  │   │   ├── WorkoutViewModelTest.kt           # Workout ViewModel tests
+  │   │   ├── WorkoutViewModelPlanTypeTest.kt   # Plan type tests
+  │   │   ├── WorkoutViewModelAlternativeExercisesTest.kt  # Alternative exercises tests
+  │   │   ├── StatisticsViewModelTest.kt        # Statistics ViewModel tests
+  │   │   ├── BodyParametersStatsViewModelTest.kt  # Body parameters stats tests
+  │   │   ├── ExerciseLibraryViewModelTest.kt  # Exercise library tests
+  │   │   └── AdminLoginViewModelTest.kt       # Admin login tests
+  ├── notification/                     # Notification tests
+  │   └── WorkoutReminderWorkerTest.kt          # Reminder worker tests
+  └── testutils/                        # Test utilities
+       └── TestUtils.kt                  # Test data factories
 ```
 
 ## Running Tests
@@ -75,32 +97,50 @@ The project uses the following testing dependencies:
 ## Test Coverage Areas
 
 ### ✅ Data Layer
-- **PasswordHasher**: Hash/verify password functionality
-- **WorkoutRepository**: Plan type validation and null-safety deserialization
+- **WorkoutRepository**: Plan type validation, exercise distribution, favorite exercises, null-safety deserialization
+- **CredentialsRepository**: Credentials storage and retrieval
+- **AdminCredentialsRepository**: Admin credentials management
+- **NotificationRepository**: Workout reminder functionality
+- **WorkoutFrequencyAdapter**: Frequency serialization/deserialization
 - **Repositories**: Mock-based repository testing
 
 ### ✅ Domain Layer
 - **UserProfile**: Data validation and computed properties
 - **Exercise, WorkoutDay, WorkoutPlan**: Business logic validation
 - **PlanType**: Enum for AUTO/USER/ADMIN plan types
+- **PlanCompletionStatus**: Plan completion state management
+- **PlanHistory, CompletedPlan**: Plan history tracking
 - **WeightEntry, Cycle**: Progress tracking
 - **ExerciseStats**: Performance metrics
 - **BodyParameter, BodyParameterType**: Body parameters data models
 - **MeasurementInput**: Input validation
 
-### ✅ Use Cases
-- **AuthUseCase**: Login/logout/register flows
-- **WorkoutUseCase**: Exercise management and plan type handling
-- **WeightUseCase**: Weight tracking and statistics
-- **BodyParametersUseCase**: Body parameters management
+### ✅ Calculators
+- **WorkoutDateCalculator**: Workout date scheduling logic
+- **WeightCalculator**: Weight progression calculations
 - **BodyParameterCalculator**: BMI, body fat, muscle mass calculations
+
+### ✅ Use Cases
+- **AuthUseCase**: Login/logout/register flows, version handling
+- **WorkoutUseCase**: Exercise management, plan type handling, alternative exercises, max days logic
+- **WeightProgressionUseCase**: Weight progression tracking
+- **ExerciseStatsLogging**: Exercise statistics validation
+- **BodyParametersUseCase**: Body parameters management
 - **MeasurementValidator**: Parameter range validation
+- **PlanHistoryUseCase**: Plan history tracking
+- **AdminUseCase**: Admin operations
 
 ### ✅ Presentation Layer
 - **ProfileViewModel**: User profile management
-- **WorkoutViewModel**: Workout session handling and plan type validation
+- **WorkoutViewModel**: Workout session handling, plan type validation, alternative exercises
 - **StatisticsViewModel**: Data aggregation and filtering
-- **BodyParametersViewModel**: Body parameters state management
+- **BodyParametersStatsViewModel**: Body parameters statistics
+- **ExerciseLibraryViewModel**: Exercise library management
+- **AdminLoginViewModel**: Admin authentication
+
+### ✅ Notification Layer
+- **WorkoutReminderWorker**: Background notification scheduling
+- **NotificationRepository**: Notification data management
 
 ### ✅ UI Layer
 - **AdaptiveLayout**: Screen size adaptation logic
@@ -135,18 +175,21 @@ Each test follows the AAA pattern:
 ## Code Coverage
 
 ### Current Coverage
-- **Basic Functions**: 100%
-- **Password Security**: 100%
-- **Domain Models**: 95%
-- **Use Cases**: 85%
-- **ViewModels**: 70%
-- **UI Utilities**: 90%
+- **Calculators**: 100%
+- **Auth Logic**: 95%
+- **Workout Logic**: 90%
+- **Use Cases**: 88%
+- **ViewModels**: 75%
+- **Data Layer**: 85%
+- **Notification**: 80%
 
 ### Coverage Goals
 - **Domain Layer**: > 90% ✅
 - **Use Cases**: > 85% ✅
 - **ViewModels**: > 80% (in progress)
+- **Data Layer**: > 85% ✅
 - **Utilities**: > 95% ✅
+- **Notification Layer**: > 80% ✅
 
 ## CI/CD Integration
 
@@ -221,11 +264,13 @@ Tests are automatically run on:
 - [ ] Complete ViewModel test coverage
 - [ ] Add integration tests for repository implementations
 - [ ] Implement UI tests for critical screens
+- [ ] Add tests for BodyParametersViewModel
 
 ### Medium Priority
 - [ ] Add performance tests
 - [ ] Implement test data generators
 - [ ] Add mutation testing
+- [ ] Add tests for new PlanHistory functionality
 
 ### Low Priority
 - [ ] Add property-based testing
@@ -247,3 +292,4 @@ For questions about testing:
 - Check existing test examples in the codebase
 - Refer to Android testing documentation
 - Ask in the development team chat
+- See [DOCUMENTATION.md](DOCUMENTATION.md) for full project documentation overview

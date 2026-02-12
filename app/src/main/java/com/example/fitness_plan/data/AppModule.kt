@@ -128,6 +128,22 @@ object AppModule {
 
     @Provides
     @Singleton
+    fun providePlanHistoryRepository(
+        @ApplicationContext context: Context
+    ): com.example.fitness_plan.domain.repository.PlanHistoryRepository {
+        return PlanHistoryRepositoryImpl(context)
+    }
+
+    @Provides
+    @Singleton
+    fun providePlanHistoryUseCase(
+        planHistoryRepository: com.example.fitness_plan.domain.repository.PlanHistoryRepository
+    ): com.example.fitness_plan.domain.usecase.PlanHistoryUseCase {
+        return com.example.fitness_plan.domain.usecase.PlanHistoryUseCase(planHistoryRepository)
+    }
+
+    @Provides
+    @Singleton
     fun provideAuthUseCase(
         credentialsRepository: com.example.fitness_plan.domain.repository.ICredentialsRepository,
         userRepository: DomainUserRepository

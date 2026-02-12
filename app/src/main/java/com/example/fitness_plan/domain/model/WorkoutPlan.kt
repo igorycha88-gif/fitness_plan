@@ -7,7 +7,11 @@ data class WorkoutPlan(
     val muscleGroups: List<String>,
     val days: List<WorkoutDay>,
     val goal: String = "",
-    val level: String = ""
+    val level: String = "",
+    val planType: PlanType = PlanType.AUTO,
+    val startDate: Long? = null,
+    val maxDays: Int = 10,
+    val isArchived: Boolean = false
 ) {
     val totalExercises: Int
         get() = days.sumOf { it.exercises.size }
@@ -19,6 +23,14 @@ data class WorkoutPlan(
 
     val progress: Float
         get() = if (days.isEmpty()) 0f else completedDaysCount.toFloat() / days.size
+
+    val completionStatus: PlanCompletionStatus
+        get() = when {
+            isArchived -> if (completedDaysCount == days.size && days.isNotEmpty()) PlanCompletionStatus.COMPLETED else PlanCompletionStatus.EXPIRED
+            completedDaysCount == 0 -> PlanCompletionStatus.NOT_STARTED
+            completedDaysCount == days.size && days.isNotEmpty() -> PlanCompletionStatus.COMPLETED
+            else -> PlanCompletionStatus.IN_PROGRESS
+        }
 }
 
 data class WorkoutDay(

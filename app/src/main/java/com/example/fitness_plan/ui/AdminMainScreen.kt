@@ -170,45 +170,6 @@ fun CreatePlanDialog(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AddDayDialog(
-    onDismiss: () -> Unit,
-    onConfirm: (String) -> Unit
-) {
-    var dayName by remember { mutableStateOf("") }
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Добавить день тренировок") },
-        text = {
-            OutlinedTextField(
-                value = dayName,
-                onValueChange = { dayName = it },
-                label = { Text("Название дня") },
-                placeholder = { Text("Например: День ног") },
-                modifier = Modifier.fillMaxWidth()
-            )
-        },
-        confirmButton = {
-            TextButton(
-                onClick = {
-                    if (dayName.isNotBlank()) {
-                        onConfirm(dayName)
-                    }
-                }
-            ) {
-                Text("Добавить")
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Отмена")
-            }
-        }
-    )
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
 fun ExerciseSelectorDialog(
     onDismiss: () -> Unit,
     onExerciseSelected: (com.example.fitness_plan.domain.model.Exercise) -> Unit

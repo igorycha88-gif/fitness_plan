@@ -10,6 +10,7 @@ import com.example.fitness_plan.domain.repository.UserRepository
 import com.example.fitness_plan.domain.usecase.CycleUseCase
 import com.example.fitness_plan.domain.usecase.ExerciseLibraryUseCase
 import com.example.fitness_plan.domain.usecase.WorkoutUseCase
+import com.example.fitness_plan.domain.usecase.PlanHistoryUseCase
 import io.mockk.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -28,6 +29,7 @@ class WorkoutViewModelAlternativeExercisesTest {
     private lateinit var mockUserRepository: UserRepository
     private lateinit var mockCycleRepository: CycleRepository
     private lateinit var mockExerciseStatsRepository: ExerciseStatsRepository
+    private lateinit var mockPlanHistoryUseCase: PlanHistoryUseCase
     private lateinit var mockCycleUseCase: CycleUseCase
     private lateinit var mockWorkoutUseCase: WorkoutUseCase
     private lateinit var mockWeightCalculator: com.example.fitness_plan.domain.calculator.WeightCalculator
@@ -84,6 +86,7 @@ class WorkoutViewModelAlternativeExercisesTest {
         mockWeightCalculator = mockk<com.example.fitness_plan.domain.calculator.WeightCalculator>(relaxed = true)
         mockExerciseLibraryUseCase = mockk(relaxed = true)
         mockExerciseCompletionRepository = mockk<com.example.fitness_plan.domain.repository.ExerciseCompletionRepository>(relaxed = true)
+        mockPlanHistoryUseCase = mockk(relaxed = true)
 
         viewModel = WorkoutViewModel(
             mockk(relaxed = true),
@@ -94,7 +97,8 @@ class WorkoutViewModelAlternativeExercisesTest {
             mockWorkoutUseCase,
             mockWeightCalculator,
             mockExerciseLibraryUseCase,
-            mockExerciseCompletionRepository
+            mockExerciseCompletionRepository,
+            mockPlanHistoryUseCase
         )
     }
 

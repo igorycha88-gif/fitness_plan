@@ -549,6 +549,15 @@ class WorkoutViewModel @Inject constructor(
         }
     }
 
+    fun updateUserWorkoutDayDate(dayIndex: Int, date: Long?) {
+        viewModelScope.launch {
+            val username = _currentUsername.value
+            if (username.isEmpty()) return@launch
+
+            workoutUseCase.updateUserWorkoutDayDate(username, dayIndex, date)
+        }
+    }
+
     fun archiveCurrentPlan(plan: WorkoutPlan) {
         viewModelScope.launch {
             val username = _currentUsername.value
