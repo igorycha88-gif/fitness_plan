@@ -1,10 +1,13 @@
-name: Android CI/CD
+name: Android CI
 
 on:
-  workflow_dispatch:
+  push:
+    branches: [ main, develop, 'feature/**', 'fix/**' ]
+  pull_request:
+    branches: [ main, develop ]
 
 jobs:
-  build:
+  build-and-test:
     runs-on: ubuntu-latest
 
     steps:
@@ -16,20 +19,26 @@ jobs:
         java-version: '17'
         distribution: 'temurin'
     
+    - name: Cache Gradle packages
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.gradle/caches
+          ~/.gradle/wrapper
+        key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+        restore-keys: ${{ runner.os }}-gradle-
+    
     - name: Grant execute permission for gradlew
       run: chmod +x gradlew
     
-    - name: Build with Gradle
-      run: ./gradlew assembleDebug
-    
-    - name: Run tests
+    - name: Run unit tests
       run: ./gradlew test
     
     - name: Build debug APK
       run: ./gradlew assembleDebug
-
+    
     - name: Upload APK
       uses: actions/upload-artifact@v4
       with:
-        name: app-debug
+        name: app-debug-${{ github.ref_name }}
         path: app/build/outputs/apk/debug/app-debug.apk
