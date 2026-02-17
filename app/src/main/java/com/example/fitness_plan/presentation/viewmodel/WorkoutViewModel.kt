@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.fitness_plan.domain.model.Cycle
 import com.example.fitness_plan.domain.model.CycleHistoryEntry
+import com.example.fitness_plan.domain.model.Exercise
 import com.example.fitness_plan.domain.model.ExerciseStats
 import com.example.fitness_plan.domain.model.UserProfile
 import com.example.fitness_plan.domain.model.WorkoutPlan
@@ -40,7 +41,8 @@ class WorkoutViewModel @Inject constructor(
     private val cycleUseCase: CycleUseCase,
     private val workoutUseCase: WorkoutUseCase,
     private val weightCalculator: WeightCalculator,
-    private val exerciseLibraryUseCase: ExerciseLibraryUseCase
+    private val exerciseLibraryUseCase: ExerciseLibraryUseCase,
+    private val exerciseCompletionRepo: com.example.fitness_plan.domain.repository.ExerciseCompletionRepository
 ) : ViewModel() {
 
     private val _currentWorkoutPlan = MutableStateFlow<WorkoutPlan?>(null)
@@ -54,6 +56,9 @@ class WorkoutViewModel @Inject constructor(
 
     private val _completedDays = MutableStateFlow<Set<Int>>(emptySet())
     val completedDays: StateFlow<Set<Int>> = _completedDays.asStateFlow()
+
+    private val _partiallyCompletedDays = MutableStateFlow<Set<Int>>(emptySet())
+    val partiallyCompletedDays: StateFlow<Set<Int>> = _partiallyCompletedDays.asStateFlow()
 
     private val _currentCycle = MutableStateFlow<Cycle?>(null)
     val currentCycle: StateFlow<Cycle?> = _currentCycle.asStateFlow()
@@ -69,6 +74,18 @@ class WorkoutViewModel @Inject constructor(
 
     private val _alternativeExercises = MutableStateFlow<List<ExerciseLibrary>>(emptyList())
     val alternativeExercises: StateFlow<List<ExerciseLibrary>> = _alternativeExercises.asStateFlow()
+
+    private val _userWorkoutPlan = MutableStateFlow<WorkoutPlan?>(null)
+    val userWorkoutPlan: StateFlow<WorkoutPlan?> = _userWorkoutPlan.asStateFlow()
+
+    private val _selectedPlanType = MutableStateFlow<com.example.fitness_plan.domain.repository.SelectedPlanType>(com.example.fitness_plan.domain.repository.SelectedPlanType.AUTO)
+    val selectedPlanType: StateFlow<com.example.fitness_plan.domain.repository.SelectedPlanType> = _selectedPlanType.asStateFlow()
+
+    private val _isAutoPlanExpanded = MutableStateFlow(true)
+    val isAutoPlanExpanded: StateFlow<Boolean> = _isAutoPlanExpanded.asStateFlow()
+
+    private val _isUserPlanExpanded = MutableStateFlow(true)
+    val isUserPlanExpanded: StateFlow<Boolean> = _isUserPlanExpanded.asStateFlow()
 
     private var _currentUsername = MutableStateFlow("")
 
@@ -109,10 +126,19 @@ class WorkoutViewModel @Inject constructor(
             Log.d(TAG, "Cycle state: cycle=${cycleState.cycle?.cycleNumber}, workoutPlan=${cycleState.workoutPlan?.name}, historySize=${cycleState.history.size}")
 
             _currentCycle.value = cycleState.cycle
-            _currentWorkoutPlan.value = cycleState.workoutPlan
+            val updatedWorkoutPlan = if (cycleState.workoutPlan != null) {
+                updateWorkoutPlanFromLibrary(cycleState.workoutPlan)
+            } else {
+                null
+            }
+            _currentWorkoutPlan.value = updatedWorkoutPlan
             _cycleHistory.value = cycleState.history
 
             Log.d(TAG, "Workout plan set: ${_currentWorkoutPlan.value?.name}, days=${_currentWorkoutPlan.value?.days?.size}")
+
+            if (cycleState.workoutPlan != null) {
+                exerciseCompletionRepo.migrateOldFormatExercises(username, cycleState.workoutPlan)
+            }
         } catch (e: Exception) {
             Log.e(TAG, "Error loading workout data", e)
         }
@@ -122,6 +148,35 @@ class WorkoutViewModel @Inject constructor(
         loadCompletedExercises(username)
         loadExerciseStats(username)
         loadAdminWorkoutPlan()
+        loadUserWorkoutPlan()
+        loadSelectedPlanType()
+    }
+
+    private fun loadUserWorkoutPlan() {
+        viewModelScope.launch {
+            val username = _currentUsername.value
+            if (username.isEmpty()) return@launch
+
+            workoutUseCase.getUserWorkoutPlan(username).collect { plan ->
+                val updatedPlan = if (plan != null) {
+                    updateWorkoutPlanFromLibrary(plan)
+                } else {
+                    null
+                }
+                _userWorkoutPlan.value = updatedPlan
+            }
+        }
+    }
+
+    private fun loadSelectedPlanType() {
+        viewModelScope.launch {
+            val username = _currentUsername.value
+            if (username.isEmpty()) return@launch
+
+            workoutUseCase.getSelectedPlanType(username).collect { type ->
+                _selectedPlanType.value = type
+            }
+        }
     }
 
     private fun loadCompletedExercises(username: String) {
@@ -141,10 +196,43 @@ class WorkoutViewModel @Inject constructor(
         }
     }
 
+    private suspend fun updateExerciseFromLibrary(
+        exercise: com.example.fitness_plan.domain.model.Exercise,
+        exerciseLibrary: List<ExerciseLibrary>
+    ): com.example.fitness_plan.domain.model.Exercise {
+        val libraryExercise = exerciseLibrary.find { it.name == exercise.name }
+
+        return if (libraryExercise != null) {
+            exercise.copy(
+                imageRes = if (exercise.imageRes == null) libraryExercise.imageRes else exercise.imageRes,
+                imageUrl = if (exercise.imageUrl == null) libraryExercise.imageUrl else exercise.imageUrl
+            )
+        } else {
+            exercise
+        }
+    }
+
+    private suspend fun updateWorkoutPlanFromLibrary(
+        plan: WorkoutPlan
+    ): WorkoutPlan {
+        val exerciseLibrary = exerciseLibraryUseCase.getAllExercises().first()
+        val updatedDays = plan.days.map { day ->
+            day.copy(exercises = day.exercises.map { exercise ->
+                updateExerciseFromLibrary(exercise, exerciseLibrary)
+            })
+        }
+        return plan.copy(days = updatedDays)
+    }
+
     private fun loadAdminWorkoutPlan() {
         viewModelScope.launch {
             workoutUseCase.getAdminWorkoutPlan().collect { plan ->
-                _adminWorkoutPlan.value = plan
+                val updatedPlan = if (plan != null) {
+                    updateWorkoutPlanFromLibrary(plan)
+                } else {
+                    null
+                }
+                _adminWorkoutPlan.value = updatedPlan
             }
         }
     }
@@ -156,14 +244,19 @@ class WorkoutViewModel @Inject constructor(
     private fun updateCompletedDays(completedExercises: Set<String>) {
         val plan = _currentWorkoutPlan.value ?: return
         val completed = mutableSetOf<Int>()
+        val partiallyCompleted = mutableSetOf<Int>()
         plan.days.forEachIndexed { dayIndex, day ->
             val dayExerciseNames = day.exercises.map { "${dayIndex}_${it.name}" }.toSet()
-            val hasCompleted = dayExerciseNames.any { it in completedExercises }
-            if (hasCompleted) {
-                completed.add(dayIndex)
+            val completedCount = dayExerciseNames.count { it in completedExercises }
+            val totalCount = dayExerciseNames.size
+            when {
+                completedCount == 0 -> {}
+                completedCount == totalCount -> completed.add(dayIndex)
+                else -> partiallyCompleted.add(dayIndex)
             }
         }
         _completedDays.value = completed
+        _partiallyCompletedDays.value = partiallyCompleted
     }
 
     fun toggleExerciseCompletion(exerciseKey: String, completed: Boolean) {
@@ -178,6 +271,9 @@ class WorkoutViewModel @Inject constructor(
                 _currentWorkoutPlan.value
             )
             _completedDays.value = newCompletedDays
+
+            val allCompletedExercises = workoutUseCase.getCompletedExercises(username).first()
+            updateCompletedDays(allCompletedExercises)
 
             cycleUseCase.updateProgress(username, newCompletedDays.size)
 
@@ -304,19 +400,35 @@ class WorkoutViewModel @Inject constructor(
         weight: Double,
         reps: Int,
         setNumber: Int,
-        sets: Int
+        sets: Int,
+        duration: Int = 0
     ) {
+        Log.d(TAG, "=== Сохранение статистики упражнения (ViewModel уровень) ===")
+        Log.d(TAG, "Упражнение: $exerciseName")
+        Log.d(TAG, "Вес: $weight кг")
+        Log.d(TAG, "Повторения: $reps")
+        Log.d(TAG, "Номер подхода: $setNumber")
+        Log.d(TAG, "Количество подходов: $sets")
+        Log.d(TAG, "Длительность: $duration мин")
+
         viewModelScope.launch {
             val username = _currentUsername.value
+            Log.d(TAG, "Текущий пользователь: $username")
+
             if (username.isNotEmpty()) {
+                Log.d(TAG, "Вызов workoutUseCase.saveExerciseStats...")
                 workoutUseCase.saveExerciseStats(
                     username,
                     exerciseName,
                     weight,
                     reps,
                     setNumber,
-                    sets
+                    sets,
+                    duration
                 )
+                Log.d(TAG, "✅ Статистика упражнения успешно сохранена через ViewModel")
+            } else {
+                Log.w(TAG, "⚠️ Имя пользователя пустое, сохранение отменено")
             }
         }
     }
@@ -357,5 +469,78 @@ class WorkoutViewModel @Inject constructor(
             limit
         )
         _alternativeExercises.value = alternatives
+    }
+
+    fun createUserPlan(name: String, description: String) {
+        viewModelScope.launch {
+            val username = _currentUsername.value
+            if (username.isEmpty()) return@launch
+
+            workoutUseCase.createUserPlan(username, name, description)
+            setSelectedPlanType(com.example.fitness_plan.domain.repository.SelectedPlanType.CUSTOM)
+        }
+    }
+
+    fun addDayToUserPlan(dayName: String) {
+        viewModelScope.launch {
+            val username = _currentUsername.value
+            if (username.isEmpty()) return@launch
+
+            workoutUseCase.addDayToUserPlan(username, dayName)
+        }
+    }
+
+    fun addExerciseToUserDay(dayIndex: Int, exercise: Exercise) {
+        viewModelScope.launch {
+            val username = _currentUsername.value
+            if (username.isEmpty()) return@launch
+
+            workoutUseCase.addExerciseToUserDay(username, dayIndex, exercise)
+        }
+    }
+
+    fun deleteUserPlan() {
+        viewModelScope.launch {
+            val username = _currentUsername.value
+            if (username.isEmpty()) return@launch
+
+            workoutUseCase.deleteUserPlan(username)
+        }
+    }
+
+    fun updateUserWorkoutDayDate(dayIndex: Int, newDate: Long?) {
+        viewModelScope.launch {
+            val username = _currentUsername.value
+            if (username.isEmpty()) return@launch
+
+            workoutUseCase.updateUserWorkoutDayDate(username, dayIndex, newDate)
+
+            val currentPlan = _userWorkoutPlan.value ?: return@launch
+            val updatedDays = currentPlan.days.mapIndexed { index, day ->
+                if (index == dayIndex) {
+                    day.copy(scheduledDate = newDate)
+                } else {
+                    day
+                }
+            }
+            _userWorkoutPlan.value = currentPlan.copy(days = updatedDays)
+        }
+    }
+
+    fun setSelectedPlanType(type: com.example.fitness_plan.domain.repository.SelectedPlanType) {
+        viewModelScope.launch {
+            val username = _currentUsername.value
+            if (username.isEmpty()) return@launch
+
+            workoutUseCase.setSelectedPlanType(username, type)
+        }
+    }
+
+    fun toggleAutoPlanExpanded() {
+        _isAutoPlanExpanded.value = !_isAutoPlanExpanded.value
+    }
+
+    fun toggleUserPlanExpanded() {
+        _isUserPlanExpanded.value = !_isUserPlanExpanded.value
     }
 }

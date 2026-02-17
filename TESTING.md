@@ -10,30 +10,34 @@ This document describes the unit testing setup for the Fitness Plan Android appl
 - **PasswordHasher Tests**: Hashing and verification logic
 - **Domain Model Tests**: Data class validation
 - **Adaptive UI Tests**: Screen adaptation logic
+- **BodyParameterCalculator Tests**: BMI, body fat (US Navy), muscle mass calculations
+- **MeasurementValidator Tests**: Parameter range validation
 
 ### Test Structure
 ```
 src/test/java/com/example/fitness_plan/
-├── ExampleUnitTest.kt                 # Basic unit tests
-├── data/                             # Data layer tests
-│   └── PasswordHasherTest.kt         # Password hashing tests
-├── domain/                           # Domain layer tests
-│   ├── model/
-│   │   └── DomainModelTest.kt        # Data model tests
-│   └── usecase/
-│       ├── AuthUseCaseTest.kt        # Authentication logic tests
-│       ├── WorkoutUseCaseTest.kt     # Workout logic tests
-│       └── WeightUseCaseTest.kt      # Weight tracking tests
-├── presentation/                     # Presentation layer tests
-│   └── viewmodel/
-│       ├── ProfileViewModelTest.kt   # Profile ViewModel tests
-│       ├── WorkoutViewModelTest.kt   # Workout ViewModel tests
-│       └── StatisticsViewModelTest.kt # Statistics ViewModel tests
-├── ui/                               # UI layer tests
-│   ├── AdaptiveLayoutTest.kt         # Adaptive UI tests
-│   └── HomeScreenUtilsTest.kt        # Screen utility tests
-└── testutils/                        # Test utilities
-    └── TestUtils.kt                  # Test data factories
+ ├── ExampleUnitTest.kt                 # Basic unit tests
+ ├── data/                             # Data layer tests
+ │   └── PasswordHasherTest.kt         # Password hashing tests
+ ├── domain/                           # Domain layer tests
+ │   ├── model/
+ │   │   └── DomainModelTest.kt        # Data model tests
+ │   └── usecase/
+ │       ├── AuthUseCaseTest.kt        # Authentication logic tests
+ │       ├── WorkoutUseCaseTest.kt     # Workout logic tests
+ │       ├── WeightUseCaseTest.kt      # Weight tracking tests
+ │       ├── BodyParameterCalculatorTest.kt  # Body parameters calculation tests
+ │       └── MeasurementValidatorTest.kt     # Parameter validation tests
+ ├── presentation/                     # Presentation layer tests
+ │   └── viewmodel/
+ │       ├── ProfileViewModelTest.kt   # Profile ViewModel tests
+ │       ├── WorkoutViewModelTest.kt   # Workout ViewModel tests
+ │       └── StatisticsViewModelTest.kt # Statistics ViewModel tests
+ ├── ui/                               # UI layer tests
+ │   ├── AdaptiveLayoutTest.kt         # Adaptive UI tests
+ │   └── HomeScreenUtilsTest.kt        # Screen utility tests
+ └── testutils/                        # Test utilities
+     └── TestUtils.kt                  # Test data factories
 ```
 
 ## Running Tests
@@ -75,20 +79,30 @@ The project uses the following testing dependencies:
 - **Exercise, WorkoutDay, WorkoutPlan**: Business logic validation
 - **WeightEntry, Cycle**: Progress tracking
 - **ExerciseStats**: Performance metrics
+- **BodyParameter, BodyParameterType**: Body parameters data models
+- **MeasurementInput**: Input validation
 
 ### ✅ Use Cases
 - **AuthUseCase**: Login/logout/register flows
 - **WorkoutUseCase**: Exercise management
 - **WeightUseCase**: Weight tracking and statistics
+- **BodyParametersUseCase**: Body parameters management
+- **BodyParameterCalculator**: BMI, body fat, muscle mass calculations
+- **MeasurementValidator**: Parameter range validation
 
 ### ✅ Presentation Layer
 - **ProfileViewModel**: User profile management
 - **WorkoutViewModel**: Workout session handling
 - **StatisticsViewModel**: Data aggregation and filtering
+- **BodyParametersViewModel**: Body parameters state management
 
 ### ✅ UI Layer
 - **AdaptiveLayout**: Screen size adaptation logic
 - **HomeScreenUtils**: Date formatting, completion checking
+- **AddMeasurementDialog**: Body parameters input dialog
+- **BodyParametersSection**: Body parameters profile section
+- **CurrentParametersCard**: Current parameters display
+- **MeasurementInputField**: Reusable parameter input field
 
 ## Test Guidelines
 

@@ -28,6 +28,7 @@ import com.example.fitness_plan.ui.UserProfileForm
 import com.example.fitness_plan.ui.theme.Fitness_planTheme
 import dagger.hilt.android.AndroidEntryPoint
 import java.net.URLEncoder
+import kotlinx.coroutines.flow.first
 
 private const val TAG = "MainActivity"
 
@@ -45,16 +46,30 @@ class MainActivity : ComponentActivity() {
 
                 LaunchedEffect(Unit) {
                     try {
-                        val credentials = profileViewModel.getCredentials()
-                        if (credentials != null) {
-                            Log.d(TAG, "User is logged in: ${credentials.username}")
-                            startDestination = "main_tabs"
+                        val packageInfo = packageManager.getPackageInfo(packageName, 0)
+                        val currentVersion = packageInfo.versionName
+                        Log.d(TAG, "Current app version: $currentVersion")
+
+                        val hasValidSession = profileViewModel.checkSession(currentVersion)
+
+                        if (hasValidSession) {
+                            val credentials = profileViewModel.getCredentials()
+                            val profile = profileViewModel.userProfile.first()
+
+                            if (credentials != null && profile != null) {
+                                Log.d(TAG, "User is logged in: ${credentials.username}, profile: ${profile.username}")
+                                startDestination = "main_tabs"
+                            } else {
+                                Log.d(TAG, "Invalid state - credentials=$credentials, profile=$profile, showing login")
+                                profileViewModel.logout()
+                                startDestination = "login_screen"
+                            }
                         } else {
-                            Log.d(TAG, "No user logged in, showing login screen")
+                            Log.d(TAG, "No valid session, showing login screen")
                             startDestination = "login_screen"
                         }
                     } catch (e: Exception) {
-                        Log.e(TAG, "Error checking credentials", e)
+                        Log.e(TAG, "Error checking session", e)
                         startDestination = "login_screen"
                     }
                 }
@@ -119,11 +134,19 @@ class MainActivity : ComponentActivity() {
                             )
                         }
 
-                        composable("exercise_detail/{exerciseName}") { backStackEntry ->
+                        composable(
+                            route = "exercise_detail/{exerciseName}/{dayIndex}",
+                            arguments = listOf(
+                                androidx.navigation.navArgument("exerciseName") { type = androidx.navigation.NavType.StringType },
+                                androidx.navigation.navArgument("dayIndex") { type = androidx.navigation.NavType.IntType; defaultValue = -1 }
+                            )
+                        ) { backStackEntry ->
                             val exerciseName = backStackEntry.arguments?.getString("exerciseName") ?: ""
+                            val dayIndex = backStackEntry.arguments?.getInt("dayIndex") ?: -1
                             val isAdmin = navController.previousBackStackEntry?.destination?.route == "admin_main"
                             ExerciseDetailScreen(
                                 exerciseName = exerciseName,
+                                dayIndex = dayIndex,
                                 onBackClick = { navController.popBackStack() },
                                 workoutViewModel = workoutViewModel,
                                 isAdmin = isAdmin
@@ -135,9 +158,9 @@ class MainActivity : ComponentActivity() {
                                 mainNavController = navController,
                                 profileViewModel = profileViewModel,
                                 workoutViewModel = workoutViewModel,
-                                onExerciseClick = { exercise ->
+                                onExerciseClick = { exercise, dayIndex ->
                                     val encodedName = URLEncoder.encode(exercise.name, "UTF-8")
-                                    navController.navigate("exercise_detail/$encodedName")
+                                    navController.navigate("exercise_detail/$encodedName/$dayIndex")
                                 }
                             )
                         }
@@ -147,9 +170,9 @@ class MainActivity : ComponentActivity() {
                                 mainNavController = navController,
                                 profileViewModel = profileViewModel,
                                 workoutViewModel = workoutViewModel,
-                                onExerciseClick = { exercise ->
+                                onExerciseClick = { exercise, dayIndex ->
                                     val encodedName = URLEncoder.encode(exercise.name, "UTF-8")
-                                    navController.navigate("exercise_detail/$encodedName")
+                                    navController.navigate("exercise_detail/$encodedName/$dayIndex")
                                 },
                                 onExerciseLibraryClick = { exercise ->
                                     navController.navigate("exercise_guide/${exercise.id}")

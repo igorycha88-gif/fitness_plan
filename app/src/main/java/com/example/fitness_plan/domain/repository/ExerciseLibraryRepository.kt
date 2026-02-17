@@ -22,4 +22,6 @@ interface ExerciseLibraryRepository {
         currentMuscleGroups: List<MuscleGroup>,
         limit: Int = 3
     ): List<ExerciseLibrary>
+
+    suspend fun reloadDefaultExercises()
 }

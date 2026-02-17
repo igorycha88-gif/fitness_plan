@@ -55,6 +55,7 @@ class WorkoutRepositoryFavoriteExercisesTest {
         mockWeightCalculator = mockk(relaxed = true)
         mockExerciseLibraryRepository = mockk(relaxed = true)
         val workoutDateCalculator = com.example.fitness_plan.domain.calculator.WorkoutDateCalculator()
+        val mockExercisePoolManager = mockk<com.example.fitness_plan.domain.usecase.ExercisePoolManager>(relaxed = true)
 
         every { mockWeightCalculator.calculateBaseWeight(any(), any(), any(), any(), any()) } returns 20.0f
         every { mockWeightCalculator.getRecommendedRepsString(any()) } returns "10-12"
@@ -68,7 +69,8 @@ class WorkoutRepositoryFavoriteExercisesTest {
             workoutScheduleRepository = mockWorkoutScheduleRepository,
             weightCalculator = mockWeightCalculator,
             workoutDateCalculator = workoutDateCalculator,
-            exerciseLibraryRepository = mockExerciseLibraryRepository
+            exerciseLibraryRepository = mockExerciseLibraryRepository,
+            exercisePoolManager = mockExercisePoolManager
         )
     }
 

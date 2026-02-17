@@ -7,6 +7,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -26,6 +27,7 @@ fun RegisterScreen(
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
     val coroutineScope = rememberCoroutineScope()
+    val context = LocalContext.current
 
     Scaffold(
         topBar = {
@@ -100,6 +102,9 @@ fun RegisterScreen(
                     password.length < 6 -> errorMessage = "Пароль должен быть не менее 6 символов"
                     else -> {
                         coroutineScope.launch {
+                            val packageInfo = context.packageManager.getPackageInfo(context.packageName, 0)
+                            val appVersion = packageInfo.versionName
+
                             viewModel.saveCredentials(currentUsername, password)
                             viewModel.setCurrentUsername(currentUsername)
                             onRegisterSuccess(currentUsername)

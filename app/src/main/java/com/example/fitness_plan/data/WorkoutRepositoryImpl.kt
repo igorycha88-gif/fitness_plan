@@ -8,15 +8,20 @@ import androidx.datastore.preferences.preferencesDataStore
 import com.example.fitness_plan.domain.calculator.WeightCalculator
 import com.example.fitness_plan.domain.calculator.WorkoutDateCalculator
 import com.example.fitness_plan.domain.model.Exercise
+import com.example.fitness_plan.domain.model.ExerciseType
+import com.example.fitness_plan.domain.model.MuscleGroupSequence
 import com.example.fitness_plan.domain.model.WorkoutDay
 import com.example.fitness_plan.domain.model.WorkoutPlan
 import com.example.fitness_plan.domain.repository.ExerciseCompletionRepository
 import com.example.fitness_plan.domain.repository.WorkoutRepository
+import com.example.fitness_plan.domain.usecase.ExercisePoolManager
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.runBlocking
+import java.io.File
 import java.util.*
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -32,10 +37,37 @@ class WorkoutRepositoryImpl @Inject constructor(
     private val workoutScheduleRepository: WorkoutScheduleRepository,
     private val weightCalculator: WeightCalculator,
     private val workoutDateCalculator: WorkoutDateCalculator,
-    private val exerciseLibraryRepository: com.example.fitness_plan.domain.repository.ExerciseLibraryRepository
+    private val exerciseLibraryRepository: com.example.fitness_plan.domain.repository.ExerciseLibraryRepository,
+    private val exercisePoolManager: ExercisePoolManager
 ) : WorkoutRepository {
 
     private val gson = Gson()
+
+    private fun getUserPlanKey(username: String): Preferences.Key<String> {
+        return stringPreferencesKey("${username}_user_workout_plan")
+    }
+
+    private fun getSelectedPlanTypeKey(username: String): Preferences.Key<String> {
+        return stringPreferencesKey("${username}_selected_plan_type")
+    }
+
+    private fun getDataStorePath(): String {
+        return try {
+            val dataDir = context.dataDir?.absolutePath ?: "N/A"
+            val datastorePath = File(dataDir, "datastore/workout_plans.preferences_pb").absolutePath
+            Log.d(TAG, "DataStore path: $datastorePath")
+            Log.d(TAG, "DataStore exists: ${File(datastorePath).exists()}")
+            datastorePath
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to get DataStore path", e)
+            "Error getting path: ${e.message}"
+        }
+    }
+
+    init {
+        Log.d(TAG, "=== WorkoutRepositoryImpl initialized ===")
+        getDataStorePath()
+    }
 
     private suspend fun findFavoriteExercise(
         favoriteExercises: Set<String>,
@@ -72,6 +104,8 @@ class WorkoutRepositoryImpl @Inject constructor(
                         exerciseType = favoriteExercise.exerciseType,
                         stepByStepInstructions = favoriteExercise.stepByStepInstructions,
                         animationUrl = favoriteExercise.animationUrl,
+                        imageRes = favoriteExercise.imageRes,
+                        imageUrl = favoriteExercise.imageUrl,
                         isFavoriteSubstitution = true
                     )
                 } else {
@@ -171,23 +205,67 @@ class WorkoutRepositoryImpl @Inject constructor(
     }
 
     override suspend fun saveWorkoutPlan(username: String, plan: WorkoutPlan) {
-        val json = gson.toJson(plan)
-        context.workoutDataStore.edit { preferences ->
-            preferences[stringPreferencesKey("${username}_workout_plan")] = json
+        try {
+            Log.d(TAG, "saveWorkoutPlan: START for username=$username, plan=${plan.name}")
+            Log.d(TAG, "saveWorkoutPlan: days=${plan.days.size}, goal=${plan.goal}, level=${plan.level}")
+
+            val json = gson.toJson(plan)
+            Log.d(TAG, "saveWorkoutPlan: JSON size=${json.length} bytes")
+
+            context.workoutDataStore.edit { preferences ->
+                preferences[stringPreferencesKey("${username}_workout_plan")] = json
+            }
+
+            Log.d(TAG, "saveWorkoutPlan: SUCCESS - saved plan for username=$username")
+        } catch (e: Exception) {
+            Log.e(TAG, "saveWorkoutPlan: FAILED to save plan for username=$username", e)
+            throw e
         }
+    }
+
+    private fun updateExerciseFromLibrary(
+        exercise: Exercise,
+        exerciseLibrary: List<com.example.fitness_plan.domain.model.ExerciseLibrary>
+    ): Exercise {
+        val libraryExercise = exerciseLibrary.find { it.name == exercise.name }
+
+        return if (libraryExercise != null) {
+            exercise.copy(
+                imageRes = if (exercise.imageRes == null) libraryExercise.imageRes else exercise.imageRes,
+                imageUrl = if (exercise.imageUrl == null) libraryExercise.imageUrl else exercise.imageUrl
+            )
+        } else {
+            exercise
+        }
+    }
+
+    private suspend fun updateWorkoutPlanFromLibrary(plan: WorkoutPlan): WorkoutPlan {
+        val exerciseLibrary = exerciseLibraryRepository.getAllExercisesAsList()
+        val updatedDays = plan.days.map { day ->
+            day.copy(exercises = day.exercises.map { exercise ->
+                updateExerciseFromLibrary(exercise, exerciseLibrary)
+            })
+        }
+        return plan.copy(days = updatedDays)
     }
 
     override fun getWorkoutPlan(username: String): Flow<WorkoutPlan?> {
         val key = stringPreferencesKey("${username}_workout_plan")
+        Log.d(TAG, "getWorkoutPlan: requesting plan for username=$username")
+
         return context.workoutDataStore.data.map { preferences ->
             val json = preferences[key]
             if (json != null) {
                 try {
-                    gson.fromJson(json, WorkoutPlan::class.java)
+                    val plan = gson.fromJson(json, WorkoutPlan::class.java)
+                    Log.d(TAG, "getWorkoutPlan: SUCCESS - loaded plan ${plan.name} with ${plan.days.size} days")
+                    plan
                 } catch (e: Exception) {
+                    Log.e(TAG, "getWorkoutPlan: FAILED to parse plan for username=$username", e)
                     null
                 }
             } else {
+                Log.d(TAG, "getWorkoutPlan: no plan found for username=$username")
                 null
             }
         }
@@ -212,6 +290,83 @@ class WorkoutRepositoryImpl @Inject constructor(
                 }
             } else {
                 null
+            }
+        }
+    }
+
+    override suspend fun saveUserWorkoutPlan(username: String, plan: WorkoutPlan) {
+        try {
+            Log.d(TAG, "saveUserWorkoutPlan: START for username=$username, plan=${plan.name}")
+            val key = getUserPlanKey(username)
+            val json = gson.toJson(plan)
+            context.workoutDataStore.edit { preferences ->
+                preferences[key] = json
+            }
+            Log.d(TAG, "saveUserWorkoutPlan: SUCCESS - saved user plan for username=$username")
+        } catch (e: Exception) {
+            Log.e(TAG, "saveUserWorkoutPlan: FAILED to save user plan for username=$username", e)
+            throw e
+        }
+    }
+
+    override fun getUserWorkoutPlan(username: String): Flow<WorkoutPlan?> {
+        val key = getUserPlanKey(username)
+        Log.d(TAG, "getUserWorkoutPlan: requesting user plan for username=$username")
+        return context.workoutDataStore.data.map { preferences ->
+            val json = preferences[key]
+            if (json != null) {
+                try {
+                    val plan = gson.fromJson(json, WorkoutPlan::class.java)
+                    Log.d(TAG, "getUserWorkoutPlan: SUCCESS - loaded user plan ${plan.name} with ${plan.days.size} days")
+                    plan
+                } catch (e: Exception) {
+                    Log.e(TAG, "getUserWorkoutPlan: FAILED to parse user plan for username=$username", e)
+                    null
+                }
+            } else {
+                Log.d(TAG, "getUserWorkoutPlan: no user plan found for username=$username")
+                null
+            }
+        }
+    }
+
+    override suspend fun deleteUserWorkoutPlan(username: String) {
+        try {
+            Log.d(TAG, "deleteUserWorkoutPlan: START for username=$username")
+            val key = getUserPlanKey(username)
+            context.workoutDataStore.edit { preferences ->
+                preferences.remove(key)
+            }
+            Log.d(TAG, "deleteUserWorkoutPlan: SUCCESS - deleted user plan for username=$username")
+        } catch (e: Exception) {
+            Log.e(TAG, "deleteUserWorkoutPlan: FAILED to delete user plan for username=$username", e)
+            throw e
+        }
+    }
+
+    override suspend fun setSelectedPlanType(username: String, planType: com.example.fitness_plan.domain.repository.SelectedPlanType) {
+        try {
+            Log.d(TAG, "setSelectedPlanType: START for username=$username, planType=$planType")
+            val key = getSelectedPlanTypeKey(username)
+            context.workoutDataStore.edit { preferences ->
+                preferences[key] = planType.name
+            }
+            Log.d(TAG, "setSelectedPlanType: SUCCESS - saved plan type for username=$username")
+        } catch (e: Exception) {
+            Log.e(TAG, "setSelectedPlanType: FAILED to save plan type for username=$username", e)
+            throw e
+        }
+    }
+
+    override fun getSelectedPlanType(username: String): Flow<com.example.fitness_plan.domain.repository.SelectedPlanType> {
+        val key = getSelectedPlanTypeKey(username)
+        return context.workoutDataStore.data.map { preferences ->
+            val type = preferences[key] ?: com.example.fitness_plan.domain.repository.SelectedPlanType.AUTO.name
+            try {
+                com.example.fitness_plan.domain.repository.SelectedPlanType.valueOf(type)
+            } catch (e: Exception) {
+                Log.e(TAG, "getSelectedPlanType: FAILED to parse plan type for username=$username, defaulting to AUTO", e)
+                com.example.fitness_plan.domain.repository.SelectedPlanType.AUTO
             }
         }
     }
@@ -245,7 +400,9 @@ class WorkoutRepositoryImpl @Inject constructor(
                 equipment = libExercise.equipment,
                 exerciseType = libExercise.exerciseType,
                 stepByStepInstructions = libExercise.stepByStepInstructions,
-                animationUrl = libExercise.animationUrl
+                animationUrl = libExercise.animationUrl,
+                imageRes = libExercise.imageRes,
+                imageUrl = libExercise.imageUrl
             )
         }
     }
@@ -304,7 +461,7 @@ class WorkoutRepositoryImpl @Inject constructor(
             sets = sets,
             reps = reps,
             weight = null,
-            imageRes = null,
+            imageRes = libExercise?.imageRes,
             isCompleted = false,
             alternatives = emptyList(),
             description = libExercise?.description ?: description,
@@ -314,7 +471,8 @@ class WorkoutRepositoryImpl @Inject constructor(
             equipment = libExercise?.equipment ?: emptyList(),
             exerciseType = libExercise?.exerciseType ?: com.example.fitness_plan.domain.model.ExerciseType.STRENGTH,
             stepByStepInstructions = libExercise?.stepByStepInstructions,
-            animationUrl = libExercise?.animationUrl
+            animationUrl = libExercise?.animationUrl,
+            imageUrl = libExercise?.imageUrl
         )
     }
 
@@ -406,45 +564,45 @@ class WorkoutRepositoryImpl @Inject constructor(
         val exerciseGroups = listOf(legExercises, chestExercises, backExercises, shoulderExercises, armExercises)
 
         val days = mutableListOf<com.example.fitness_plan.domain.model.WorkoutDay>()
-        var legDayIndex = 0
-        var chestDayIndex = 0
-        var backDayIndex = 0
-        var shoulderDayIndex = 0
-        var armDayIndex = 0
-        var cardioIndex = 0
+
+        val allStrengthExercises = legExercises + chestExercises + backExercises + shoulderExercises + armExercises
+        val strengthPool = ExercisePool(allStrengthExercises)
+        val cardioPoolStart = ExercisePool(cardioExercises)
+        val cardioPoolEnd = ExercisePool(cardioExercises)
+
+        val legMuscleGroups = listOf("Квадрицепсы", "Ягодицы", "Бёдра сзади", "Икры")
+        val chestMuscleGroups = listOf("Грудь", "Трицепсы", "Плечи")
+        val backMuscleGroups = listOf("Широчайшие", "Трапеции", "Бицепсы", "Предплечья", "Поясница")
+        val shoulderMuscleGroups = listOf("Плечи", "Трицепсы", "Трапеции")
+        val armMuscleGroups = listOf("Бицепсы", "Предплечья", "Плечелучевая", "Трицепсы")
 
         for (dayIndex in 0 until 10) {
             val groupIndex = dayIndex % 5
             val muscleGroupName = dayNames[groupIndex]
+
             val dayExercises = when (groupIndex) {
-                0 -> getExercisesForDay(legExercises, legDayIndex, 4)
-                1 -> getExercisesForDay(chestExercises, chestDayIndex, 4)
-                2 -> getExercisesForDay(backExercises, backDayIndex, 4)
-                3 -> getExercisesForDay(shoulderExercises, shoulderDayIndex, 4)
-                else -> getExercisesForDay(armExercises, armDayIndex, 4)
+                0 -> getUniqueExercisesForDay(strengthPool, 4, legMuscleGroups)
+                1 -> getUniqueExercisesForDay(strengthPool, 4, chestMuscleGroups)
+                2 -> getUniqueExercisesForDay(strengthPool, 4, backMuscleGroups)
+                3 -> getUniqueExercisesForDay(strengthPool, 4, shoulderMuscleGroups)
+                else -> getUniqueExercisesForDay(strengthPool, 4, armMuscleGroups)
             }
 
-            when (groupIndex) {
-                0 -> legDayIndex += 4
-                1 -> chestDayIndex += 4
-                2 -> backDayIndex += 4
-                3 -> shoulderDayIndex += 4
-                else -> armDayIndex += 4
-            }
+            val cardioStartExercises = listOfNotNull(cardioExercises.shuffled().firstOrNull())
+            val cardioEndExercises = listOfNotNull(cardioExercises.shuffled().firstOrNull())
 
-            val cardioStart = cardioExercises[cardioIndex].copy(
-                id = "${dayIndex}_cardio_start_${cardioExercises[cardioIndex].id}",
+            val cardioStart = cardioStartExercises.firstOrNull()?.copy(
+                id = "${dayIndex}_cardio_start_${cardioStartExercises.firstOrNull()?.id}",
                 recommendedWeight = null,
                 recommendedRepsPerSet = cardioReps
             )
-            val cardioEnd = cardioExercises[(cardioIndex + 1) % cardioExercises.size].copy(
-                id = "${dayIndex}_cardio_end_${cardioExercises[(cardioIndex + 1) % cardioExercises.size].id}",
+            val cardioEnd = cardioEndExercises.firstOrNull()?.copy(
+                id = "${dayIndex}_cardio_end_${cardioEndExercises.firstOrNull()?.id}",
                 recommendedWeight = null,
                 recommendedRepsPerSet = cardioReps
             )
-            cardioIndex = (cardioIndex + 2) % cardioExercises.size
 
-            val allDayExercises = listOf(cardioStart) + dayExercises.map { it.copy(id = "${dayIndex}_${it.id}") } + listOf(cardioEnd)
+            val allDayExercises = listOfNotNull(cardioStart) + dayExercises.map { it.copy(id = "${dayIndex}_${it.id}") } + listOfNotNull(cardioEnd)
 
             val muscleGroups = allDayExercises.flatMap { getMuscleGroupsForExercise(it.name) }.distinct()
 
@@ -469,6 +627,23 @@ class WorkoutRepositoryImpl @Inject constructor(
         )
     }
 
+    private data class ExercisePool(
+        val allExercises: List<Exercise>,
+        val usedExerciseNames: MutableSet<String> = mutableSetOf()
+    ) {
+        fun getAvailableExercises(): List<Exercise> {
+            return allExercises.filter { it.name !in usedExerciseNames }
+        }
+
+        fun markAsUsed(exercise: Exercise) {
+            usedExerciseNames.add(exercise.name)
+        }
+
+        fun markAllAsUsed(exercises: List<Exercise>) {
+            exercises.forEach { markAsUsed(it) }
+        }
+    }
+
     private fun getExercisesForDay(
         exerciseList: List<Exercise>,
         startIndex: Int,
@@ -479,6 +654,38 @@ class WorkoutRepositoryImpl @Inject constructor(
             val index = (startIndex + i) % exerciseList.size
             exercises.add(exerciseList[index])
         }
+        return exercises
+    }
+
+    private fun getUniqueExercisesForDay(
+        pool: ExercisePool,
+        count: Int,
+        targetMuscleGroups: List<String>? = null
+    ): List<Exercise> {
+        val exercises = mutableListOf<Exercise>()
+        var availableExercises = pool.getAvailableExercises()
+
+        if (targetMuscleGroups != null) {
+            val targetGroupExercises = availableExercises.filter { exercise ->
+                val muscleGroups = getMuscleGroupsForExercise(exercise.name)
+                targetMuscleGroups.any { it in muscleGroups }
+            }
+
+            targetGroupExercises.shuffled().take(count).forEach { exercise ->
+                exercises.add(exercise)
+                pool.markAsUsed(exercise)
+            }
+
+            availableExercises = pool.getAvailableExercises()
+        }
+
+        while (exercises.size < count && availableExercises.isNotEmpty()) {
+            val exercise = availableExercises.first()
+            exercises.add(exercise)
+            pool.markAsUsed(exercise)
+            availableExercises = pool.getAvailableExercises()
+        }
+
         return exercises
     }
 
@@ -500,11 +707,11 @@ class WorkoutRepositoryImpl @Inject constructor(
         val daysCount = 10
 
         val days = when (frequency) {
-            "1 раз в неделю" -> createFullBodyDays(baseExercises, daysCount)
-            "3 раза в неделю" -> createFullBodyDays(baseExercises, daysCount)
-            "5 раз в неделю" -> createSplit5xDays(baseExercises, daysCount)
-            else -> {
-                val workouts = listOf(
+            "1 раз в неделю" -> createFullBodyDays(baseExercises, daysCount, exerciseLibrary, profile)
+            "3 раза в неделю" -> createFullBodyDays(baseExercises, daysCount, exerciseLibrary, profile)
+            "5 раз в неделю" -> createSplit5xDays(baseExercises, daysCount, exerciseLibrary, profile)
+            else -> createDaysWithUniqueExercises(
+                listOf(
                     listOf(0, 1, 2, 7),
                     listOf(3, 4, 6, 8),
                     listOf(0, 1, 2, 7),
@@ -515,18 +722,12 @@ class WorkoutRepositoryImpl @Inject constructor(
                     listOf(3, 4, 6, 8),
                     listOf(0, 1, 2, 5, 7),
                     listOf(3, 4, 6, 8)
-                )
-                workouts.mapIndexed { index, exerciseIndices ->
-                    val exercises = exerciseIndices.map { i -> baseExercises[i].copy(id = "${index}_${baseExercises[i].id}") }
-                    val muscleGroups = exercises.flatMap { exercise -> getMuscleGroupsForExercise(exercise.name) }.distinct()
-                    WorkoutDay(
-                        id = index,
-                        dayName = "День ${index + 1}",
-                        exercises = exercises,
-                        muscleGroups = muscleGroups
-                    )
-                }
-            }
+                ),
+                baseExercises,
+                exerciseLibrary,
+                daysCount,
+                profile
+            )
         }
 
         return WorkoutPlan(
@@ -564,11 +765,11 @@ class WorkoutRepositoryImpl @Inject constructor(
         val daysCount = 10
 
         val days = when (frequency) {
-            "1 раз в неделю" -> createFullBodyDays(baseExercises, daysCount)
-            "3 раза в неделю" -> createFullBodyDays(baseExercises, daysCount)
-            "5 раз в неделю" -> createSplit5xDays(baseExercises, daysCount)
-            else -> {
-                val workouts = listOf(
+            "1 раз в неделю" -> createFullBodyDays(baseExercises, daysCount, exerciseLibrary, profile)
+            "3 раза в неделю" -> createFullBodyDays(baseExercises, daysCount, exerciseLibrary, profile)
+            "5 раз в неделю" -> createSplit5xDays(baseExercises, daysCount, exerciseLibrary, profile)
+            else -> createDaysWithUniqueExercises(
+                listOf(
                     listOf(0, 1, 3, 10, 12),
                     listOf(2, 5, 6, 11, 13),
                     listOf(4, 7, 8, 14),
@@ -579,18 +780,12 @@ class WorkoutRepositoryImpl @Inject constructor(
                     listOf(2, 5, 6, 11, 13),
                     listOf(4, 7, 8, 14),
                     listOf(0, 1, 3, 10, 12, 15)
-                )
-                workouts.mapIndexed { index, exerciseIndices ->
-                    val exercises = exerciseIndices.map { i -> baseExercises[i].copy(id = "${index}_${baseExercises[i].id}") }
-                    val muscleGroups = exercises.flatMap { exercise -> getMuscleGroupsForExercise(exercise.name) }.distinct()
-                    WorkoutDay(
-                        id = index,
-                        dayName = "День ${index + 1}",
-                        exercises = exercises,
-                        muscleGroups = muscleGroups
-                    )
-                }
-            }
+                ),
+                baseExercises,
+                exerciseLibrary,
+                daysCount,
+                profile
+            )
         }
 
         return WorkoutPlan(
@@ -625,11 +820,11 @@ class WorkoutRepositoryImpl @Inject constructor(
         val daysCount = 10
 
         val days = when (frequency) {
-            "1 раз в неделю" -> createFullBodyDays(baseExercises, daysCount)
-            "3 раза в неделю" -> createFullBodyDays(baseExercises, daysCount)
-            "5 раз в неделю" -> createSplit5xDays(baseExercises, daysCount)
-            else -> {
-                val workouts = listOf(
+            "1 раз в неделю" -> createFullBodyDays(baseExercises, daysCount, exerciseLibrary, profile)
+            "3 раза в неделю" -> createFullBodyDays(baseExercises, daysCount, exerciseLibrary, profile)
+            "5 раз в неделю" -> createSplit5xDays(baseExercises, daysCount, exerciseLibrary, profile)
+            else -> createDaysWithUniqueExercises(
+                listOf(
                     listOf(0, 1, 3, 11),
                     listOf(2, 5, 6, 12),
                     listOf(4, 7, 8, 12),
@@ -640,18 +835,12 @@ class WorkoutRepositoryImpl @Inject constructor(
                     listOf(2, 5, 6, 12),
                     listOf(4, 7, 8, 12),
                     listOf(0, 1, 3, 11)
-                )
-                workouts.mapIndexed { index, exerciseIndices ->
-                    val exercises = exerciseIndices.map { i -> baseExercises[i].copy(id = "${index}_${baseExercises[i].id}") }
-                    val muscleGroups = exercises.flatMap { exercise -> getMuscleGroupsForExercise(exercise.name) }.distinct()
-                    WorkoutDay(
-                        id = index,
-                        dayName = "День ${index + 1}",
-                        exercises = exercises,
-                        muscleGroups = muscleGroups
-                    )
-                }
-            }
+                ),
+                baseExercises,
+                exerciseLibrary,
+                daysCount,
+                profile
+            )
         }
 
         return WorkoutPlan(
@@ -689,11 +878,11 @@ class WorkoutRepositoryImpl @Inject constructor(
         val daysCount = 10
 
         val days = when (frequency) {
-            "1 раз в неделю" -> createFullBodyDays(baseExercises, daysCount)
-            "3 раза в неделю" -> createFullBodyDays(baseExercises, daysCount)
-            "5 раз в неделю" -> createSplit5xDays(baseExercises, daysCount)
-            else -> {
-                val workouts = listOf(
+            "1 раз в неделю" -> createFullBodyDays(baseExercises, daysCount, exerciseLibrary, profile)
+            "3 раза в неделю" -> createFullBodyDays(baseExercises, daysCount, exerciseLibrary, profile)
+            "5 раз в неделю" -> createSplit5xDays(baseExercises, daysCount, exerciseLibrary, profile)
+            else -> createDaysWithUniqueExercises(
+                listOf(
                     listOf(0, 1, 3, 11, 12, 14),
                     listOf(2, 5, 6, 13, 14),
                     listOf(4, 7, 8, 10, 14),
@@ -704,18 +893,12 @@ class WorkoutRepositoryImpl @Inject constructor(
                     listOf(2, 5, 6, 13, 14),
                     listOf(4, 7, 8, 10, 14),
                     listOf(0, 1, 3, 11, 12, 14)
-                )
-                workouts.mapIndexed { index, exerciseIndices ->
-                    val exercises = exerciseIndices.map { i -> baseExercises[i].copy(id = "${index}_${baseExercises[i].id}") }
-                    val muscleGroups = exercises.flatMap { exercise -> getMuscleGroupsForExercise(exercise.name) }.distinct()
-                    WorkoutDay(
-                        id = index,
-                        dayName = "День ${index + 1}",
-                        exercises = exercises,
-                        muscleGroups = muscleGroups
-                    )
-                }
-            }
+                ),
+                baseExercises,
+                exerciseLibrary,
+                daysCount,
+                profile
+            )
         }
 
         return WorkoutPlan(
@@ -753,11 +936,11 @@ class WorkoutRepositoryImpl @Inject constructor(
         val daysCount = 10
 
         val days = when (frequency) {
-            "1 раз в неделю" -> createFullBodyDays(baseExercises, daysCount)
-            "3 раза в неделю" -> createFullBodyDays(baseExercises, daysCount)
-            "5 раз в неделю" -> createSplit5xDays(baseExercises, daysCount)
-            else -> {
-                val workouts = listOf(
+            "1 раз в неделю" -> createFullBodyDays(baseExercises, daysCount, exerciseLibrary, profile)
+            "3 раза в неделю" -> createFullBodyDays(baseExercises, daysCount, exerciseLibrary, profile)
+            "5 раз в неделю" -> createSplit5xDays(baseExercises, daysCount, exerciseLibrary, profile)
+            else -> createDaysWithUniqueExercises(
+                listOf(
                     listOf(0, 1, 3, 11, 12, 13, 14),
                     listOf(2, 5, 6, 12, 13, 14),
                     listOf(4, 7, 8, 10, 15),
@@ -768,18 +951,12 @@ class WorkoutRepositoryImpl @Inject constructor(
                     listOf(2, 5, 6, 12, 13, 14),
                     listOf(4, 7, 8, 10, 15),
                     listOf(0, 1, 3, 11, 12, 13, 14)
-                )
-                workouts.mapIndexed { index, exerciseIndices ->
-                    val exercises = exerciseIndices.map { i -> baseExercises[i].copy(id = "${index}_${baseExercises[i].id}") }
-                    val muscleGroups = exercises.flatMap { exercise -> getMuscleGroupsForExercise(exercise.name) }.distinct()
-                    WorkoutDay(
-                        id = index,
-                        dayName = "День ${index + 1}",
-                        exercises = exercises,
-                        muscleGroups = muscleGroups
-                    )
-                }
-            }
+                ),
+                baseExercises,
+                exerciseLibrary,
+                daysCount,
+                profile
+            )
         }
 
         return WorkoutPlan(
@@ -815,11 +992,11 @@ class WorkoutRepositoryImpl @Inject constructor(
         val daysCount = 10
 
         val days = when (frequency) {
-            "1 раз в неделю" -> createFullBodyDays(baseExercises, daysCount)
-            "3 раза в неделю" -> createFullBodyDays(baseExercises, daysCount)
-            "5 раз в неделю" -> createSplit5xDays(baseExercises, daysCount)
-            else -> {
-                val workouts = listOf(
+            "1 раз в неделю" -> createFullBodyDays(baseExercises, daysCount, exerciseLibrary, profile)
+            "3 раза в неделю" -> createFullBodyDays(baseExercises, daysCount, exerciseLibrary, profile)
+            "5 раз в неделю" -> createSplit5xDays(baseExercises, daysCount, exerciseLibrary, profile)
+            else -> createDaysWithUniqueExercises(
+                listOf(
                     listOf(0, 1, 3, 11),
                     listOf(2, 5, 6, 12),
                     listOf(4, 7, 8, 13),
@@ -830,18 +1007,12 @@ class WorkoutRepositoryImpl @Inject constructor(
                     listOf(2, 5, 6, 12),
                     listOf(4, 7, 8, 13),
                     listOf(0, 1, 3, 11)
-                )
-                workouts.mapIndexed { index, exerciseIndices ->
-                    val exercises = exerciseIndices.map { i -> baseExercises[i].copy(id = "${index}_${baseExercises[i].id}") }
-                    val muscleGroups = exercises.flatMap { exercise -> getMuscleGroupsForExercise(exercise.name) }.distinct()
-                    WorkoutDay(
-                        id = index,
-                        dayName = "День ${index + 1}",
-                        exercises = exercises,
-                        muscleGroups = muscleGroups
-                    )
-                }
-            }
+                ),
+                baseExercises,
+                exerciseLibrary,
+                daysCount,
+                profile
+            )
         }
 
         return WorkoutPlan(
@@ -855,27 +1026,50 @@ class WorkoutRepositoryImpl @Inject constructor(
         )
     }
 
-    private fun createFullBodyDays(
+    private suspend fun createFullBodyDays(
         baseExercises: List<Exercise>,
-        totalCount: Int
+        totalCount: Int,
+        exerciseLibrary: List<com.example.fitness_plan.domain.model.ExerciseLibrary>? = null,
+        profile: com.example.fitness_plan.domain.model.UserProfile? = null
     ): List<WorkoutDay> {
         val days = mutableListOf<WorkoutDay>()
 
         val exercisesCount = Math.max(minOf(baseExercises.size, 8), 5)
-        val exerciseIndices = (0 until exercisesCount).toList()
+        val pool = ExercisePool(baseExercises)
+
+        val libraryExercises = if (exerciseLibrary != null && profile != null) {
+            exerciseLibrary.map { lib ->
+                runBlocking {
+                    createExerciseWithAlternatives(
+                        id = lib.id,
+                        name = lib.name,
+                        sets = 3,
+                        reps = "10-12",
+                        profile = profile,
+                        exerciseLibrary = exerciseLibrary
+                    )
+                }
+            }
+        } else null
+
+        val libraryPool = libraryExercises?.let { ExercisePool(it) }
 
         for (i in 0 until totalCount) {
-            val exercises = exerciseIndices.map { idx ->
-                baseExercises[idx].copy(id = "${i}_${baseExercises[idx].id}")
+            val pool = ExercisePool(baseExercises)
+            var dayExercises = getUniqueExercisesForDay(pool, exercisesCount, null)
+
+            if (dayExercises.size < exercisesCount && libraryPool != null) {
+                val additionalExercises = getUniqueExercisesForDay(libraryPool, exercisesCount - dayExercises.size, null)
+                dayExercises = dayExercises + additionalExercises
             }
 
-            val muscleGroups = exercises.flatMap { getMuscleGroupsForExercise(it.name) }.distinct()
+            val muscleGroups = dayExercises.flatMap { getMuscleGroupsForExercise(it.name) }.distinct()
 
             days.add(
                 WorkoutDay(
                     id = i,
                     dayName = "День ${i + 1} (Full Body)",
-                    exercises = exercises,
+                    exercises = dayExercises,
                     muscleGroups = muscleGroups
                 )
             )
@@ -884,26 +1078,51 @@ class WorkoutRepositoryImpl @Inject constructor(
         return days
     }
 
-    private fun createSplit3xDays(
+    private suspend fun createSplit3xDays(
         baseExercises: List<Exercise>,
-        totalCount: Int
+        totalCount: Int,
+        exerciseLibrary: List<com.example.fitness_plan.domain.model.ExerciseLibrary>? = null,
+        profile: com.example.fitness_plan.domain.model.UserProfile? = null
     ): List<WorkoutDay> {
         val days = mutableListOf<WorkoutDay>()
 
-        val legsExercises = if (baseExercises.size > 0) listOf(0) else emptyList()
-        val upperExercises = if (baseExercises.size > 1) listOf(1) else emptyList()
-        val fullBodyExercises = if (baseExercises.size > 2) listOf(0, 1, 2).filter { it < baseExercises.size } else emptyList()
+        val pool = ExercisePool(baseExercises)
+
+        val libraryExercises = if (exerciseLibrary != null && profile != null) {
+            exerciseLibrary.map { lib ->
+                runBlocking {
+                    createExerciseWithAlternatives(
+                        id = lib.id,
+                        name = lib.name,
+                        sets = 3,
+                        reps = "10-12",
+                        profile = profile,
+                        exerciseLibrary = exerciseLibrary
+                    )
+                }
+            }
+        } else null
+
+        val libraryPool = libraryExercises?.let { ExercisePool(it) }
+
+        val legMuscleGroups = listOf("Квадрицепсы", "Ягодицы", "Бёдра сзади", "Икры")
+        val upperMuscleGroups = listOf("Грудь", "Спина", "Плечи", "Трицепсы", "Бицепсы")
 
         for (i in 0 until totalCount) {
+            val pool = ExercisePool(baseExercises)
+
             val cycleIndex = i % 3
-            val (exerciseIndices, dayName) = when (cycleIndex) {
-                0 -> Pair(legsExercises, "Ноги")
-                1 -> Pair(upperExercises, "Верх тела")
-                else -> Pair(fullBodyExercises, "Полный")
+            val (targetMuscleGroups, dayName) = when (cycleIndex) {
+                0 -> Pair(legMuscleGroups, "Ноги")
+                1 -> Pair(upperMuscleGroups, "Верх тела")
+                else -> Pair(null, "Полный")
             }
 
-            val exercises = exerciseIndices.filter { it < baseExercises.size }.map { idx ->
-                baseExercises[idx].copy(id = "${i}_${baseExercises[idx].id}")
+            var exercises = getUniqueExercisesForDay(pool, 3, targetMuscleGroups)
+
+            if (exercises.size < 3 && libraryPool != null) {
+                val additionalExercises = getUniqueExercisesForDay(libraryPool, 3 - exercises.size, targetMuscleGroups)
+                exercises = exercises + additionalExercises
             }
 
             val muscleGroups = exercises.flatMap { getMuscleGroupsForExercise(it.name) }.distinct()
@@ -921,30 +1140,54 @@ class WorkoutRepositoryImpl @Inject constructor(
         return days
     }
 
-    private fun createSplit5xDays(
+    private suspend fun createSplit5xDays(
         baseExercises: List<Exercise>,
-        totalCount: Int
+        totalCount: Int,
+        exerciseLibrary: List<com.example.fitness_plan.domain.model.ExerciseLibrary>? = null,
+        profile: com.example.fitness_plan.domain.model.UserProfile? = null
     ): List<WorkoutDay> {
         val days = mutableListOf<WorkoutDay>()
         val dayNames = listOf("Ноги", "Грудь", "Спина", "Плечи", "Руки")
 
-        val exercisesPerDay = Math.ceil(baseExercises.size.toDouble() / 5).toInt().coerceAtLeast(1)
+        val pool = ExercisePool(baseExercises)
 
-        val splitCycles = mutableListOf<Pair<List<Int>, String>>()
+        val libraryExercises = if (exerciseLibrary != null && profile != null) {
+            exerciseLibrary.map { lib ->
+                runBlocking {
+                    createExerciseWithAlternatives(
+                        id = lib.id,
+                        name = lib.name,
+                        sets = 3,
+                        reps = "10-12",
+                        profile = profile,
+                        exerciseLibrary = exerciseLibrary
+                    )
+                }
+            }
+        } else null
 
-        for (dayIndex in 0 until 5) {
-            val startIndex = dayIndex * exercisesPerDay
-            val endIndex = Math.min(startIndex + exercisesPerDay, baseExercises.size)
-            val exerciseIndices = (startIndex until endIndex).toList()
-            splitCycles.add(Pair(exerciseIndices, dayNames[dayIndex]))
-        }
+        val libraryPool = libraryExercises?.let { ExercisePool(it) }
+
+        val legMuscleGroups = listOf("Квадрицепсы", "Ягодицы", "Бёдра сзади", "Икры")
+        val chestMuscleGroups = listOf("Грудь", "Трицепсы", "Плечи")
+        val backMuscleGroups = listOf("Широчайшие", "Трапеции", "Бицепсы", "Предплечья", "Поясница")
+        val shoulderMuscleGroups = listOf("Плечи", "Трицепсы", "Трапеции")
+        val armMuscleGroups = listOf("Бицепсы", "Предплечья", "Плечелучевая", "Трицепсы")
+
+        val muscleGroupsList = listOf(legMuscleGroups, chestMuscleGroups, backMuscleGroups, shoulderMuscleGroups, armMuscleGroups)
 
         for (i in 0 until totalCount) {
-            val cycleIndex = i % 5
-            val (exerciseIndices, dayName) = splitCycles[cycleIndex]
+            val pool = ExercisePool(baseExercises)
 
-            val exercises = exerciseIndices.filter { it < baseExercises.size }.map { idx ->
-                baseExercises[idx].copy(id = "${i}_${baseExercises[idx].id}")
+            val cycleIndex = i % 5
+            val targetMuscleGroups = muscleGroupsList[cycleIndex]
+            val dayName = dayNames[cycleIndex]
+
+            var exercises = getUniqueExercisesForDay(pool, 3, targetMuscleGroups)
+
+            if (exercises.size < 3 && libraryPool != null) {
+                val additionalExercises = getUniqueExercisesForDay(libraryPool, 3 - exercises.size, targetMuscleGroups)
+                exercises = exercises + additionalExercises
             }
 
             val muscleGroups = exercises.flatMap { getMuscleGroupsForExercise(it.name) }.distinct()
@@ -960,5 +1203,184 @@ class WorkoutRepositoryImpl @Inject constructor(
         }
 
         return days
+    }
+ 
+    private suspend fun createDaysWithUniqueExercises(
+        predefinedWorkouts: List<List<Int>>,
+        baseExercises: List<Exercise>,
+        exerciseLibrary: List<com.example.fitness_plan.domain.model.ExerciseLibrary>,
+        totalCount: Int,
+        profile: com.example.fitness_plan.domain.model.UserProfile
+    ): List<WorkoutDay> {
+        val days = mutableListOf<WorkoutDay>()
+        val pool = ExercisePool(baseExercises)
+        val libraryPool = ExercisePool(exerciseLibrary.map { lib ->
+            runBlocking {
+                createExerciseWithAlternatives(
+                    id = lib.id,
+                    name = lib.name,
+                    sets = 3,
+                    reps = "10-12",
+                    profile = profile,
+                    exerciseLibrary = exerciseLibrary
+                )
+            }
+        })
+
+        for (i in 0 until minOf(totalCount, predefinedWorkouts.size)) {
+            val exerciseIndices = predefinedWorkouts[i]
+            val exercises = mutableListOf<Exercise>()
+
+            for (idx in exerciseIndices) {
+                if (idx < baseExercises.size) {
+                    val exercise = baseExercises[idx]
+                    if (exercise.name !in pool.usedExerciseNames) {
+                        exercises.add(exercise.copy(id = "${i}_${exercise.id}"))
+                        pool.markAsUsed(exercise)
+                    } else {
+                        val alternative = getUniqueExercisesForDay(libraryPool, 1, null).firstOrNull()
+                        if (alternative != null) {
+                            exercises.add(alternative.copy(id = "${i}_${alternative.id}"))
+                        }
+                    }
+                }
+            }
+
+            val muscleGroups = exercises.flatMap { getMuscleGroupsForExercise(it.name) }.distinct()
+
+            days.add(
+                WorkoutDay(
+                    id = i,
+                    dayName = "День ${i + 1}",
+                    exercises = exercises,
+                    muscleGroups = muscleGroups
+                )
+            )
+        }
+
+        return days
+    }
+
+    override suspend fun getWorkoutPlanWithSequence(
+        profile: com.example.fitness_plan.domain.model.UserProfile,
+        excludedExercises: Map<String, Set<String>>
+    ): WorkoutPlan {
+        val (sets, reps) = getSetsAndRepsForLevel(profile.level)
+        val cardioDuration = getCardioDurationForGoal(profile.goal)
+
+        val days = mutableListOf<WorkoutDay>()
+        val usedExercisesInCycle = mutableMapOf<String, MutableSet<String>>()
+
+        val sequence = MuscleGroupSequence.FULL_SEQUENCE
+        var dayIndex = 0
+
+        for (cycleRound in 0 until 2) {
+            for (groupSequence in sequence) {
+                val excludedForGroup = excludedExercises[groupSequence.displayName] ?: emptySet()
+                val alreadyUsedInCycle = usedExercisesInCycle[groupSequence.displayName] ?: mutableSetOf()
+                val allExcluded = excludedForGroup + alreadyUsedInCycle
+
+                val libraryExercises = exercisePoolManager.getExercisesForSequence(
+                    sequence = groupSequence,
+                    excludedExerciseNames = allExcluded,
+                    count = groupSequence.exercisesPerDay
+                )
+
+                val dayExercises = libraryExercises.mapIndexed { index, libExercise ->
+                    createExerciseFromLibrary(
+                        id = "${dayIndex}_${index}",
+                        library = libExercise,
+                        sets = if (groupSequence == MuscleGroupSequence.CARDIO) 1 else sets,
+                        reps = if (groupSequence == MuscleGroupSequence.CARDIO) cardioDuration else reps,
+                        profile = profile
+                    )
+                }
+
+                usedExercisesInCycle.getOrPut(groupSequence.displayName) { mutableSetOf() }
+                    .addAll(libraryExercises.map { it.name })
+
+                val muscleGroupNames = if (groupSequence == MuscleGroupSequence.CARDIO) {
+                    listOf("Кардио")
+                } else {
+                    groupSequence.muscleGroups.map { it.displayName }
+                }
+
+                days.add(WorkoutDay(
+                    id = dayIndex,
+                    dayName = "День ${dayIndex + 1}: ${groupSequence.displayName}",
+                    exercises = dayExercises,
+                    muscleGroups = muscleGroupNames
+                ))
+
+                dayIndex++
+            }
+        }
+
+        return WorkoutPlan(
+            id = "sequenced_plan_${profile.goal}_${profile.level}",
+            name = "${profile.goal}: ${profile.level}",
+            description = "10-дневный план с анатомическим порядком групп мышц",
+            muscleGroups = MuscleGroupSequence.FULL_SEQUENCE.map { it.displayName },
+            goal = profile.goal,
+            level = profile.level,
+            days = days
+        )
+    }
+
+    private fun getSetsAndRepsForLevel(level: String): Pair<Int, String> {
+        return when (level) {
+            "Новичок" -> Pair(3, "12-15")
+            "Любитель" -> Pair(3, "10-12")
+            "Профессионал" -> Pair(4, "8-10")
+            else -> Pair(3, "10-12")
+        }
+    }
+
+    private fun getCardioDurationForGoal(goal: String): String {
+        return when (goal) {
+            "Похудение" -> "30-40 мин"
+            "Наращивание мышечной массы" -> "20 мин"
+            else -> "30 мин"
+        }
+    }
+
+    private fun createExerciseFromLibrary(
+        id: String,
+        library: com.example.fitness_plan.domain.model.ExerciseLibrary,
+        sets: Int,
+        reps: String,
+        profile: com.example.fitness_plan.domain.model.UserProfile
+    ): Exercise {
+        val recommendedWeight = if (library.exerciseType == ExerciseType.STRENGTH && profile.weight > 0) {
+            weightCalculator.calculateBaseWeight(
+                bodyWeight = profile.weight.toFloat(),
+                level = profile.level,
+                goal = profile.goal,
+                gender = profile.gender,
+                exerciseType = weightCalculator.determineExerciseType(library.name)
+            )
+        } else {
+            null
+        }
+
+        return Exercise(
+            id = id,
+            name = library.name,
+            sets = sets,
+            reps = reps,
+            weight = null,
+            isCompleted = false,
+            alternatives = emptyList(),
+            description = library.description,
+            recommendedWeight = recommendedWeight,
+            recommendedRepsPerSet = reps,
+            muscleGroups = library.muscleGroups,
+            equipment = library.equipment,
+            exerciseType = library.exerciseType,
+            stepByStepInstructions = library.stepByStepInstructions,
+            animationUrl = library.animationUrl,
+            imageRes = library.imageRes,
+            imageUrl = library.imageUrl
+        )
     }
 }

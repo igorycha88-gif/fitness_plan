@@ -42,6 +42,7 @@ data class WorkoutDay(
      val reps: String,
      val weight: Float? = null,
      val imageRes: String? = null,
+     val imageUrl: String? = null,
      val isCompleted: Boolean = false,
      val alternatives: List<Exercise> = emptyList(),
      val description: String? = null,

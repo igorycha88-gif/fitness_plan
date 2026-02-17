@@ -7,9 +7,7 @@ import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
+import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.navigation.NavDestination.Companion.hierarchy
@@ -25,7 +23,7 @@ import com.example.fitness_plan.presentation.viewmodel.ProfileViewModel
 import com.example.fitness_plan.presentation.viewmodel.WorkoutViewModel
 
 sealed class Screen(val route: String, val label: String, val icon: ImageVector) {
-    object Home : Screen("home", "Главная", Icons.Default.Home)
+    object Home : Screen("home", "План", Icons.Default.Home)
     object Profile : Screen("profile", "Профиль", Icons.Default.AccountCircle)
     object Statistics : Screen("statistics", "Статистика", Icons.AutoMirrored.Filled.List)
     object CycleHistory : Screen("cycle_history", "История циклов", Icons.Default.Home)
@@ -43,7 +41,7 @@ fun MainScreen(
     mainNavController: NavHostController,
     profileViewModel: ProfileViewModel? = null,
     workoutViewModel: WorkoutViewModel? = null,
-    onExerciseClick: ((Exercise) -> Unit)? = null,
+    onExerciseClick: ((Exercise, Int) -> Unit)? = null,
     onExerciseLibraryClick: ((ExerciseLibrary) -> Unit)? = null
 ) {
     val bottomNavController = rememberNavController()
@@ -81,9 +79,9 @@ fun MainScreen(
                 .padding(innerPadding)
                 .windowInsetsPadding(WindowInsets.systemBars.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal))
         ) {
-             composable(Screen.Home.route) {
-                  HomeScreen(onExerciseClick = onExerciseClick ?: {})
-              }
+              composable(Screen.Home.route) {
+                   HomeScreen(onExerciseClick = onExerciseClick ?: { _, _ -> })
+               }
             composable(Screen.Profile.route) {
                 ProfileScreen(
                     viewModel = profileViewModel ?: hiltViewModel(),
@@ -93,9 +91,37 @@ fun MainScreen(
                     }
                 )
             }
-             composable(Screen.Statistics.route) {
-                 StatisticsScreen()
-             }
+              composable(Screen.Statistics.route) {
+                  val statsNavController = rememberNavController()
+                  NavHost(
+                      navController = statsNavController,
+                      startDestination = "statistics_main"
+                  ) {
+                      composable("statistics_main") {
+                          StatisticsScreen()
+                      }
+                      composable("muscle_group_detail/{muscleGroupName}") { backStackEntry ->
+                          val muscleGroupName = backStackEntry.arguments?.getString("muscleGroupName")
+                          val muscleGroup = com.example.fitness_plan.domain.model.MuscleGroup.values()
+                              .find { it.name == muscleGroupName }
+
+                          if (muscleGroup != null) {
+                              val muscleGroupViewModel = hiltViewModel<com.example.fitness_plan.presentation.viewmodel.MuscleGroupStatsViewModel>()
+                              val detail by muscleGroupViewModel.muscleGroupDetail.collectAsState()
+
+                              LaunchedEffect(muscleGroup) {
+                                  muscleGroupViewModel.selectMuscleGroup(muscleGroup)
+                              }
+
+                              MuscleGroupDetailScreen(
+                                  muscleGroup = muscleGroup,
+                                  detail = detail,
+                                  onBack = { statsNavController.popBackStack() }
+                              )
+                          }
+                      }
+                  }
+              }
                composable(Screen.ExerciseLibrary.route) {
                     val exerciseLibraryViewModel = hiltViewModel<com.example.fitness_plan.presentation.viewmodel.ExerciseLibraryViewModel>()
                     ExerciseLibraryScreen(

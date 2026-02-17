@@ -10,6 +10,8 @@ data class ExerciseLibrary(
     val difficulty: String,
     val stepByStepInstructions: String,
     val animationUrl: String? = null,
+    val imageUrl: String? = null,
+    val imageRes: String? = null,
     val tipsAndAdvice: String? = null,
     val progressionAdvice: String? = null
 )

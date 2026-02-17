@@ -8,6 +8,7 @@ import com.example.fitness_plan.domain.repository.ICredentialsRepository
 import com.example.fitness_plan.domain.admin.AdminCredentialsRepository as AdminCredentialsDomainRepository
 import com.example.fitness_plan.domain.usecase.AdminUseCase
 import com.example.fitness_plan.domain.usecase.ExerciseLibraryUseCase
+import com.example.fitness_plan.domain.usecase.ExercisePoolManager
 import com.example.fitness_plan.domain.usecase.WeightProgressionUseCase
 import com.example.fitness_plan.data.CredentialsRepository
 import com.example.fitness_plan.data.ReferenceDataRepositoryImpl
@@ -15,16 +16,23 @@ import com.example.fitness_plan.domain.repository.CycleRepository
 import com.example.fitness_plan.domain.repository.ExerciseCompletionRepository
 import com.example.fitness_plan.domain.repository.ExerciseStatsRepository
 import com.example.fitness_plan.domain.repository.ExerciseLibraryRepository
+import com.example.fitness_plan.domain.repository.MuscleGroupStatsRepository
 import com.example.fitness_plan.domain.repository.ReferenceDataRepository
 import com.example.fitness_plan.domain.repository.UserRepository as DomainUserRepository
 import com.example.fitness_plan.domain.repository.WeightRepository as DomainWeightRepository
 import com.example.fitness_plan.domain.repository.WorkoutRepository
+import com.example.fitness_plan.domain.repository.BodyParametersRepository as DomainBodyParametersRepository
 import com.example.fitness_plan.domain.repository.WorkoutScheduleRepository as DomainWorkoutScheduleRepository
 import com.example.fitness_plan.domain.usecase.AuthUseCase
 import com.example.fitness_plan.domain.usecase.CycleUseCase
 import com.example.fitness_plan.domain.usecase.ReferenceDataUseCase
 import com.example.fitness_plan.domain.usecase.WeightUseCase
 import com.example.fitness_plan.domain.usecase.WorkoutUseCase
+import com.example.fitness_plan.domain.usecase.BodyParametersUseCase
+import com.example.fitness_plan.domain.usecase.BodyParameterCalculator
+import com.example.fitness_plan.domain.usecase.MeasurementValidator
+import com.example.fitness_plan.presentation.viewmodel.BodyParametersViewModel
+import com.example.fitness_plan.presentation.viewmodel.BodyParametersStatsViewModel
 import com.google.gson.Gson
 import dagger.Module
 import dagger.Provides
@@ -59,6 +67,12 @@ object AppModule {
     @Singleton
     fun provideExerciseStatsRepository(@ApplicationContext context: android.content.Context): ExerciseStatsRepository {
         return ExerciseStatsRepository(context)
+    }
+
+    @Provides
+    @Singleton
+    fun provideMuscleGroupStatsRepository(@ApplicationContext context: android.content.Context): MuscleGroupStatsRepository {
+        return MuscleGroupStatsRepository(context)
     }
 
     @Provides
@@ -108,9 +122,18 @@ object AppModule {
         workoutScheduleRepository: WorkoutScheduleRepository,
         weightCalculator: WeightCalculator,
         workoutDateCalculator: WorkoutDateCalculator,
-        exerciseLibraryRepository: ExerciseLibraryRepository
+        exerciseLibraryRepository: ExerciseLibraryRepository,
+        exercisePoolManager: ExercisePoolManager
     ): WorkoutRepository {
-        return WorkoutRepositoryImpl(context, exerciseCompletionRepository, workoutScheduleRepository, weightCalculator, workoutDateCalculator, exerciseLibraryRepository)
+        return WorkoutRepositoryImpl(context, exerciseCompletionRepository, workoutScheduleRepository, weightCalculator, workoutDateCalculator, exerciseLibraryRepository, exercisePoolManager)
+    }
+
+    @Provides
+    @Singleton
+    fun provideExercisePoolManager(
+        exerciseLibraryRepository: ExerciseLibraryRepository
+    ): ExercisePoolManager {
+        return ExercisePoolManager(exerciseLibraryRepository)
     }
 
     @Provides
@@ -143,9 +166,10 @@ object AppModule {
         workoutRepository: WorkoutRepository,
         userRepository: DomainUserRepository,
         exerciseCompletionRepository: ExerciseCompletionRepository,
-        weightProgressionUseCase: WeightProgressionUseCase
+        weightProgressionUseCase: WeightProgressionUseCase,
+        exercisePoolManager: ExercisePoolManager
     ): CycleUseCase {
-        return CycleUseCase(cycleRepository, workoutRepository, userRepository, exerciseCompletionRepository, weightProgressionUseCase)
+        return CycleUseCase(cycleRepository, workoutRepository, userRepository, exerciseCompletionRepository, weightProgressionUseCase, exercisePoolManager)
     }
 
     @Provides
@@ -161,12 +185,22 @@ object AppModule {
 
     @Provides
     @Singleton
+    fun provideMuscleGroupStatsUseCase(
+        muscleGroupStatsRepository: MuscleGroupStatsRepository,
+        exerciseLibraryRepository: ExerciseLibraryRepository
+    ): com.example.fitness_plan.domain.usecase.MuscleGroupStatsUseCase {
+        return com.example.fitness_plan.domain.usecase.MuscleGroupStatsUseCase(muscleGroupStatsRepository, exerciseLibraryRepository)
+    }
+
+    @Provides
+    @Singleton
     fun provideWorkoutUseCase(
         workoutRepository: WorkoutRepository,
         exerciseStatsRepository: ExerciseStatsRepository,
-        exerciseCompletionRepository: ExerciseCompletionRepository
+        exerciseCompletionRepository: ExerciseCompletionRepository,
+        muscleGroupStatsUseCase: com.example.fitness_plan.domain.usecase.MuscleGroupStatsUseCase
     ): WorkoutUseCase {
-        return WorkoutUseCase(workoutRepository, exerciseStatsRepository, exerciseCompletionRepository)
+        return WorkoutUseCase(workoutRepository, exerciseStatsRepository, exerciseCompletionRepository, muscleGroupStatsUseCase)
     }
 
     @Provides
@@ -234,5 +268,53 @@ object AppModule {
         exerciseLibraryUseCase: ExerciseLibraryUseCase
     ): com.example.fitness_plan.presentation.viewmodel.ExerciseLibraryViewModel {
         return com.example.fitness_plan.presentation.viewmodel.ExerciseLibraryViewModel(exerciseLibraryUseCase)
+    }
+
+    @Provides
+    @Singleton
+    fun provideBodyParametersRepository(
+        @ApplicationContext context: Context
+    ): DomainBodyParametersRepository {
+        return BodyParametersRepository(context)
+    }
+
+    @Provides
+    @Singleton
+    fun provideBodyParameterCalculator(): BodyParameterCalculator {
+        return BodyParameterCalculator()
+    }
+
+    @Provides
+    @Singleton
+    fun provideMeasurementValidator(): MeasurementValidator {
+        return MeasurementValidator()
+    }
+
+    @Provides
+    @Singleton
+    fun provideBodyParametersUseCase(
+        bodyParametersRepository: DomainBodyParametersRepository,
+        calculator: BodyParameterCalculator,
+        validator: MeasurementValidator
+    ): BodyParametersUseCase {
+        return BodyParametersUseCase(bodyParametersRepository, calculator, validator)
+    }
+
+    @Provides
+    @Singleton
+    fun provideBodyParametersViewModel(
+        bodyParametersUseCase: BodyParametersUseCase,
+        userRepository: DomainUserRepository
+    ): BodyParametersViewModel {
+        return BodyParametersViewModel(bodyParametersUseCase, userRepository)
+    }
+
+    @Provides
+    @Singleton
+    fun provideBodyParametersStatsViewModel(
+        bodyParametersUseCase: BodyParametersUseCase,
+        credentialsRepository: ICredentialsRepository
+    ): BodyParametersStatsViewModel {
+        return BodyParametersStatsViewModel(bodyParametersUseCase, credentialsRepository)
     }
 }

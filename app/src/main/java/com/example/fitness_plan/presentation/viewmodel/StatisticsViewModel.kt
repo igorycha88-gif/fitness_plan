@@ -6,16 +6,9 @@ import androidx.lifecycle.viewModelScope
 import com.example.fitness_plan.domain.model.Cycle
 import com.example.fitness_plan.domain.model.CycleHistoryEntry
 import com.example.fitness_plan.domain.model.ExerciseStats
+import com.example.fitness_plan.domain.model.ProgressTimeFilter
 import com.example.fitness_plan.domain.model.UserProfile
 import com.example.fitness_plan.domain.model.WeightEntry
-import com.example.fitness_plan.domain.model.WeightChartData
-import com.example.fitness_plan.domain.model.VolumeChartData
-import com.example.fitness_plan.domain.model.FrequencyChartData
-import com.example.fitness_plan.domain.model.OverallStats
-import com.example.fitness_plan.domain.model.WeightDataPoint
-import com.example.fitness_plan.domain.model.VolumeDataPoint
-import com.example.fitness_plan.domain.model.FrequencyDataPoint
-import com.example.fitness_plan.domain.model.WeightStats
 import com.example.fitness_plan.domain.repository.ICredentialsRepository
 import com.example.fitness_plan.domain.repository.CycleRepository
 import com.example.fitness_plan.domain.repository.ExerciseStatsRepository
@@ -27,6 +20,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -34,10 +28,10 @@ import javax.inject.Inject
 private const val TAG = "StatisticsViewModel"
 
 enum class TimeFilter(val days: Int, val label: String) {
-    DAYS_10(10, "10 дней"),
     WEEK(7, "Неделя"),
     MONTH(30, "Месяц"),
-    YEAR(365, "Год")
+    YEAR(365, "Год"),
+    ALL(0, "Всё время")
 }
 
 @HiltViewModel
@@ -71,27 +65,20 @@ class StatisticsViewModel @Inject constructor(
     private val _currentUsername = MutableStateFlow("")
     val currentUsername: StateFlow<String> = _currentUsername.asStateFlow()
 
-
-
-
-
-    private val _availableExercises = MutableStateFlow<List<String>>(emptyList())
-    val availableExercises: StateFlow<List<String>> = _availableExercises.asStateFlow()
-
-    private val _selectedTimeFilter = MutableStateFlow(TimeFilter.DAYS_10)
+    private val _selectedTimeFilter = MutableStateFlow(TimeFilter.MONTH)
     val selectedTimeFilter: StateFlow<TimeFilter> = _selectedTimeFilter.asStateFlow()
 
-    private val _weightChartData = MutableStateFlow<WeightChartData?>(null)
-    val weightChartData: StateFlow<WeightChartData?> = _weightChartData.asStateFlow()
+    private val _showWeightDialog = MutableStateFlow(false)
+    val showWeightDialog: StateFlow<Boolean> = _showWeightDialog.asStateFlow()
 
-    private val _volumeChartData = MutableStateFlow<VolumeChartData?>(null)
-    val volumeChartData: StateFlow<VolumeChartData?> = _volumeChartData.asStateFlow()
+    private val _selectedProgressTimeFilter = MutableStateFlow(ProgressTimeFilter.MONTH)
+    val selectedProgressTimeFilter: StateFlow<ProgressTimeFilter> = _selectedProgressTimeFilter.asStateFlow()
 
-    private val _frequencyChartData = MutableStateFlow<FrequencyChartData?>(null)
-    val frequencyChartData: StateFlow<FrequencyChartData?> = _frequencyChartData.asStateFlow()
+    private val _selectedProgressExercise = MutableStateFlow<String?>(null)
+    val selectedProgressExercise: StateFlow<String?> = _selectedProgressExercise.asStateFlow()
 
-    private val _overallStats = MutableStateFlow<OverallStats?>(null)
-    val overallStats: StateFlow<OverallStats?> = _overallStats.asStateFlow()
+    private val _progressChartData = MutableStateFlow<List<com.example.fitness_plan.domain.model.ProgressChartData>>(emptyList())
+    val progressChartData: StateFlow<List<com.example.fitness_plan.domain.model.ProgressChartData>> = _progressChartData.asStateFlow()
 
     init {
         viewModelScope.launch {
@@ -105,27 +92,53 @@ class StatisticsViewModel @Inject constructor(
         loadWeightHistory()
         loadExerciseStats()
         loadCycleData()
-        calculateAllChartData()
     }
 
-    private suspend fun loadWeightHistory() {
-        weightRepository.getWeightHistory(_currentUsername.value).collect { entries ->
-            _weightHistory.value = entries.sortedBy { it.date }
-            calculateAllChartData()
+    fun setTimeFilter(filter: TimeFilter) {
+        _selectedTimeFilter.value = filter
+    }
+
+    fun setShowWeightDialog(show: Boolean) {
+        _showWeightDialog.value = show
+    }
+
+    fun setProgressTimeFilter(filter: ProgressTimeFilter) {
+        _selectedProgressTimeFilter.value = filter
+        updateProgressChartData()
+    }
+
+    fun setProgressExercise(exerciseName: String?) {
+        _selectedProgressExercise.value = exerciseName
+        updateProgressChartData()
+    }
+
+    fun saveWeight(weight: Double, date: Long = System.currentTimeMillis()) {
+        viewModelScope.launch {
+            val username = _currentUsername.value
+            if (username.isNotEmpty()) {
+                weightRepository.saveWeight(username, weight, date)
+            }
         }
     }
 
-    private suspend fun loadExerciseStats() {
-        exerciseStatsRepository.getExerciseStats(_currentUsername.value).collect { stats ->
-            _exerciseStats.value = stats.sortedBy { it.date }
-            updateAvailableExercises(stats)
-            calculateAllChartData()
+    private fun loadWeightHistory() {
+        viewModelScope.launch {
+            weightRepository.getWeightHistory(_currentUsername.value).collect { entries ->
+                _weightHistory.value = entries.sortedBy { it.date }
+            }
         }
     }
 
-    private fun updateAvailableExercises(stats: List<ExerciseStats>) {
-        val exercises = stats.map { it.exerciseName }.distinct().sorted()
-        _availableExercises.value = exercises
+    private fun loadExerciseStats() {
+        viewModelScope.launch {
+            exerciseStatsRepository.getExerciseStats(_currentUsername.value).collect { stats ->
+                Log.d(TAG, "Loaded ${stats.size} exercise stats for user ${_currentUsername.value}")
+                val withVolume = stats.count { it.volume > 0L }
+                val withoutVolume = stats.count { it.volume == 0L }
+                Log.d(TAG, "Stats breakdown: $withVolume with volume > 0, $withoutVolume with volume = 0")
+                _exerciseStats.value = stats.sortedBy { it.date }
+            }
+        }
     }
 
     private suspend fun loadCycleData() {
@@ -133,14 +146,12 @@ class StatisticsViewModel @Inject constructor(
         if (profile != null) {
             cycleRepository.getCurrentCycle(profile.username).collect { cycle ->
                 _currentCycle.value = cycle
-                calculateAllChartData()
             }
         }
 
         if (_currentUsername.value.isNotEmpty()) {
             cycleRepository.getCycleHistory(_currentUsername.value).collect { history ->
                 _cycleHistory.value = history
-                calculateAllChartData()
             }
         }
     }
@@ -150,19 +161,30 @@ class StatisticsViewModel @Inject constructor(
 
 
     fun getFilteredWeightHistory(): List<WeightEntry> {
-        val days = TimeFilter.MONTH.days // Default to month
+        val days = _selectedTimeFilter.value.days
+        if (days == 0) {
+            return _weightHistory.value.sortedBy { it.date }
+        }
         val cutoffTime = System.currentTimeMillis() - (days * 24 * 60 * 60 * 1000L)
-        return _weightHistory.value.filter { it.date >= cutoffTime }
+        return _weightHistory.value.filter { it.date >= cutoffTime }.sortedBy { it.date }
     }
 
-    fun getFilteredExerciseStats(): List<ExerciseStats> {
-        val days = TimeFilter.MONTH.days // Default to month
-        val cutoffTime = System.currentTimeMillis() - (days * 24 * 60 * 60 * 1000L)
-        val exerciseName = _availableExercises.value.firstOrNull() ?: ""
+    fun getCurrentWeight(): Double {
+        val filtered = getFilteredWeightHistory()
+        return if (filtered.isNotEmpty()) filtered.last().weight else userProfile.value?.weight ?: 0.0
+    }
 
-        return _exerciseStats.value
-            .filter { it.date >= cutoffTime && it.exerciseName == exerciseName }
-            .sortedBy { it.date }
+    fun getStartWeight(): Double {
+        val filtered = getFilteredWeightHistory()
+        return if (filtered.isNotEmpty()) filtered.first().weight else userProfile.value?.weight ?: 0.0
+    }
+
+    fun getDaysFromStart(): Int {
+        val filtered = getFilteredWeightHistory()
+        if (filtered.isEmpty()) return 0
+        val firstEntry = filtered.first()
+        val days = ((System.currentTimeMillis() - firstEntry.date) / (24 * 60 * 60 * 1000L)).toInt()
+        return maxOf(1, days)
     }
 
     fun getCycleProgress(): Float {
@@ -187,150 +209,125 @@ class StatisticsViewModel @Inject constructor(
         return if (change > 0) "+%.1f кг".format(change) else "%.1f кг".format(change)
     }
 
-    fun getStrengthProgress(): Double {
-        val stats = getFilteredExerciseStats()
-        if (stats.size < 2) return 0.0
-
-        val firstMaxWeight = stats.first().weight
-        val lastMaxWeight = stats.last().weight
-
-        return if (firstMaxWeight > 0) {
-            ((lastMaxWeight - firstMaxWeight) / firstMaxWeight) * 100
-        } else 0.0
-    }
-
-    fun getStrengthProgressText(): String {
-        val progress = getStrengthProgress()
-        return if (progress > 0) "+%.1f%%".format(progress) else "%.1f%%".format(progress)
-    }
-
-    fun updateTimeFilter(filter: TimeFilter) {
-        _selectedTimeFilter.value = filter
-        viewModelScope.launch {
-            calculateAllChartData()
-        }
-    }
-
-    private fun calculateAllChartData() {
-        _weightChartData.value = calculateWeightChartData()
-        _volumeChartData.value = calculateVolumeChartData()
-        _frequencyChartData.value = calculateFrequencyChartData()
-        _overallStats.value = calculateOverallStats()
-    }
-
-    private fun calculateWeightChartData(): WeightChartData? {
-        val days = _selectedTimeFilter.value.days
-        val cutoffTime = System.currentTimeMillis() - (days * 24 * 60 * 60 * 1000L)
-
-        val filteredEntries = _weightHistory.value
-            .filter { it.date >= cutoffTime }
-            .sortedBy { it.date }
-
-        if (filteredEntries.isEmpty()) {
-            return WeightChartData(emptyList(), WeightStats(0.0, 0.0, 0.0, 0.0, 0.0, 0.0))
-        }
-
-        val dataPoints = filteredEntries.map { WeightDataPoint(it.date, it.weight) }
-        val overallStats = WeightStats(
-            startWeight = filteredEntries.first().weight,
-            currentWeight = filteredEntries.last().weight,
-            minWeight = filteredEntries.minOf { it.weight },
-            maxWeight = filteredEntries.maxOf { it.weight },
-            averageWeight = filteredEntries.map { it.weight }.average(),
-            totalChange = filteredEntries.last().weight - filteredEntries.first().weight
-        )
-
-        return WeightChartData(dataPoints, overallStats)
-    }
-
-    private fun calculateVolumeChartData(): VolumeChartData? {
-        val days = _selectedTimeFilter.value.days
-        val cutoffTime = System.currentTimeMillis() - (days * 24 * 60 * 60 * 1000L)
-
-        val filteredStats = _exerciseStats.value
-            .filter { it.date >= cutoffTime }
-            .sortedBy { it.date }
-
-        if (filteredStats.isEmpty()) {
-            return VolumeChartData(emptyList(), 0)
-        }
-
-        val groupedByDate = filteredStats
-            .groupBy { it.date }
-            .map { (date, stats) ->
-                val totalVolume = stats.sumOf { it.volume }
-                val workoutsCount = stats.size
-                VolumeDataPoint(date, totalVolume, workoutsCount)
-            }
-            .sortedBy { it.date }
-
-        val totalVolume = groupedByDate.sumOf { it.volume }
-
-        return VolumeChartData(groupedByDate, totalVolume)
-    }
-
-    private fun calculateFrequencyChartData(): FrequencyChartData? {
-        val days = _selectedTimeFilter.value.days
-        val cutoffTime = System.currentTimeMillis() - (days * 24 * 60 * 60 * 1000L)
-
-        val filteredStats = _exerciseStats.value
-            .filter { it.date >= cutoffTime }
-            .sortedBy { it.date }
-
-        if (filteredStats.isEmpty()) {
-            return FrequencyChartData(emptyList(), 0)
-        }
-
-        val groupedByDate = filteredStats
-            .groupBy { it.date }
-            .map { (date, stats) ->
-                FrequencyDataPoint(date, stats.size)
-            }
-            .sortedBy { it.date }
-
-        val totalWorkouts = groupedByDate.size
-
-        return FrequencyChartData(groupedByDate, totalWorkouts)
-    }
-
-    private fun calculateOverallStats(): OverallStats? {
-        val weightChartData = _weightChartData.value
-        val volumeChartData = _volumeChartData.value
-        val cycle = _currentCycle.value
-        val userProfile = userProfile.value
-
-        if (weightChartData == null || volumeChartData == null || userProfile == null) {
-            return null
-        }
-
-        val currentWeight = if (weightChartData.dataPoints.isNotEmpty()) {
-            weightChartData.dataPoints.last().weight
+    fun getExerciseStatsSummary(): ExerciseStatsSummary {
+        val stats = _exerciseStats.value
+        return if (stats.isEmpty()) {
+            ExerciseStatsSummary(0, 0, emptyList(), emptyList(), 0L, "Нет данных")
         } else {
-            userProfile.weight
+            val uniqueExercises = stats.map { it.exerciseName }.distinct()
+            val oldestDate = stats.minOfOrNull { it.date } ?: 0L
+            val newestDate = stats.maxOfOrNull { it.date } ?: 0L
+            val totalVolume = stats.sumOf { it.volume }
+            val dateRangeDays = if (oldestDate > 0 && newestDate > 0) {
+                (newestDate - oldestDate) / (24 * 60 * 60 * 1000L)
+            } else {
+                0L
+            }
+            ExerciseStatsSummary(
+                totalCount = stats.size,
+                uniqueCount = uniqueExercises.size,
+                exerciseNames = uniqueExercises,
+                sampleDates = stats.take(5).map { it.date },
+                totalVolume = totalVolume,
+                dateRange = "$dateRangeDays дней"
+            )
         }
+    }
 
-        val weightChange = weightChartData.overallStats.totalChange
-        val weightChangePercentage = weightChartData.overallStats.changePercentage
+    fun getAvailableExercises(): List<String> {
+        return _exerciseStats.value.map { it.exerciseName }.distinct().sorted()
+    }
 
-        val totalVolume = volumeChartData.totalVolume
-        val totalWorkouts = volumeChartData.dataPoints.size
+    private fun updateProgressChartData() {
+        viewModelScope.launch {
+            val exerciseName = _selectedProgressExercise.value
+            val days = _selectedProgressTimeFilter.value.days
 
-        val cycleProgress = cycle?.progress ?: 0f
-        val cycleDaysCompleted = cycle?.daysCompleted ?: 0
-        val cycleTotalDays = cycle?.totalDays ?: 30
+            if (exerciseName == null) {
+                _progressChartData.value = emptyList()
+                return@launch
+            }
 
-        val periodDays = _selectedTimeFilter.value.days
+            val stats = if (days == 0) {
+                _exerciseStats.value
+            } else {
+                val cutoffTime = System.currentTimeMillis() - (days * 24 * 60 * 60 * 1000L)
+                _exerciseStats.value.filter { it.date >= cutoffTime }
+            }.filter { it.exerciseName == exerciseName }
 
-        return OverallStats(
-            currentWeight = currentWeight,
-            weightChange = weightChange,
-            weightChangePercentage = weightChangePercentage,
-            totalVolume = totalVolume,
-            totalWorkouts = totalWorkouts,
-            cycleProgress = cycleProgress,
-            cycleDaysCompleted = cycleDaysCompleted,
-            cycleTotalDays = cycleTotalDays,
-            periodDays = periodDays
-        )
+            if (stats.isEmpty()) {
+                _progressChartData.value = emptyList()
+                return@launch
+            }
+
+            val dailyStats = aggregateByDay(stats)
+            val chartData = dailyStats.map { daily ->
+                com.example.fitness_plan.domain.model.ProgressChartData(
+                    date = daily.date,
+                    xValue = if (daily.exerciseType == com.example.fitness_plan.domain.model.ExerciseType.STRENGTH) {
+                        daily.averageWeight
+                    } else {
+                        daily.duration.toDouble()
+                    },
+                    xLabel = if (daily.exerciseType == com.example.fitness_plan.domain.model.ExerciseType.STRENGTH) {
+                        "%.1f кг".format(daily.averageWeight)
+                    } else {
+                        "%d мин".format(daily.duration)
+                    },
+                    yValue = if (daily.exerciseType == com.example.fitness_plan.domain.model.ExerciseType.STRENGTH) {
+                        daily.averageReps.toDouble()
+                    } else {
+                        daily.duration.toDouble()
+                    },
+                    exerciseName = daily.exerciseName
+                )
+            }.sortedBy { it.date }
+
+            _progressChartData.value = chartData
+        }
+    }
+
+    private fun aggregateByDay(stats: List<ExerciseStats>): List<com.example.fitness_plan.domain.model.DailyExerciseStats> {
+        return stats.groupBy { stat ->
+            val calendar = java.util.Calendar.getInstance()
+            calendar.timeInMillis = stat.date
+            calendar.set(java.util.Calendar.HOUR_OF_DAY, 0)
+            calendar.set(java.util.Calendar.MINUTE, 0)
+            calendar.set(java.util.Calendar.SECOND, 0)
+            calendar.set(java.util.Calendar.MILLISECOND, 0)
+            calendar.timeInMillis
+        }.map { (date, dayStats) ->
+            val exerciseType = determineExerciseType(dayStats.first().exerciseName)
+            com.example.fitness_plan.domain.model.DailyExerciseStats(
+                exerciseName = dayStats.first().exerciseName,
+                date = date,
+                averageWeight = if (exerciseType == com.example.fitness_plan.domain.model.ExerciseType.STRENGTH) {
+                    dayStats.filter { it.weight > 0 }.map { it.weight }.average()
+                } else {
+                    0.0
+                },
+                averageReps = if (exerciseType == com.example.fitness_plan.domain.model.ExerciseType.STRENGTH) {
+                    dayStats.filter { it.reps > 0 }.map { it.reps }.average().toInt()
+                } else {
+                    0
+                },
+                totalSets = dayStats.size,
+                exerciseType = exerciseType,
+                duration = dayStats.sumOf { it.duration }
+            )
+        }.sortedBy { it.date }
+    }
+
+    private fun determineExerciseType(exerciseName: String): com.example.fitness_plan.domain.model.ExerciseType {
+        return com.example.fitness_plan.domain.model.ExerciseType.STRENGTH
     }
 }
+
+data class ExerciseStatsSummary(
+    val totalCount: Int,
+    val uniqueCount: Int,
+    val exerciseNames: List<String>,
+    val sampleDates: List<Long>,
+    val totalVolume: Long,
+    val dateRange: String
+)

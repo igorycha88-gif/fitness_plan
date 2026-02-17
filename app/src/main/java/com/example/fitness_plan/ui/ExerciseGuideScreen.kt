@@ -50,12 +50,7 @@ fun ExerciseGuideScreen(
                     IconButton(onClick = onBackClick) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Назад")
                     }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    titleContentColor = MaterialTheme.colorScheme.onPrimary,
-                    navigationIconContentColor = MaterialTheme.colorScheme.onPrimary
-                )
+                }
             )
         }
     ) { paddingValues ->
@@ -77,7 +72,13 @@ fun ExerciseGuideScreen(
                     .padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                AnimationCard(exercise = exercise)
+                ExerciseImageCard(
+                    imageUrl = exercise.imageUrl,
+                    imageRes = exercise.imageRes,
+                    exerciseName = exercise.name,
+                    modifier = Modifier.fillMaxWidth(),
+                    contentDescription = "Изображение упражнения: ${exercise.name}"
+                )
 
                 DifficultyBadge(difficulty = exercise.difficulty)
 
@@ -105,72 +106,6 @@ fun ExerciseGuideScreen(
                         profileViewModel?.toggleFavoriteExercise(exercise.name)
                     }
                 )
-            }
-        }
-    }
-}
-
-@Composable
-fun AnimationCard(exercise: ExerciseLibrary) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(250.dp),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant
-        )
-    ) {
-        if (exercise.animationUrl != null) {
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
-            ) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center
-                ) {
-                    Text(
-                        text = "🎬",
-                        style = MaterialTheme.typography.displayLarge
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = "Анимация упражнения",
-                        style = MaterialTheme.typography.titleMedium
-                    )
-                    Text(
-                        text = exercise.animationUrl,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
-        } else {
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
-            ) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center
-                ) {
-                    Text(
-                        text = "🏋️",
-                        style = MaterialTheme.typography.displayLarge
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = "Видео-инструкция",
-                        style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Text(
-                        text = "Скоро появится",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
             }
         }
     }

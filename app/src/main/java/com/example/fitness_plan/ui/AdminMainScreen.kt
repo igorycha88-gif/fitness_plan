@@ -46,7 +46,7 @@ fun AdminMainScreen(
     mainNavController: NavHostController,
     profileViewModel: ProfileViewModel? = null,
     workoutViewModel: WorkoutViewModel? = null,
-    onExerciseClick: ((com.example.fitness_plan.domain.model.Exercise) -> Unit)? = null
+    onExerciseClick: ((com.example.fitness_plan.domain.model.Exercise, Int) -> Unit)? = null
 ) {
     val bottomNavController = rememberNavController()
 
@@ -258,7 +258,7 @@ fun ExerciseSelectorDialog(
 @Composable
 fun AdminHomeScreen(
     workoutViewModel: WorkoutViewModel = hiltViewModel(),
-    onExerciseClick: ((com.example.fitness_plan.domain.model.Exercise) -> Unit)? = null
+    onExerciseClick: ((com.example.fitness_plan.domain.model.Exercise, Int) -> Unit)? = null
 ) {
     val adminPlan by workoutViewModel.adminWorkoutPlan.collectAsState()
 
@@ -418,7 +418,7 @@ fun AdminHomeScreen(
 @Composable
 fun AdminPlanListScreen(
     plan: com.example.fitness_plan.domain.model.WorkoutPlan,
-    onExerciseClick: ((com.example.fitness_plan.domain.model.Exercise) -> Unit)?,
+    onExerciseClick: ((com.example.fitness_plan.domain.model.Exercise, Int) -> Unit)?,
     onAddExercise: (Int) -> Unit,
     onDeleteDay: (Int) -> Unit,
     onChangeDate: (Int) -> Unit,
@@ -441,18 +441,18 @@ fun AdminPlanListScreen(
         ) {
             items(plan.days.size) { index ->
                 val day = plan.days[index]
-                AdminWorkoutDayCard(
-                    day = day,
-                    dayIndex = index,
-                    onEditDay = { /* TODO: edit day name */ },
-                    onDeleteDay = { onDeleteDay(index) },
-                    onChangeDate = { onChangeDate(index) },
-                    onAddExercise = { onAddExercise(index) },
-                    onExerciseClick = { exerciseName ->
-                        val exercise = day.exercises.find { it.name == exerciseName }
-                        exercise?.let { onExerciseClick?.invoke(it) }
-                    }
-                )
+                    AdminWorkoutDayCard(
+                        day = day,
+                        dayIndex = index,
+                        onEditDay = { /* TODO: edit day name */ },
+                        onDeleteDay = { onDeleteDay(index) },
+                        onChangeDate = { onChangeDate(index) },
+                        onAddExercise = { onAddExercise(index) },
+                        onExerciseClick = { exerciseName, dayIdx ->
+                            val exercise = day.exercises.find { it.name == exerciseName }
+                            exercise?.let { onExerciseClick?.invoke(it, dayIdx) }
+                        }
+                    )
             }
         }
     }
@@ -467,7 +467,7 @@ fun AdminWorkoutDayCard(
     onDeleteDay: () -> Unit,
     onChangeDate: () -> Unit,
     onAddExercise: () -> Unit,
-    onExerciseClick: (String) -> Unit
+    onExerciseClick: (String, Int) -> Unit
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -555,7 +555,7 @@ fun AdminWorkoutDayCard(
                 day.exercises.forEach { exercise ->
                     AdminExerciseCard(
                         exercise = exercise,
-                        onClick = { onExerciseClick(exercise.name) }
+                        onClick = { onExerciseClick(exercise.name, dayIndex) }
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                 }

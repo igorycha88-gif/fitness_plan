@@ -3,10 +3,12 @@ package com.example.fitness_plan.ui
 import android.util.Log
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -15,10 +17,14 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -27,6 +33,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.Dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.example.fitness_plan.R
 import com.example.fitness_plan.presentation.viewmodel.ProfileViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -47,6 +54,8 @@ fun LoginScreen(
 
     val keyboardController = LocalSoftwareKeyboardController.current
     val coroutineScope = rememberCoroutineScope()
+    val scrollState = rememberScrollState()
+    val context = LocalContext.current
 
     var hasExistingAccount by remember { mutableStateOf(false) }
 
@@ -88,8 +97,9 @@ fun LoginScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(24.dp)
-                .padding(top = 48.dp) // Фиксированный отступ для status bar
+                .verticalScroll(scrollState)
+                .padding(getLoginScreenPadding())
+                .windowInsetsPadding(WindowInsets.systemBars)
                 .alpha(contentAlpha),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
@@ -98,26 +108,18 @@ fun LoginScreen(
             Box(
                 contentAlignment = Alignment.Center,
                 modifier = Modifier
-                    .size(120.dp)
+                    .fillMaxWidth()
+                    .aspectRatio(736f / 748f)
+                    .heightIn(max = getLoginImageMaxHeight())
                     .scale(logoScale)
             ) {
-                Box(
+                Image(
+                    painter = painterResource(id = R.drawable.splash_image),
+                    contentDescription = null,
                     modifier = Modifier
-                        .size(100.dp)
-                        .background(
-                            brush = Brush.radialGradient(
-                                colors = listOf(
-                                    MaterialTheme.colorScheme.primary.copy(alpha = 0.2f),
-                                    MaterialTheme.colorScheme.tertiary.copy(alpha = 0.05f),
-                                    Color.Transparent
-                                )
-                            ),
-                            shape = RoundedCornerShape(50.dp)
-                        )
-                )
-                Text(
-                    text = "🏋️",
-                    fontSize = 48.sp
+                        .fillMaxSize()
+                        .clip(RoundedCornerShape(24.dp)),
+                    contentScale = ContentScale.Fit
                 )
             }
 
@@ -250,9 +252,13 @@ fun LoginScreen(
                                 isLoading = false
                             }
                             else -> {
+                                val packageInfo = context.packageManager.getPackageInfo(context.packageName, 0)
+                                val appVersion = packageInfo.versionName
+
                                 val isValid = viewModel.verifyPassword(username, password)
 
                                 if (isValid) {
+                                    viewModel.saveCredentials(username, password)
                                     viewModel.setCurrentUsername(username)
                                     navigateTrigger = true
                                     isLoading = false
@@ -344,9 +350,7 @@ fun LoginScreen(
                 )
             }
 
-            Spacer(modifier = Modifier.weight(1f))
-
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(24.dp))
         }
     }
 }

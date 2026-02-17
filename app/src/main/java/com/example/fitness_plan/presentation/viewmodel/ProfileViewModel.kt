@@ -17,6 +17,7 @@ import com.example.fitness_plan.domain.usecase.AuthUseCase
 import com.example.fitness_plan.domain.usecase.ExerciseLibraryUseCase
 import com.example.fitness_plan.domain.usecase.ReferenceDataUseCase
 import com.example.fitness_plan.domain.usecase.WorkoutUseCase
+import com.example.fitness_plan.data.NotificationRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -32,6 +33,7 @@ private const val TAG = "ProfileViewModel"
 
 @HiltViewModel
 class ProfileViewModel @Inject constructor(
+    @dagger.hilt.android.qualifiers.ApplicationContext private val context: android.content.Context,
     private val userRepository: UserRepository,
     private val credentialsRepository: com.example.fitness_plan.domain.repository.ICredentialsRepository,
     private val cycleRepository: CycleRepository,
@@ -39,7 +41,8 @@ class ProfileViewModel @Inject constructor(
     private val authUseCase: AuthUseCase,
     private val workoutUseCase: WorkoutUseCase,
     private val exerciseLibraryUseCase: ExerciseLibraryUseCase,
-    private val referenceDataUseCase: ReferenceDataUseCase
+    private val referenceDataUseCase: ReferenceDataUseCase,
+    private val notificationRepository: NotificationRepository
 ) : ViewModel() {
 
     val userProfile: StateFlow<UserProfile?> = userRepository.getUserProfile()
@@ -61,8 +64,63 @@ class ProfileViewModel @Inject constructor(
     private val _logoutTrigger = MutableStateFlow(false)
     val logoutTrigger: StateFlow<Boolean> = _logoutTrigger.asStateFlow()
 
+    private val _isEditingProfile = MutableStateFlow(false)
+    val isEditingProfile: StateFlow<Boolean> = _isEditingProfile.asStateFlow()
+
+    private val _profileChangeDetected = MutableStateFlow(false)
+    val profileChangeDetected: StateFlow<Boolean> = _profileChangeDetected.asStateFlow()
+
+    val workoutReminderEnabled: StateFlow<Boolean> = notificationRepository.workoutReminderEnabled
+        .stateIn(
+            viewModelScope,
+            SharingStarted.WhileSubscribed(5000),
+            false
+        )
+
     init {
         checkUserSession()
+    }
+
+    fun setIsEditingProfile(isEditing: Boolean) {
+        _isEditingProfile.value = isEditing
+    }
+
+    fun clearProfileChangeDetected() {
+        _profileChangeDetected.value = false
+    }
+
+    suspend fun checkProfileChangeRequiresConfirmation(profile: UserProfile): Boolean {
+        val currentProfile = userRepository.getUserProfile().first()
+        return currentProfile != null &&
+                (currentProfile.goal != profile.goal ||
+                currentProfile.level != profile.level ||
+                currentProfile.frequency != profile.frequency)
+    }
+
+    fun saveProfileWithConfirmation(profile: UserProfile, requireConfirmation: Boolean = true) {
+        viewModelScope.launch {
+            val currentProfile = userRepository.getUserProfile().first()
+            val goalOrLevelChanged = currentProfile == null ||
+                    currentProfile.goal != profile.goal ||
+                    currentProfile.level != profile.level ||
+                    currentProfile.frequency != profile.frequency
+
+            if (requireConfirmation && goalOrLevelChanged && currentProfile != null) {
+                _profileChangeDetected.value = true
+                return@launch
+            }
+
+            saveUserProfile(profile)
+            _isEditingProfile.value = false
+        }
+    }
+
+    fun confirmAndSaveProfile(profile: UserProfile) {
+        viewModelScope.launch {
+            saveUserProfile(profile)
+            _isEditingProfile.value = false
+            _profileChangeDetected.value = false
+        }
     }
 
     private fun checkUserSession() {
@@ -107,12 +165,48 @@ class ProfileViewModel @Inject constructor(
             Log.d(TAG, "saveUserProfile: saving profile for user=${profile.username}")
             userRepository.saveUserProfile(profile)
 
+            if (currentProfile == null) {
+                Log.d(TAG, "saveUserProfile: first profile creation, saving initial weight")
+                weightRepository.saveWeight(profile.username, profile.weight, System.currentTimeMillis())
+            }
+
             if (goalOrLevelChanged) {
                 Log.d(TAG, "saveUserProfile: goal or level changed, resetting cycle")
                 cycleRepository.resetCycle(profile.username)
             }
 
             _isProfileChecked.value = true
+        }
+    }
+
+    fun updateProfile(
+        newUsername: String? = null,
+        goal: String? = null,
+        level: String? = null,
+        frequency: String? = null,
+        weight: Double? = null,
+        height: Double? = null,
+        gender: String? = null,
+        targetWeight: Double? = null,
+        photo: String? = null
+    ) {
+        viewModelScope.launch {
+            val currentProfile = userRepository.getUserProfile().first()
+            currentProfile ?: return@launch
+
+            val updatedProfile = currentProfile.copy(
+                username = newUsername ?: currentProfile.username,
+                goal = goal ?: currentProfile.goal,
+                level = level ?: currentProfile.level,
+                frequency = frequency ?: currentProfile.frequency,
+                weight = weight ?: currentProfile.weight,
+                height = height ?: currentProfile.height,
+                gender = gender ?: currentProfile.gender,
+                targetWeight = targetWeight,
+                photo = photo ?: currentProfile.photo
+            )
+
+            userRepository.saveUserProfile(updatedProfile)
         }
     }
 
@@ -143,6 +237,15 @@ class ProfileViewModel @Inject constructor(
         Log.d(TAG, "saveCredentials: saving for user=$username")
         credentialsRepository.saveCredentials(username, plainPassword)
         _currentUsername.value = username
+
+        try {
+            val packageInfo = context.packageManager.getPackageInfo(context.packageName, 0)
+            val appVersion = packageInfo.versionName
+            credentialsRepository.saveAppVersion(appVersion)
+            Log.d(TAG, "saveCredentials: saved app version=$appVersion")
+        } catch (e: Exception) {
+            Log.e(TAG, "saveCredentials: failed to save app version", e)
+        }
     }
 
     suspend fun updateCredentials(currentUsername: String, newUsername: String, newPassword: String) {
@@ -153,6 +256,10 @@ class ProfileViewModel @Inject constructor(
 
     suspend fun getCurrentUsername(): String {
         return credentialsRepository.getUsername() ?: ""
+    }
+
+    suspend fun checkSession(currentAppVersion: String): Boolean {
+        return authUseCase.checkAndUpdateSession(currentAppVersion)
     }
 
     fun saveWeightEntry(weight: Double, date: Long = System.currentTimeMillis()) {
@@ -190,5 +297,14 @@ class ProfileViewModel @Inject constructor(
 
     fun getFavoriteExercises(): kotlinx.coroutines.flow.Flow<kotlin.collections.Set<String>> {
         return userRepository.getUserProfile().map { it?.favoriteExercises ?: emptySet() }
+    }
+
+    fun toggleWorkoutReminder(enabled: Boolean) {
+        viewModelScope.launch {
+            notificationRepository.setWorkoutReminderEnabled(enabled)
+            if (enabled) {
+                com.example.fitness_plan.notification.WorkoutReminderScheduler.scheduleImmediate(context)
+            }
+        }
     }
 }

@@ -5,6 +5,7 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.*
 import androidx.datastore.preferences.preferencesDataStore
 import com.example.fitness_plan.domain.model.Cycle
+import com.example.fitness_plan.domain.model.CycleExerciseHistory
 import com.example.fitness_plan.domain.model.CycleHistoryEntry
 import com.example.fitness_plan.domain.repository.CycleRepository as DomainCycleRepository
 import com.google.gson.Gson
@@ -27,6 +28,7 @@ class CycleRepository @Inject constructor(
     private fun getCycleKey(username: String) = stringPreferencesKey("${username}_current_cycle")
     private fun getHistoryKey(username: String) = stringPreferencesKey("${username}_cycle_history")
     private fun getCompletedDateKey(username: String) = longPreferencesKey("${username}_cycle_completed_date")
+    private fun getExerciseHistoryKey(username: String) = stringPreferencesKey("${username}_exercise_history")
 
     override suspend fun startNewCycle(username: String, startDate: Long): Cycle {
         val currentCycle = getCurrentCycleSync(username)
@@ -155,5 +157,40 @@ class CycleRepository @Inject constructor(
         }
         val cycle = getCurrentCycleSync(username)
         return cycle != null
+    }
+
+    override suspend fun saveExerciseHistory(username: String, history: CycleExerciseHistory) {
+        val key = getExerciseHistoryKey(username)
+        val historyJson = context.cycleDataStore.data.first()[key] ?: "[]"
+        val historyType = object : TypeToken<List<CycleExerciseHistory>>() {}.type
+        val historyList: MutableList<CycleExerciseHistory> = try {
+            gson.fromJson(historyJson, historyType) ?: mutableListOf()
+        } catch (e: Exception) {
+            mutableListOf()
+        }
+
+        historyList.add(history)
+
+        context.cycleDataStore.edit { preferences ->
+            preferences[key] = gson.toJson(historyList)
+        }
+    }
+
+    override fun getExerciseHistory(username: String): Flow<List<CycleExerciseHistory>> {
+        val key = getExerciseHistoryKey(username)
+        return context.cycleDataStore.data.map { preferences ->
+            val json = preferences[key] ?: return@map emptyList()
+            try {
+                val type = object : TypeToken<List<CycleExerciseHistory>>() {}.type
+                gson.fromJson(json, type) ?: emptyList()
+            } catch (e: Exception) {
+                emptyList()
+            }
+        }
+    }
+
+    override suspend fun getLatestExerciseHistory(username: String): CycleExerciseHistory? {
+        val history = getExerciseHistory(username).first()
+        return history.maxByOrNull { it.cycleNumber }
     }
 }

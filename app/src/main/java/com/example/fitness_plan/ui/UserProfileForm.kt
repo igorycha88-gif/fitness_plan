@@ -48,6 +48,7 @@ fun UserProfileForm(
     var weight by remember { mutableStateOf("") }
     var height by remember { mutableStateOf("") }
     var gender by remember { mutableStateOf<String?>(null) }
+    var targetWeight by remember { mutableStateOf("") }
 
     var showSlowWeightLossDialog by remember { mutableStateOf(false) }
     var showScheduleDialog by remember { mutableStateOf(false) }
@@ -77,12 +78,18 @@ fun UserProfileForm(
 
     val showWarning = goal == "Похудение" && frequency == "1 раз в неделю"
 
+    val showTargetWeight = goal == UserProfile.GOAL_WEIGHT_LOSS
+
     val isValid = goal != null && level != null && frequency != null &&
-            weight.isNotEmpty() && height.isNotEmpty() && gender != null
+            weight.isNotEmpty() && height.isNotEmpty() && gender != null &&
+            (!showTargetWeight || targetWeight.isNotEmpty())
 
     val weightDouble = weight.toDoubleOrNull()
     val heightDouble = height.toDoubleOrNull()
-    val isNumericValid = (weightDouble != null && weightDouble > 0) && (heightDouble != null && heightDouble > 0)
+    val targetWeightDouble = targetWeight.toDoubleOrNull()
+    val isNumericValid = (weightDouble != null && weightDouble > 0) &&
+            (heightDouble != null && heightDouble > 0) &&
+            (!showTargetWeight || targetWeightDouble != null && targetWeightDouble > 0)
 
     val scrollState = rememberScrollState()
 
@@ -94,12 +101,7 @@ fun UserProfileForm(
                     IconButton(onClick = onBackClick) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Назад")
                     }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    titleContentColor = MaterialTheme.colorScheme.onPrimary,
-                    navigationIconContentColor = MaterialTheme.colorScheme.onPrimary
-                )
+                }
             )
         }
     ) { paddingValues ->
@@ -322,6 +324,34 @@ fun UserProfileForm(
                 }
             }
 
+            if (showTargetWeight) {
+                Spacer(modifier = Modifier.height(16.dp))
+
+                OutlinedTextField(
+                    value = targetWeight,
+                    onValueChange = { targetWeight = it },
+                    label = { Text("Целевой вес (кг)") },
+                    isError = targetWeight.isNotEmpty() && (targetWeightDouble == null || targetWeightDouble <= 0),
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = MaterialTheme.colorScheme.primary,
+                        unfocusedBorderColor = MaterialTheme.colorScheme.outline,
+                        focusedLabelColor = MaterialTheme.colorScheme.primary,
+                        unfocusedLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                        cursorColor = MaterialTheme.colorScheme.primary,
+                        focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                        unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+                        errorBorderColor = MaterialTheme.colorScheme.error,
+                        errorLabelColor = MaterialTheme.colorScheme.error
+                    ),
+                    shape = RoundedCornerShape(12.dp),
+                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                        keyboardType = androidx.compose.ui.text.input.KeyboardType.Number
+                    ),
+                    singleLine = true
+                )
+            }
+
             Spacer(modifier = Modifier.height(24.dp))
 
             Button(
@@ -388,7 +418,8 @@ fun UserProfileForm(
                         frequency = frequency!!,
                         weight = weightDouble!!,
                         height = heightDouble!!,
-                        gender = gender!!
+                        gender = gender!!,
+                        targetWeight = if (goal == UserProfile.GOAL_WEIGHT_LOSS) targetWeightDouble else null
                     )
                     viewModel.saveUserProfile(profile)
                     viewModel.saveWorkoutDates(dates)
