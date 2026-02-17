@@ -870,20 +870,6 @@ fun ExerciseRow(
                 )
             }
         }
-
-        exercise.imageRes?.let { resName ->
-            val resId = context.resources.getIdentifier(resName, "drawable", context.packageName)
-            if (resId != 0) {
-                Image(
-                    painter = painterResource(id = resId),
-                    contentDescription = exercise.name,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(150.dp)
-                        .padding(top = 8.dp)
-                )
-            }
-        }
     }
 
     if (!isLast) {
