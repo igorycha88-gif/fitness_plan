@@ -22,6 +22,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.example.fitness_plan.domain.model.Exercise
 import com.example.fitness_plan.domain.model.WorkoutPlan
+import com.example.fitness_plan.domain.repository.SelectedPlanType
 import com.example.fitness_plan.presentation.viewmodel.WorkoutViewModel
 import com.example.fitness_plan.ui.theme.SuccessGreen
 import kotlinx.coroutines.delay
@@ -39,6 +40,8 @@ fun ExerciseDetailScreen(
 ) {
     val currentWorkoutPlan by workoutViewModel.currentWorkoutPlan.collectAsState()
     val adminWorkoutPlan by workoutViewModel.adminWorkoutPlan.collectAsState()
+    val userWorkoutPlan by workoutViewModel.userWorkoutPlan.collectAsState()
+    val selectedPlanType by workoutViewModel.selectedPlanType.collectAsState()
     val exerciseStats by workoutViewModel.exerciseStats.collectAsState()
     val alternativeLibraryExercises by workoutViewModel.alternativeExercises.collectAsState()
     val completedExercises by workoutViewModel.completedExercises.collectAsState()
@@ -62,8 +65,12 @@ fun ExerciseDetailScreen(
         }
     }
 
-    LaunchedEffect(decodedName, currentWorkoutPlan, adminWorkoutPlan, isAdmin) {
-        val workoutPlan = if (isAdmin) adminWorkoutPlan else currentWorkoutPlan
+    LaunchedEffect(decodedName, currentWorkoutPlan, adminWorkoutPlan, userWorkoutPlan, isAdmin, selectedPlanType) {
+        val workoutPlan = when {
+            isAdmin -> adminWorkoutPlan
+            selectedPlanType == SelectedPlanType.CUSTOM -> userWorkoutPlan
+            else -> currentWorkoutPlan
+        }
 
         if (workoutPlan != null) {
             exercise = findExerciseByName(workoutPlan, decodedName)
