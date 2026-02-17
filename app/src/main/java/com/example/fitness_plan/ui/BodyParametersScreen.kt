@@ -36,11 +36,7 @@ fun BodyParametersScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Статистика: Параметры тела") },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    titleContentColor = MaterialTheme.colorScheme.onPrimary
-                )
+                title = { Text("Статистика: Замеры") }
             )
         }
     ) { paddingValues ->
@@ -143,7 +139,7 @@ fun TimeFilterRow(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        TimeFilter.values().forEach { filter ->
+        listOf(TimeFilter.WEEK, TimeFilter.MONTH, TimeFilter.YEAR).forEach { filter ->
             FilterChip(
                 selected = selectedFilter == filter,
                 onClick = { onFilterSelected(filter) },

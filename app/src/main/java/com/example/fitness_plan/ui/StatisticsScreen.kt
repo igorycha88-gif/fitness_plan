@@ -13,16 +13,12 @@ fun StatisticsScreen(
     viewModel: StatisticsViewModel = hiltViewModel()
 ) {
     var selectedTab by remember { mutableIntStateOf(0) }
-    val tabs = listOf("Вес", "Прогресс", "Параметры тела")
+    val tabs = listOf("Вес", "Прогресс", "Замеры")
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Статистика") },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    titleContentColor = MaterialTheme.colorScheme.onPrimary
-                )
+                title = { Text("Статистика") }
             )
         }
     ) { paddingValues ->
