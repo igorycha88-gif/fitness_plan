@@ -38,15 +38,19 @@ class CycleUseCase @Inject constructor(
 
         Log.d(TAG, "completedDate=$completedDate, currentCycle=${currentCycle?.cycleNumber}, totalDays=${currentCycle?.totalDays}")
 
+        var shouldCreateNewPlan = false
+
         val cycle = when {
             completedDate != null -> {
                 Log.d(TAG, "Completing old cycle and starting new one")
                 cycleRepository.resetCycle(username)
                 exerciseCompletionRepository.clearCompletion(username)
+                shouldCreateNewPlan = true
                 cycleRepository.startNewCycle(username, now)
             }
             currentCycle == null -> {
                 Log.d(TAG, "Starting new cycle")
+                shouldCreateNewPlan = true
                 cycleRepository.startNewCycle(username, now)
             }
             currentCycle.totalDays != Cycle.DAYS_IN_CYCLE -> {
@@ -54,16 +58,18 @@ class CycleUseCase @Inject constructor(
                 cycleRepository.markCycleCompleted(username, now)
                 cycleRepository.resetCycle(username)
                 exerciseCompletionRepository.clearCompletion(username)
+                shouldCreateNewPlan = true
                 cycleRepository.startNewCycle(username, now)
             }
             else -> {
                 Log.d(TAG, "Using existing cycle ${currentCycle.cycleNumber}")
+                shouldCreateNewPlan = false
                 currentCycle
             }
         }
 
-        val plan = loadWorkoutPlan(profile, cycle)
-        Log.d(TAG, "Workout plan created: ${plan.name}, days=${plan.days.size}")
+        val plan = loadWorkoutPlan(username, profile, cycle, shouldCreateNewPlan)
+        Log.d(TAG, "Workout plan loaded: ${plan.name}, days=${plan.days.size}")
 
         val history = cycleRepository.getCycleHistory(username).first()
         Log.d(TAG, "History size: ${history.size}")
@@ -71,7 +77,21 @@ class CycleUseCase @Inject constructor(
         return CycleState(cycle, plan, history)
     }
 
-    private suspend fun loadWorkoutPlan(profile: UserProfile, cycle: Cycle?): WorkoutPlan {
+    private suspend fun loadWorkoutPlan(
+        username: String,
+        profile: UserProfile,
+        cycle: Cycle?,
+        shouldCreateNewPlan: Boolean
+    ): WorkoutPlan {
+        if (!shouldCreateNewPlan) {
+            val savedPlan = workoutRepository.getWorkoutPlan(username).first()
+            if (savedPlan != null && savedPlan.days.isNotEmpty()) {
+                Log.d(TAG, "Loaded existing plan from DataStore for user $username")
+                return savedPlan
+            }
+        }
+
+        Log.d(TAG, "Creating new plan for user $username")
         val basePlan = workoutRepository.getWorkoutPlanForUser(profile)
         val planCycle = workoutRepository.getCycleWorkoutPlan(basePlan, profile.frequency)
         val dates = workoutRepository.generateCycleDates(
@@ -81,7 +101,12 @@ class CycleUseCase @Inject constructor(
         val finalPlan = workoutRepository.getWorkoutPlanWithDates(planCycle, dates)
 
         val cycleNumber = cycle?.cycleNumber ?: 1
-        return applyWeightProgression(finalPlan, cycleNumber)
+        val planWithProgression = applyWeightProgression(finalPlan, cycleNumber)
+
+        workoutRepository.saveWorkoutPlan(username, planWithProgression)
+        Log.d(TAG, "New plan saved to DataStore for user $username")
+
+        return planWithProgression
     }
 
     private fun applyWeightProgression(plan: WorkoutPlan, cycleNumber: Int): WorkoutPlan {
