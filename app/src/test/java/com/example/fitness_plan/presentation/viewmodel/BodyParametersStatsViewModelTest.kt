@@ -72,7 +72,7 @@ class BodyParametersStatsViewModelTest {
     fun `initial state should have correct default values`() = runTest {
         assertThat(viewModel.currentUsername.value).isEqualTo("testuser")
         assertThat(viewModel.selectedTypes.value).isEmpty()
-        assertThat(viewModel.selectedTimeFilter.value).isEqualTo(TimeFilter.MONTH)
+        assertThat(viewModel.selectedTimeFilter.value).isEqualTo(TimeFilter.ALL)
         assertThat(viewModel.viewMode.value).isEqualTo(ViewMode.CHART)
         assertThat(viewModel.showParameterSelector.value).isFalse()
     }

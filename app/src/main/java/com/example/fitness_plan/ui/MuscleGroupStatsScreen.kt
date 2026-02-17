@@ -30,11 +30,7 @@ fun MuscleGroupStatsScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Статистика по группам мышц") },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    titleContentColor = MaterialTheme.colorScheme.onPrimary
-                )
+                title = { Text("Статистика по группам мышц") }
             )
         }
     ) { paddingValues ->

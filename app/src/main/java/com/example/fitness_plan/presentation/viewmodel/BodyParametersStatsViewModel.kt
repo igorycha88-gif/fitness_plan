@@ -39,7 +39,7 @@ class BodyParametersStatsViewModel @Inject constructor(
     private val _selectedTypes = MutableStateFlow<Set<BodyParameterType>>(emptySet())
     val selectedTypes: StateFlow<Set<BodyParameterType>> = _selectedTypes.asStateFlow()
 
-    private val _selectedTimeFilter = MutableStateFlow(TimeFilter.MONTH)
+    private val _selectedTimeFilter = MutableStateFlow(TimeFilter.ALL)
     val selectedTimeFilter: StateFlow<TimeFilter> = _selectedTimeFilter.asStateFlow()
 
     private val _viewMode = MutableStateFlow(ViewMode.CHART)
