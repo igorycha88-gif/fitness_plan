@@ -8,10 +8,13 @@ import androidx.datastore.preferences.preferencesDataStore
 import com.example.fitness_plan.domain.calculator.WeightCalculator
 import com.example.fitness_plan.domain.calculator.WorkoutDateCalculator
 import com.example.fitness_plan.domain.model.Exercise
+import com.example.fitness_plan.domain.model.ExerciseType
+import com.example.fitness_plan.domain.model.MuscleGroupSequence
 import com.example.fitness_plan.domain.model.WorkoutDay
 import com.example.fitness_plan.domain.model.WorkoutPlan
 import com.example.fitness_plan.domain.repository.ExerciseCompletionRepository
 import com.example.fitness_plan.domain.repository.WorkoutRepository
+import com.example.fitness_plan.domain.usecase.ExercisePoolManager
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import kotlinx.coroutines.flow.Flow
@@ -34,7 +37,8 @@ class WorkoutRepositoryImpl @Inject constructor(
     private val workoutScheduleRepository: WorkoutScheduleRepository,
     private val weightCalculator: WeightCalculator,
     private val workoutDateCalculator: WorkoutDateCalculator,
-    private val exerciseLibraryRepository: com.example.fitness_plan.domain.repository.ExerciseLibraryRepository
+    private val exerciseLibraryRepository: com.example.fitness_plan.domain.repository.ExerciseLibraryRepository,
+    private val exercisePoolManager: ExercisePoolManager
 ) : WorkoutRepository {
 
     private val gson = Gson()
@@ -1498,5 +1502,128 @@ class WorkoutRepositoryImpl @Inject constructor(
         }
 
         return days
+    }
+
+    override suspend fun getWorkoutPlanWithSequence(
+        profile: com.example.fitness_plan.domain.model.UserProfile,
+        excludedExercises: Map<String, Set<String>>
+    ): WorkoutPlan {
+        val (sets, reps) = getSetsAndRepsForLevel(profile.level)
+        val cardioDuration = getCardioDurationForGoal(profile.goal)
+
+        val days = mutableListOf<WorkoutDay>()
+        val usedExercisesInCycle = mutableMapOf<String, MutableSet<String>>()
+
+        val sequence = MuscleGroupSequence.FULL_SEQUENCE
+        var dayIndex = 0
+
+        for (cycleRound in 0 until 2) {
+            for (groupSequence in sequence) {
+                val excludedForGroup = excludedExercises[groupSequence.displayName] ?: emptySet()
+                val alreadyUsedInCycle = usedExercisesInCycle[groupSequence.displayName] ?: mutableSetOf()
+                val allExcluded = excludedForGroup + alreadyUsedInCycle
+
+                val libraryExercises = exercisePoolManager.getExercisesForSequence(
+                    sequence = groupSequence,
+                    excludedExerciseNames = allExcluded,
+                    count = groupSequence.exercisesPerDay
+                )
+
+                val dayExercises = libraryExercises.mapIndexed { index, libExercise ->
+                    createExerciseFromLibrary(
+                        id = "${dayIndex}_${index}",
+                        library = libExercise,
+                        sets = if (groupSequence == MuscleGroupSequence.CARDIO) 1 else sets,
+                        reps = if (groupSequence == MuscleGroupSequence.CARDIO) cardioDuration else reps,
+                        profile = profile
+                    )
+                }
+
+                usedExercisesInCycle.getOrPut(groupSequence.displayName) { mutableSetOf() }
+                    .addAll(libraryExercises.map { it.name })
+
+                val muscleGroupNames = if (groupSequence == MuscleGroupSequence.CARDIO) {
+                    listOf("Кардио")
+                } else {
+                    groupSequence.muscleGroups.map { it.displayName }
+                }
+
+                days.add(WorkoutDay(
+                    id = dayIndex,
+                    dayName = "День ${dayIndex + 1}: ${groupSequence.displayName}",
+                    exercises = dayExercises,
+                    muscleGroups = muscleGroupNames
+                ))
+
+                dayIndex++
+            }
+        }
+
+        return WorkoutPlan(
+            id = "sequenced_plan_${profile.goal}_${profile.level}",
+            name = "${profile.goal}: ${profile.level}",
+            description = "10-дневный план с анатомическим порядком групп мышц",
+            muscleGroups = MuscleGroupSequence.FULL_SEQUENCE.map { it.displayName },
+            goal = profile.goal,
+            level = profile.level,
+            days = days
+        )
+    }
+
+    private fun getSetsAndRepsForLevel(level: String): Pair<Int, String> {
+        return when (level) {
+            "Новичок" -> Pair(3, "12-15")
+            "Любитель" -> Pair(3, "10-12")
+            "Профессионал" -> Pair(4, "8-10")
+            else -> Pair(3, "10-12")
+        }
+    }
+
+    private fun getCardioDurationForGoal(goal: String): String {
+        return when (goal) {
+            "Похудение" -> "30-40 мин"
+            "Наращивание мышечной массы" -> "20 мин"
+            else -> "30 мин"
+        }
+    }
+
+    private fun createExerciseFromLibrary(
+        id: String,
+        library: com.example.fitness_plan.domain.model.ExerciseLibrary,
+        sets: Int,
+        reps: String,
+        profile: com.example.fitness_plan.domain.model.UserProfile
+    ): Exercise {
+        val recommendedWeight = if (library.exerciseType == ExerciseType.STRENGTH && profile.weight > 0) {
+            weightCalculator.calculateBaseWeight(
+                bodyWeight = profile.weight.toFloat(),
+                level = profile.level,
+                goal = profile.goal,
+                gender = profile.gender,
+                exerciseType = weightCalculator.determineExerciseType(library.name)
+            )
+        } else {
+            null
+        }
+
+        return Exercise(
+            id = id,
+            name = library.name,
+            sets = sets,
+            reps = reps,
+            weight = null,
+            isCompleted = false,
+            alternatives = emptyList(),
+            description = library.description,
+            recommendedWeight = recommendedWeight,
+            recommendedRepsPerSet = reps,
+            muscleGroups = library.muscleGroups,
+            equipment = library.equipment,
+            exerciseType = library.exerciseType,
+            stepByStepInstructions = library.stepByStepInstructions,
+            animationUrl = library.animationUrl,
+            imageRes = library.imageRes,
+            imageUrl = library.imageUrl
+        )
     }
 }
