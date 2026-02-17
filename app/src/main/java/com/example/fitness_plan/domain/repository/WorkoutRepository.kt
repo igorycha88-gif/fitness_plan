@@ -26,6 +26,11 @@ interface WorkoutRepository {
 
     suspend fun setSelectedPlanType(username: String, planType: SelectedPlanType)
     fun getSelectedPlanType(username: String): Flow<SelectedPlanType>
+
+    suspend fun getWorkoutPlanWithSequence(
+        profile: com.example.fitness_plan.domain.model.UserProfile,
+        excludedExercises: Map<String, Set<String>>
+    ): WorkoutPlan
 }
 
 interface ExerciseStatsRepository {

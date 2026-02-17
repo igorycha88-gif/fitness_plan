@@ -26,6 +26,7 @@ class CycleUseCaseTest {
     private lateinit var mockUserRepository: UserRepository
     private lateinit var mockExerciseCompletionRepository: ExerciseCompletionRepository
     private lateinit var mockWeightProgressionUseCase: WeightProgressionUseCase
+    private lateinit var mockExercisePoolManager: ExercisePoolManager
 
     private val testUsername = "testuser"
     private val testProfile = UserProfile(
@@ -53,13 +54,15 @@ class CycleUseCaseTest {
         mockUserRepository = mockk(relaxed = true)
         mockExerciseCompletionRepository = mockk(relaxed = true)
         mockWeightProgressionUseCase = mockk(relaxed = true)
+        mockExercisePoolManager = mockk(relaxed = true)
 
         cycleUseCase = CycleUseCase(
             mockCycleRepository,
             mockWorkoutRepository,
             mockUserRepository,
             mockExerciseCompletionRepository,
-            mockWeightProgressionUseCase
+            mockWeightProgressionUseCase,
+            mockExercisePoolManager
         )
     }
 
@@ -92,11 +95,12 @@ class CycleUseCaseTest {
         coEvery { mockCycleRepository.getCurrentCycleSync(testUsername) } returns null
         every { mockWorkoutRepository.getWorkoutPlan(testUsername) } returns flowOf(null)
         coEvery { mockCycleRepository.startNewCycle(any(), any()) } returns existingCycle
-        coEvery { mockWorkoutRepository.getWorkoutPlanForUser(testProfile) } returns newPlan
-        coEvery { mockWorkoutRepository.getCycleWorkoutPlan(newPlan, testProfile.frequency) } returns newPlan
+        coEvery { mockWorkoutRepository.getWorkoutPlanWithSequence(testProfile, any()) } returns newPlan
         coEvery { mockWorkoutRepository.generateCycleDates(any(), any()) } returns listOf(System.currentTimeMillis())
         coEvery { mockWorkoutRepository.getWorkoutPlanWithDates(any(), any()) } returns newPlan
         coEvery { mockCycleRepository.getCycleHistory(testUsername) } returns flowOf(emptyList())
+        coEvery { mockCycleRepository.getExerciseHistory(testUsername) } returns flowOf(emptyList())
+        coEvery { mockCycleRepository.saveExerciseHistory(any(), any()) } just Runs
 
         val result = cycleUseCase.initializeCycleForUser(testUsername, testProfile)
 
@@ -115,11 +119,12 @@ class CycleUseCaseTest {
         coEvery { mockCycleRepository.resetCycle(testUsername) } just Runs
         coEvery { mockExerciseCompletionRepository.clearCompletion(testUsername) } just Runs
         coEvery { mockCycleRepository.startNewCycle(any(), any()) } returns existingCycle.copy(cycleNumber = 2)
-        coEvery { mockWorkoutRepository.getWorkoutPlanForUser(testProfile) } returns newPlan
-        coEvery { mockWorkoutRepository.getCycleWorkoutPlan(newPlan, testProfile.frequency) } returns newPlan
+        coEvery { mockWorkoutRepository.getWorkoutPlanWithSequence(testProfile, any()) } returns newPlan
         coEvery { mockWorkoutRepository.generateCycleDates(any(), any()) } returns listOf(System.currentTimeMillis())
         coEvery { mockWorkoutRepository.getWorkoutPlanWithDates(any(), any()) } returns newPlan
         coEvery { mockCycleRepository.getCycleHistory(testUsername) } returns flowOf(emptyList())
+        coEvery { mockCycleRepository.getExerciseHistory(testUsername) } returns flowOf(emptyList())
+        coEvery { mockCycleRepository.saveExerciseHistory(any(), any()) } just Runs
 
         val result = cycleUseCase.initializeCycleForUser(testUsername, testProfile)
 
@@ -136,11 +141,12 @@ class CycleUseCaseTest {
         coEvery { mockCycleRepository.getCompletedDate(testUsername) } returns null
         coEvery { mockCycleRepository.getCurrentCycleSync(testUsername) } returns existingCycle
         every { mockWorkoutRepository.getWorkoutPlan(testUsername) } returns flowOf(null)
-        coEvery { mockWorkoutRepository.getWorkoutPlanForUser(testProfile) } returns newPlan
-        coEvery { mockWorkoutRepository.getCycleWorkoutPlan(newPlan, testProfile.frequency) } returns newPlan
+        coEvery { mockWorkoutRepository.getWorkoutPlanWithSequence(testProfile, any()) } returns newPlan
         coEvery { mockWorkoutRepository.generateCycleDates(any(), any()) } returns listOf(System.currentTimeMillis())
         coEvery { mockWorkoutRepository.getWorkoutPlanWithDates(any(), any()) } returns newPlan
         coEvery { mockCycleRepository.getCycleHistory(testUsername) } returns flowOf(emptyList())
+        coEvery { mockCycleRepository.getExerciseHistory(testUsername) } returns flowOf(emptyList())
+        coEvery { mockCycleRepository.saveExerciseHistory(any(), any()) } just Runs
 
         val result = cycleUseCase.initializeCycleForUser(testUsername, testProfile)
 
@@ -156,11 +162,12 @@ class CycleUseCaseTest {
         coEvery { mockCycleRepository.getCompletedDate(testUsername) } returns null
         coEvery { mockCycleRepository.getCurrentCycleSync(testUsername) } returns existingCycle
         every { mockWorkoutRepository.getWorkoutPlan(testUsername) } returns flowOf(emptyPlan)
-        coEvery { mockWorkoutRepository.getWorkoutPlanForUser(testProfile) } returns newPlan
-        coEvery { mockWorkoutRepository.getCycleWorkoutPlan(newPlan, testProfile.frequency) } returns newPlan
+        coEvery { mockWorkoutRepository.getWorkoutPlanWithSequence(testProfile, any()) } returns newPlan
         coEvery { mockWorkoutRepository.generateCycleDates(any(), any()) } returns listOf(System.currentTimeMillis())
         coEvery { mockWorkoutRepository.getWorkoutPlanWithDates(any(), any()) } returns newPlan
         coEvery { mockCycleRepository.getCycleHistory(testUsername) } returns flowOf(emptyList())
+        coEvery { mockCycleRepository.getExerciseHistory(testUsername) } returns flowOf(emptyList())
+        coEvery { mockCycleRepository.saveExerciseHistory(any(), any()) } just Runs
 
         val result = cycleUseCase.initializeCycleForUser(testUsername, testProfile)
 
@@ -180,11 +187,12 @@ class CycleUseCaseTest {
         coEvery { mockExerciseCompletionRepository.clearCompletion(testUsername) } just Runs
         coEvery { mockCycleRepository.startNewCycle(any(), any()) } returns existingCycle
         every { mockWorkoutRepository.getWorkoutPlan(testUsername) } returns flowOf(null)
-        coEvery { mockWorkoutRepository.getWorkoutPlanForUser(testProfile) } returns newPlan
-        coEvery { mockWorkoutRepository.getCycleWorkoutPlan(newPlan, testProfile.frequency) } returns newPlan
+        coEvery { mockWorkoutRepository.getWorkoutPlanWithSequence(testProfile, any()) } returns newPlan
         coEvery { mockWorkoutRepository.generateCycleDates(any(), any()) } returns listOf(System.currentTimeMillis())
         coEvery { mockWorkoutRepository.getWorkoutPlanWithDates(any(), any()) } returns newPlan
         coEvery { mockCycleRepository.getCycleHistory(testUsername) } returns flowOf(emptyList())
+        coEvery { mockCycleRepository.getExerciseHistory(testUsername) } returns flowOf(emptyList())
+        coEvery { mockCycleRepository.saveExerciseHistory(any(), any()) } just Runs
 
         val result = cycleUseCase.initializeCycleForUser(testUsername, testProfile)
 

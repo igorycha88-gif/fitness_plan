@@ -508,6 +508,25 @@ class WorkoutViewModel @Inject constructor(
         }
     }
 
+    fun updateUserWorkoutDayDate(dayIndex: Int, newDate: Long?) {
+        viewModelScope.launch {
+            val username = _currentUsername.value
+            if (username.isEmpty()) return@launch
+
+            workoutUseCase.updateUserWorkoutDayDate(username, dayIndex, newDate)
+
+            val currentPlan = _userWorkoutPlan.value ?: return@launch
+            val updatedDays = currentPlan.days.mapIndexed { index, day ->
+                if (index == dayIndex) {
+                    day.copy(scheduledDate = newDate)
+                } else {
+                    day
+                }
+            }
+            _userWorkoutPlan.value = currentPlan.copy(days = updatedDays)
+        }
+    }
+
     fun setSelectedPlanType(type: com.example.fitness_plan.domain.repository.SelectedPlanType) {
         viewModelScope.launch {
             val username = _currentUsername.value

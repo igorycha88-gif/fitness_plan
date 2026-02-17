@@ -8,6 +8,7 @@ import com.example.fitness_plan.domain.repository.ICredentialsRepository
 import com.example.fitness_plan.domain.admin.AdminCredentialsRepository as AdminCredentialsDomainRepository
 import com.example.fitness_plan.domain.usecase.AdminUseCase
 import com.example.fitness_plan.domain.usecase.ExerciseLibraryUseCase
+import com.example.fitness_plan.domain.usecase.ExercisePoolManager
 import com.example.fitness_plan.domain.usecase.WeightProgressionUseCase
 import com.example.fitness_plan.data.CredentialsRepository
 import com.example.fitness_plan.data.ReferenceDataRepositoryImpl
@@ -121,9 +122,18 @@ object AppModule {
         workoutScheduleRepository: WorkoutScheduleRepository,
         weightCalculator: WeightCalculator,
         workoutDateCalculator: WorkoutDateCalculator,
-        exerciseLibraryRepository: ExerciseLibraryRepository
+        exerciseLibraryRepository: ExerciseLibraryRepository,
+        exercisePoolManager: ExercisePoolManager
     ): WorkoutRepository {
-        return WorkoutRepositoryImpl(context, exerciseCompletionRepository, workoutScheduleRepository, weightCalculator, workoutDateCalculator, exerciseLibraryRepository)
+        return WorkoutRepositoryImpl(context, exerciseCompletionRepository, workoutScheduleRepository, weightCalculator, workoutDateCalculator, exerciseLibraryRepository, exercisePoolManager)
+    }
+
+    @Provides
+    @Singleton
+    fun provideExercisePoolManager(
+        exerciseLibraryRepository: ExerciseLibraryRepository
+    ): ExercisePoolManager {
+        return ExercisePoolManager(exerciseLibraryRepository)
     }
 
     @Provides
@@ -156,9 +166,10 @@ object AppModule {
         workoutRepository: WorkoutRepository,
         userRepository: DomainUserRepository,
         exerciseCompletionRepository: ExerciseCompletionRepository,
-        weightProgressionUseCase: WeightProgressionUseCase
+        weightProgressionUseCase: WeightProgressionUseCase,
+        exercisePoolManager: ExercisePoolManager
     ): CycleUseCase {
-        return CycleUseCase(cycleRepository, workoutRepository, userRepository, exerciseCompletionRepository, weightProgressionUseCase)
+        return CycleUseCase(cycleRepository, workoutRepository, userRepository, exerciseCompletionRepository, weightProgressionUseCase, exercisePoolManager)
     }
 
     @Provides

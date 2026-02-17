@@ -2,7 +2,9 @@ package com.example.fitness_plan.domain.usecase
 
 import android.util.Log
 import com.example.fitness_plan.domain.model.Cycle
+import com.example.fitness_plan.domain.model.CycleExerciseHistory
 import com.example.fitness_plan.domain.model.CycleHistoryEntry
+import com.example.fitness_plan.domain.model.MuscleGroupSequence
 import com.example.fitness_plan.domain.model.UserProfile
 import com.example.fitness_plan.domain.model.WorkoutPlan
 import com.example.fitness_plan.domain.repository.CycleRepository
@@ -21,7 +23,8 @@ class CycleUseCase @Inject constructor(
     private val workoutRepository: WorkoutRepository,
     private val userRepository: UserRepository,
     private val exerciseCompletionRepository: ExerciseCompletionRepository,
-    private val weightProgressionUseCase: WeightProgressionUseCase
+    private val weightProgressionUseCase: WeightProgressionUseCase,
+    private val exercisePoolManager: ExercisePoolManager
 ) {
     data class CycleState(
         val cycle: Cycle?,
@@ -91,14 +94,17 @@ class CycleUseCase @Inject constructor(
             }
         }
 
-        Log.d(TAG, "Creating new plan for user $username")
-        val basePlan = workoutRepository.getWorkoutPlanForUser(profile)
-        val planCycle = workoutRepository.getCycleWorkoutPlan(basePlan, profile.frequency)
+        Log.d(TAG, "Creating new plan with sequence for user $username")
+        val exerciseHistory = cycleRepository.getExerciseHistory(username).first()
+        val excludedExercises = buildExcludedExercisesMap(exerciseHistory)
+
+        val planWithSequence = workoutRepository.getWorkoutPlanWithSequence(profile, excludedExercises)
+
         val dates = workoutRepository.generateCycleDates(
             cycle?.startDate ?: System.currentTimeMillis(),
             profile.frequency
         )
-        val finalPlan = workoutRepository.getWorkoutPlanWithDates(planCycle, dates)
+        val finalPlan = workoutRepository.getWorkoutPlanWithDates(planWithSequence, dates)
 
         val cycleNumber = cycle?.cycleNumber ?: 1
         val planWithProgression = applyWeightProgression(finalPlan, cycleNumber)
@@ -106,7 +112,52 @@ class CycleUseCase @Inject constructor(
         workoutRepository.saveWorkoutPlan(username, planWithProgression)
         Log.d(TAG, "New plan saved to DataStore for user $username")
 
+        saveCycleExerciseHistory(username, cycleNumber, planWithProgression)
+
         return planWithProgression
+    }
+
+    private fun buildExcludedExercisesMap(history: List<CycleExerciseHistory>): Map<String, Set<String>> {
+        val result = mutableMapOf<String, Set<String>>()
+        
+        val lastHistory = history.lastOrNull()
+        if (lastHistory != null) {
+            for (sequence in MuscleGroupSequence.FULL_SEQUENCE) {
+                val usedExercises = lastHistory.getUsedExercisesForGroup(sequence.displayName)
+                if (usedExercises.isNotEmpty()) {
+                    result[sequence.displayName] = usedExercises
+                }
+            }
+        }
+        
+        return result
+    }
+
+    private suspend fun saveCycleExerciseHistory(username: String, cycleNumber: Int, plan: WorkoutPlan) {
+        val usedExercises = mutableMapOf<String, Set<String>>()
+        
+        for (sequence in MuscleGroupSequence.FULL_SEQUENCE) {
+            val exercisesForGroup = plan.days
+                .filter { it.dayName.contains(sequence.displayName) }
+                .flatMap { day -> day.exercises.map { it.name } }
+                .toSet()
+            
+            if (exercisesForGroup.isNotEmpty()) {
+                usedExercises[sequence.displayName] = exercisesForGroup
+            }
+        }
+
+        val poolId = exercisePoolManager.determinePoolId(cycleNumber)
+        
+        val history = CycleExerciseHistory(
+            cycleNumber = cycleNumber,
+            startDate = System.currentTimeMillis(),
+            usedExercises = usedExercises,
+            poolId = poolId
+        )
+
+        cycleRepository.saveExerciseHistory(username, history)
+        Log.d(TAG, "Saved exercise history for cycle $cycleNumber")
     }
 
     private fun applyWeightProgression(plan: WorkoutPlan, cycleNumber: Int): WorkoutPlan {

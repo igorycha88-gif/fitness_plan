@@ -252,6 +252,9 @@ fun HomeScreen(
                                     selectedDayIndex = dayIndex
                                     showExerciseSelector = true
                                 },
+                                onDateChange = { dayIndex, date ->
+                                    viewModel.updateUserWorkoutDayDate(dayIndex, date)
+                                },
                                 isExpandedScreen = isExpandedScreen
                             )
                         } else {
@@ -1024,6 +1027,7 @@ fun UserPlanSection(
     onAddDay: () -> Unit,
     onDeletePlan: () -> Unit,
     onAddExercise: (Int) -> Unit,
+    onDateChange: ((Int, Long?) -> Unit)? = null,
     isExpandedScreen: Boolean = false
 ) {
     Card(
@@ -1031,9 +1035,9 @@ fun UserPlanSection(
             .fillMaxWidth()
             .padding(horizontal = 16.dp),
         colors = CardDefaults.cardColors(
-            containerColor = FitnessSecondaryLight.copy(alpha = 0.1f)
+            containerColor = MaterialTheme.colorScheme.surface
         ),
-        border = BorderStroke(1.dp, FitnessSecondaryLight)
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(
@@ -1047,8 +1051,7 @@ fun UserPlanSection(
                     Text(
                         text = "Мой план",
                         style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = FitnessSecondaryLight
+                        fontWeight = FontWeight.Bold
                     )
                     if (plan.description.isNotEmpty()) {
                         Text(
@@ -1059,6 +1062,16 @@ fun UserPlanSection(
                     }
                 }
                 Row(verticalAlignment = Alignment.CenterVertically) {
+                    IconButton(
+                        onClick = onDeletePlan,
+                        modifier = Modifier.size(40.dp)
+                    ) {
+                        Icon(
+                            Icons.Default.Delete,
+                            contentDescription = "Удалить план",
+                            tint = MaterialTheme.colorScheme.error
+                        )
+                    }
                     Text(
                         text = if (isExpanded) "-" else "+",
                         style = MaterialTheme.typography.titleMedium
@@ -1076,20 +1089,6 @@ fun UserPlanSection(
                     Icon(Icons.Default.Add, contentDescription = null)
                     Spacer(modifier = Modifier.width(8.dp))
                     Text("Добавить день")
-                }
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                Button(
-                    onClick = onDeletePlan,
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.error
-                    )
-                ) {
-                    Icon(Icons.Default.Delete, contentDescription = null)
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("Удалить план")
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))
@@ -1112,7 +1111,8 @@ fun UserPlanSection(
                             exerciseStats = exerciseStats,
                             onExerciseClick = onExerciseClick,
                             onExerciseToggle = onExerciseToggle,
-                            onAddExercise = { onAddExercise(dayIndex) }
+                            onAddExercise = { onAddExercise(dayIndex) },
+                            onDateChange = onDateChange?.let { callback -> { date -> callback(dayIndex, date) } }
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                     }
@@ -1122,6 +1122,7 @@ fun UserPlanSection(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun UserWorkoutDayCard(
     day: WorkoutDay,
@@ -1132,9 +1133,11 @@ fun UserWorkoutDayCard(
     exerciseStats: List<ExerciseStats>,
     onExerciseClick: (Exercise, Int) -> Unit,
     onExerciseToggle: (String, Boolean) -> Unit,
-    onAddExercise: () -> Unit
+    onAddExercise: () -> Unit,
+    onDateChange: ((Long?) -> Unit)? = null
 ) {
     var isExpanded by remember { mutableStateOf(false) }
+    var showDatePicker by remember { mutableStateOf(false) }
 
     val backgroundColor = when {
         isCompleted -> SuccessGreen.copy(alpha = 0.15f)
@@ -1147,7 +1150,7 @@ fun UserWorkoutDayCard(
         colors = CardDefaults.cardColors(containerColor = backgroundColor),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
     ) {
-        Column(modifier = Modifier.padding(12.dp)) {
+        Column(modifier = Modifier.padding(16.dp)) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -1158,34 +1161,72 @@ fun UserWorkoutDayCard(
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = day.dayName,
-                        style = MaterialTheme.typography.titleSmall,
+                        style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold
                     )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        day.scheduledDate?.let { date ->
+                            Text(
+                                text = formatDate(date),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                        if (onDateChange != null) {
+                            Spacer(modifier = Modifier.width(8.dp))
+                            IconButton(
+                                onClick = { showDatePicker = true },
+                                modifier = Modifier.size(24.dp)
+                            ) {
+                                Icon(
+                                    Icons.Filled.DateRange,
+                                    contentDescription = "Изменить дату",
+                                    modifier = Modifier.size(16.dp),
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                        }
+                    }
+                    val muscleGroupsText = day.muscleGroups.takeIf { it.isNotEmpty() }
+                        ?.joinToString(", ")
+                        ?: "не указаны"
                     Text(
-                        text = "${day.exercises.size} упражнений",
+                        text = "Группы мышц: $muscleGroupsText",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     if (isCompleted) {
+                        Spacer(modifier = Modifier.height(4.dp))
                         Text(
                             text = "✓ Выполнено",
                             style = MaterialTheme.typography.bodySmall,
-                            color = SuccessGreen
+                            color = SuccessGreen,
+                            fontWeight = FontWeight.SemiBold
                         )
                     } else if (isPartiallyCompleted) {
+                        Spacer(modifier = Modifier.height(4.dp))
                         val dayExerciseKeys = day.exercises.map { "${dayIndex}_${it.name}" }.toSet()
                         val completedCount = dayExerciseKeys.count { it in completedExercises }
                         Text(
                             text = "○ $completedCount/${day.exercises.size}",
                             style = MaterialTheme.typography.bodySmall,
-                            color = FitnessSecondaryLight
+                            color = FitnessSecondaryLight,
+                            fontWeight = FontWeight.SemiBold
                         )
                     }
                 }
-                Text(
-                    text = if (isExpanded) "-" else "+",
-                    style = MaterialTheme.typography.titleMedium
-                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = "${day.exercises.size} упр.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = if (isExpanded) "-" else "+",
+                        style = MaterialTheme.typography.titleMedium
+                    )
+                }
             }
 
             if (isExpanded) {
@@ -1216,6 +1257,41 @@ fun UserWorkoutDayCard(
                     Text("Добавить упражнение")
                 }
             }
+        }
+    }
+
+    if (showDatePicker && onDateChange != null) {
+        val datePickerState = rememberDatePickerState(
+            initialSelectedDateMillis = day.scheduledDate ?: System.currentTimeMillis()
+        )
+
+        DatePickerDialog(
+            onDismissRequest = { showDatePicker = false },
+            confirmButton = {
+                TextButton(onClick = {
+                    datePickerState.selectedDateMillis?.let { date ->
+                        onDateChange(date)
+                    }
+                    showDatePicker = false
+                }) {
+                    Text("ОК")
+                }
+            },
+            dismissButton = {
+                Row {
+                    TextButton(onClick = {
+                        onDateChange(null)
+                        showDatePicker = false
+                    }) {
+                        Text("Очистить")
+                    }
+                    TextButton(onClick = { showDatePicker = false }) {
+                        Text("Отмена")
+                    }
+                }
+            }
+        ) {
+            DatePicker(state = datePickerState)
         }
     }
 }

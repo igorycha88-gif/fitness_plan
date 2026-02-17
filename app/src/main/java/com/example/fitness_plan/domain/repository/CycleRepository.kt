@@ -1,6 +1,7 @@
 package com.example.fitness_plan.domain.repository
 
 import com.example.fitness_plan.domain.model.Cycle
+import com.example.fitness_plan.domain.model.CycleExerciseHistory
 import com.example.fitness_plan.domain.model.CycleHistoryEntry
 import kotlinx.coroutines.flow.Flow
 
@@ -15,4 +16,8 @@ interface CycleRepository {
     suspend fun getCompletedDate(username: String): Long?
     suspend fun hasActiveCycle(username: String): Boolean
     fun getCycleHistory(username: String): Flow<List<CycleHistoryEntry>>
+    
+    suspend fun saveExerciseHistory(username: String, history: CycleExerciseHistory)
+    fun getExerciseHistory(username: String): Flow<List<CycleExerciseHistory>>
+    suspend fun getLatestExerciseHistory(username: String): CycleExerciseHistory?
 }

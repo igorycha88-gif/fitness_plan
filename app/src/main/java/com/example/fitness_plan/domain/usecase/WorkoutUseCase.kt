@@ -286,6 +286,19 @@ class WorkoutUseCase @Inject constructor(
         setSelectedPlanType(username, com.example.fitness_plan.domain.repository.SelectedPlanType.AUTO)
     }
 
+    suspend fun updateUserWorkoutDayDate(username: String, dayIndex: Int, newDate: Long?) {
+        val currentPlan = getUserWorkoutPlan(username).first() ?: return
+        val updatedDays = currentPlan.days.mapIndexed { index, day ->
+            if (index == dayIndex) {
+                day.copy(scheduledDate = newDate)
+            } else {
+                day
+            }
+        }
+        val updatedPlan = currentPlan.copy(days = updatedDays)
+        workoutRepository.saveUserWorkoutPlan(username, updatedPlan)
+    }
+
     fun getUserWorkoutPlan(username: String): Flow<WorkoutPlan?> {
         return workoutRepository.getUserWorkoutPlan(username)
     }
