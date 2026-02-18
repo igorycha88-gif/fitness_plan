@@ -10,9 +10,11 @@ import com.example.fitness_plan.domain.model.ExerciseStats
 import com.example.fitness_plan.domain.model.UserProfile
 import com.example.fitness_plan.domain.model.WorkoutPlan
 import com.example.fitness_plan.domain.model.WorkoutDay
+import com.example.fitness_plan.domain.model.SmartwatchData
 import com.example.fitness_plan.domain.repository.CycleRepository
 import com.example.fitness_plan.domain.repository.ExerciseStatsRepository
 import com.example.fitness_plan.domain.repository.UserRepository
+import com.example.fitness_plan.domain.repository.HealthConnectRepository
 import com.example.fitness_plan.domain.usecase.CycleUseCase
 import com.example.fitness_plan.domain.usecase.WorkoutUseCase
 import com.example.fitness_plan.domain.usecase.WeightProgressionUseCase
@@ -20,8 +22,10 @@ import com.example.fitness_plan.domain.usecase.ExerciseLibraryUseCase
 import com.example.fitness_plan.domain.model.ExerciseLibrary
 import com.example.fitness_plan.domain.calculator.WeightCalculator
 import com.example.fitness_plan.notification.NotificationHelper
+import com.example.fitness_plan.ui.HealthConnectState
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -42,7 +46,8 @@ class WorkoutViewModel @Inject constructor(
     private val workoutUseCase: WorkoutUseCase,
     private val weightCalculator: WeightCalculator,
     private val exerciseLibraryUseCase: ExerciseLibraryUseCase,
-    private val exerciseCompletionRepo: com.example.fitness_plan.domain.repository.ExerciseCompletionRepository
+    private val exerciseCompletionRepo: com.example.fitness_plan.domain.repository.ExerciseCompletionRepository,
+    private val healthConnectRepository: HealthConnectRepository
 ) : ViewModel() {
 
     private val _currentWorkoutPlan = MutableStateFlow<WorkoutPlan?>(null)
@@ -542,5 +547,132 @@ class WorkoutViewModel @Inject constructor(
 
     fun toggleUserPlanExpanded() {
         _isUserPlanExpanded.value = !_isUserPlanExpanded.value
+    }
+
+    private val _healthConnectState = MutableStateFlow<HealthConnectState>(HealthConnectState.Checking)
+    val healthConnectState: StateFlow<HealthConnectState> = _healthConnectState.asStateFlow()
+
+    private val _smartwatchData = MutableStateFlow<SmartwatchData?>(null)
+    val smartwatchData: StateFlow<SmartwatchData?> = _smartwatchData.asStateFlow()
+
+    private val _requestHealthPermissions = MutableStateFlow(false)
+    val requestHealthPermissions: StateFlow<Boolean> = _requestHealthPermissions.asStateFlow()
+
+    private var healthMonitoringJob: Job? = null
+    private var currentUserAge: Int = 30
+
+    fun checkHealthConnectAvailability() {
+        viewModelScope.launch {
+            _healthConnectState.value = HealthConnectState.Checking
+            
+            val isAvailable = healthConnectRepository.checkAvailability()
+            if (!isAvailable) {
+                _healthConnectState.value = HealthConnectState.NotAvailable
+                return@launch
+            }
+
+            val hasPermissions = healthConnectRepository.checkPermissions()
+            if (!hasPermissions) {
+                _healthConnectState.value = HealthConnectState.NoPermissions
+                return@launch
+            }
+
+            val hasRecentData = healthConnectRepository.hasRecentData()
+            if (hasRecentData) {
+                startHealthMonitoring()
+            } else {
+                _healthConnectState.value = HealthConnectState.Disconnected
+            }
+        }
+    }
+
+    fun requestHealthConnectPermissions() {
+        Log.d(TAG, "requestHealthConnectPermissions: triggering permission request")
+        _requestHealthPermissions.value = true
+    }
+
+    fun onPermissionRequestHandled() {
+        _requestHealthPermissions.value = false
+    }
+
+    fun onPermissionsResult(granted: Boolean) {
+        Log.d(TAG, "onPermissionsResult: granted=$granted")
+        if (granted) {
+            checkHealthConnectAvailability()
+        } else {
+            _healthConnectState.value = HealthConnectState.NoPermissions
+        }
+    }
+
+    fun startHealthMonitoring() {
+        healthMonitoringJob?.cancel()
+        healthMonitoringJob = viewModelScope.launch {
+            healthConnectRepository.setCurrentUserAge(currentUserAge)
+            healthConnectRepository.startMonitoring(currentUserAge).collect { data ->
+                _smartwatchData.value = data
+                _healthConnectState.value = HealthConnectState.Connected(data.timestamp)
+            }
+        }
+    }
+
+    fun stopHealthMonitoring() {
+        healthMonitoringJob?.cancel()
+        healthMonitoringJob = null
+        healthConnectRepository.stopMonitoring()
+    }
+
+    fun setCurrentUserAge(age: Int) {
+        currentUserAge = age
+        healthConnectRepository.setCurrentUserAge(age)
+    }
+
+    fun saveExerciseStatsWithBiometrics(
+        exerciseName: String,
+        weight: Double,
+        reps: Int,
+        setNumber: Int,
+        sets: Int,
+        duration: Int = 0
+    ) {
+        val currentData = _smartwatchData.value
+        Log.d(TAG, "=== Сохранение статистики с биометрией ===")
+        Log.d(TAG, "Упражнение: $exerciseName")
+        Log.d(TAG, "Биометрические данные: $currentData")
+
+        viewModelScope.launch {
+            val username = _currentUsername.value
+            if (username.isNotEmpty()) {
+                val stats = ExerciseStats(
+                    exerciseName = exerciseName,
+                    date = System.currentTimeMillis(),
+                    weight = weight,
+                    reps = reps,
+                    setNumber = setNumber,
+                    sets = sets,
+                    duration = duration,
+                    avgHeartRate = currentData?.heartRateAvg,
+                    minHeartRate = currentData?.heartRateMin,
+                    maxHeartRate = currentData?.heartRateMax,
+                    caloriesBurned = currentData?.caloriesBurned,
+                    activeDuration = currentData?.activeDuration,
+                    heartRateZone = currentData?.heartRateZone?.name
+                )
+                workoutUseCase.saveExerciseStats(
+                    username,
+                    exerciseName,
+                    weight,
+                    reps,
+                    setNumber,
+                    sets,
+                    duration
+                )
+                Log.d(TAG, "✅ Статистика с биометрией сохранена: avgHr=${stats.avgHeartRate}, calories=${stats.caloriesBurned}")
+            }
+        }
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        stopHealthMonitoring()
     }
 }

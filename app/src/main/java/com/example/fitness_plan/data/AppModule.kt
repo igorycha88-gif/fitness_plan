@@ -23,6 +23,8 @@ import com.example.fitness_plan.domain.repository.WeightRepository as DomainWeig
 import com.example.fitness_plan.domain.repository.WorkoutRepository
 import com.example.fitness_plan.domain.repository.BodyParametersRepository as DomainBodyParametersRepository
 import com.example.fitness_plan.domain.repository.WorkoutScheduleRepository as DomainWorkoutScheduleRepository
+import com.example.fitness_plan.domain.repository.HealthConnectRepository
+import com.example.fitness_plan.data.HealthConnectRepositoryImpl
 import com.example.fitness_plan.domain.usecase.AuthUseCase
 import com.example.fitness_plan.domain.usecase.CycleUseCase
 import com.example.fitness_plan.domain.usecase.ReferenceDataUseCase
@@ -316,5 +318,13 @@ object AppModule {
         credentialsRepository: ICredentialsRepository
     ): BodyParametersStatsViewModel {
         return BodyParametersStatsViewModel(bodyParametersUseCase, credentialsRepository)
+    }
+
+    @Provides
+    @Singleton
+    fun provideHealthConnectRepository(
+        @ApplicationContext context: Context
+    ): HealthConnectRepository {
+        return HealthConnectRepositoryImpl(context)
     }
 }

@@ -16,10 +16,10 @@ android {
         applicationId = "com.example.fitness_plan"
         compileSdk = 34
 
-        minSdk = 24
+        minSdk = 26
         targetSdk = 34
-        versionCode = 4
-        versionName = "2.2"
+        versionCode = 5
+        versionName = "2.3"
 
         testInstrumentationRunner = "dagger.hilt.android.testing.HiltTestRunner"
         testInstrumentationRunnerArguments["clearPackageData"] = "true"
@@ -138,4 +138,5 @@ dependencies {
     implementation("androidx.security:security-crypto:1.1.0-alpha06")
     implementation("com.patrykandpatrick.vico:compose-m3:2.0.0-beta.2")
     implementation("io.coil-kt:coil-compose:2.5.0")
+    implementation("androidx.health.connect:connect-client:1.1.0-alpha07")
 }

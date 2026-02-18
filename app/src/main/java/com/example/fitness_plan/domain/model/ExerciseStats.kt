@@ -7,10 +7,19 @@ data class ExerciseStats(
     val reps: Int,
     val setNumber: Int = 1,
     val sets: Int = 1,
-    val duration: Int = 0
+    val duration: Int = 0,
+    val avgHeartRate: Int? = null,
+    val minHeartRate: Int? = null,
+    val maxHeartRate: Int? = null,
+    val caloriesBurned: Double? = null,
+    val activeDuration: Long? = null,
+    val heartRateZone: String? = null
 ) {
     val volume: Long
         get() = (weight * reps).toLong()
+    
+    val hasBiometrics: Boolean
+        get() = avgHeartRate != null || caloriesBurned != null
 }
 
 data class DailyExerciseStats(

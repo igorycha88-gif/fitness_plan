@@ -45,6 +45,8 @@ fun ExerciseDetailScreen(
     val exerciseStats by workoutViewModel.exerciseStats.collectAsState()
     val alternativeLibraryExercises by workoutViewModel.alternativeExercises.collectAsState()
     val completedExercises by workoutViewModel.completedExercises.collectAsState()
+    val healthConnectState by workoutViewModel.healthConnectState.collectAsState()
+    val smartwatchData by workoutViewModel.smartwatchData.collectAsState()
 
     var exercise by remember { mutableStateOf<Exercise?>(null) }
     var selectedExercise by remember { mutableStateOf<Exercise?>(null) }
@@ -62,6 +64,13 @@ fun ExerciseDetailScreen(
             workoutViewModel.refreshAdminWorkoutPlan()
         } else {
             workoutViewModel.initializeWorkout()
+        }
+        workoutViewModel.checkHealthConnectAvailability()
+    }
+
+    DisposableEffect(Unit) {
+        onDispose {
+            workoutViewModel.stopHealthMonitoring()
         }
     }
 
@@ -236,6 +245,15 @@ fun ExerciseDetailScreen(
                     Spacer(modifier = Modifier.height(16.dp))
                 }
 
+                SmartwatchDataCard(
+                    smartwatchData = smartwatchData,
+                    healthConnectState = healthConnectState,
+                    onRequestPermissions = { workoutViewModel.requestHealthConnectPermissions() },
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
@@ -355,7 +373,9 @@ fun ExerciseDetailScreen(
                                                 equipment = alt.equipment,
                                                 exerciseType = alt.exerciseType,
                                                 stepByStepInstructions = alt.stepByStepInstructions,
-                                                animationUrl = alt.animationUrl
+                                                animationUrl = alt.animationUrl,
+                                                imageUrl = alt.imageUrl,
+                                                imageRes = alt.imageRes
                                             )
                                             expanded = false
                                         }
